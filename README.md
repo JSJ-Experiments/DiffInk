@@ -1,3 +1,8 @@
+> **Experimental English IAM adaptation:** see [English setup and CPU checks](docs/ENGLISH_IAM.md)
+> and [compatibility audit](docs/DIFFINK_AUDIT.md). No English training or weights
+> are included. Coordinate normalization and line-final state remain an explicit
+> baseline, not a verified reproduction of the authors' English preprocessing.
+
 <h1 align="center">
   DiffInk: Glyph- and Style-Aware Latent Diffusion Transformer  
   for Text to Online Handwriting Generation

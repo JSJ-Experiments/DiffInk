@@ -1,0 +1,3 @@
+# Install separately: pip install -r requirements-cpu.txt
+--index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu

@@ -230,7 +230,9 @@ class ValDataset(Dataset):
                 if char not in font_data:
                     raise ValueError(f"未知字符: {char}")
                 converted.append(font_data[char])
-            converted.append(font_data['、']) # one more char
+            # Preserve legacy Chinese behavior; English has no synthetic suffix.
+            if '、' in font_data:
+                converted.append(font_data['、'])
             char_idx.append(converted)
 
         text_tensor = [torch.tensor(lst, dtype=torch.long) for lst in char_idx]

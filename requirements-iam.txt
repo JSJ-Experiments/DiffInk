@@ -1,0 +1,5 @@
+modal==1.6.1
+Pillow==12.3.0
+numpy==2.5.3
+h5py==3.16.0
+matplotlib==3.11.2

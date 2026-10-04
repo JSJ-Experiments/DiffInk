@@ -42,6 +42,7 @@ def train_dit_one_epoch(dit, vae, train_loader, optimizer, scheduler, epoch, num
 
         latent_mask, latent_padding_mask, prefix_label_mask = build_prefix_mask_from_char_points(
             char_points_idx=char_points_idx,
+            point_seq=data,
             mask=mask,
             compression_factor=8,
             prefix_ratio=0.3
@@ -133,6 +134,7 @@ def tune_dit_one_epoch(dit, vae, train_loader, optimizer, scheduler, epoch, num_
 
         latent_mask, latent_padding_mask, prefix_mask = build_prefix_mask_from_char_points(
             char_points_idx=char_points_idx,
+            point_seq=data,
             mask=mask,
             compression_factor=8,
             prefix_ratio=0.3
@@ -205,6 +207,7 @@ def val_dit_one_batch(dit, vae, val_loader, device, save_path):
 
             latent_mask, latent_padding_mask, prefix_label_mask = build_prefix_mask_from_char_points(
                 char_points_idx=char_points_idx,
+                point_seq=data,
                 mask=mask,  # e.g., mask from dataloader
                 compression_factor=8,
                 prefix_ratio=0.3
@@ -269,6 +272,7 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
 
             latent_mask, latent_padding_mask, prefix_label_mask = build_prefix_mask_from_char_points(
                 char_points_idx=char_points_idx,
+                point_seq=data,
                 mask=mask,  # e.g., mask from dataloader
                 compression_factor=8,
                 prefix_ratio=0.3
@@ -300,8 +304,12 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
 
                 # 生成样本
                 recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, greedy=True) # T 5
-                plot_line_cv2_new(data[i], save_path=f"{save_path}/gt_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, max_dist=200)
-                plot_line_cv2_new(recon, save_path=f"{save_path}/recon_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, max_dist=200)
+                # Chinese renderer truncates at the penultimate character end;
+                # unaligned English has no internal character ends to truncate at.
+                draw_line = plot_line_cv2_new if len(char_points_idx[i]) else plot_line_cv2
+                draw_options = {"max_dist": 200} if len(char_points_idx[i]) else {}
+                draw_line(data[i], save_path=f"{save_path}/gt_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, **draw_options)
+                draw_line(recon, save_path=f"{save_path}/recon_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, **draw_options)
             
             # break
 

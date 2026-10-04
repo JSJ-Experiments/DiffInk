@@ -1,0 +1,163 @@
+diff --git a/README.md b/README.md
+index eefa8e2..819c6eb 100644
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,8 @@
++> **Experimental English IAM adaptation:** see [English setup and CPU checks](docs/ENGLISH_IAM.md)
++> and [compatibility audit](docs/DIFFINK_AUDIT.md). No English training or weights
++> are included. Coordinate normalization and line-final state remain an explicit
++> baseline, not a verified reproduction of the authors' English preprocessing.
++
+ <h1 align="center">
+   DiffInk: Glyph- and Style-Aware Latent Diffusion Transformer  
+   for Text to Online Handwriting Generation
+diff --git a/dataset/vae_dataset.py b/dataset/vae_dataset.py
+index d2a0668..086563c 100644
+--- a/dataset/vae_dataset.py
++++ b/dataset/vae_dataset.py
+@@ -230,7 +230,9 @@ class ValDataset(Dataset):
+                 if char not in font_data:
+                     raise ValueError(f"未知字符: {char}")
+                 converted.append(font_data[char])
+-            converted.append(font_data['、']) # one more char
++            # Preserve legacy Chinese behavior; English has no synthetic suffix.
++            if '、' in font_data:
++                converted.append(font_data['、'])
+             char_idx.append(converted)
+ 
+         text_tensor = [torch.tensor(lst, dtype=torch.long) for lst in char_idx]
+diff --git a/model/ocr.py b/model/ocr.py
+index 18c2904..c82d0db 100644
+--- a/model/ocr.py
++++ b/model/ocr.py
+@@ -76,8 +76,12 @@ class ChineseHandwritingOCR(nn.Module):
+         input_lengths = mask.sum(dim=1).to(torch.long)
+         target_lengths = (labels != -100).sum(dim=1).to(torch.long)
+ 
+-        # 过滤合法样本（CTC 要求 input_len >= 2 * target_len - 1 且 target_len > 0）
+-        valid_mask = (target_lengths > 0) & (input_lengths >= (2 * target_lengths - 1))
++        # CTC needs one extra timestep only for adjacent repeated labels.
++        # 2 * target_len - 1 is sufficient but NOT necessary, and incorrectly
++        # discards many cursive English lines after the VAE's 8x compression.
++        repeats = ((labels[:, 1:] == labels[:, :-1]) & (labels[:, 1:] != -100)).sum(dim=1)
++        required_lengths = target_lengths + repeats
++        valid_mask = (target_lengths > 0) & (input_lengths >= required_lengths)
+ 
+         if valid_mask.any():
+             input_lengths = input_lengths[valid_mask]
+diff --git a/trainer/dit_trainer.py b/trainer/dit_trainer.py
+index 6beeb3c..2de9f1f 100644
+--- a/trainer/dit_trainer.py
++++ b/trainer/dit_trainer.py
+@@ -42,6 +42,7 @@ def train_dit_one_epoch(dit, vae, train_loader, optimizer, scheduler, epoch, num
+ 
+         latent_mask, latent_padding_mask, prefix_label_mask = build_prefix_mask_from_char_points(
+             char_points_idx=char_points_idx,
++            point_seq=data,
+             mask=mask,
+             compression_factor=8,
+             prefix_ratio=0.3
+@@ -133,6 +134,7 @@ def tune_dit_one_epoch(dit, vae, train_loader, optimizer, scheduler, epoch, num_
+ 
+         latent_mask, latent_padding_mask, prefix_mask = build_prefix_mask_from_char_points(
+             char_points_idx=char_points_idx,
++            point_seq=data,
+             mask=mask,
+             compression_factor=8,
+             prefix_ratio=0.3
+@@ -205,6 +207,7 @@ def val_dit_one_batch(dit, vae, val_loader, device, save_path):
+ 
+             latent_mask, latent_padding_mask, prefix_label_mask = build_prefix_mask_from_char_points(
+                 char_points_idx=char_points_idx,
++                point_seq=data,
+                 mask=mask,  # e.g., mask from dataloader
+                 compression_factor=8,
+                 prefix_ratio=0.3
+@@ -269,6 +272,7 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
+ 
+             latent_mask, latent_padding_mask, prefix_label_mask = build_prefix_mask_from_char_points(
+                 char_points_idx=char_points_idx,
++                point_seq=data,
+                 mask=mask,  # e.g., mask from dataloader
+                 compression_factor=8,
+                 prefix_ratio=0.3
+@@ -300,8 +304,12 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
+ 
+                 # 生成样本
+                 recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, greedy=True) # T 5
+-                plot_line_cv2_new(data[i], save_path=f"{save_path}/gt_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, max_dist=200)
+-                plot_line_cv2_new(recon, save_path=f"{save_path}/recon_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, max_dist=200)
++                # Chinese renderer truncates at the penultimate character end;
++                # unaligned English has no internal character ends to truncate at.
++                draw_line = plot_line_cv2_new if len(char_points_idx[i]) else plot_line_cv2
++                draw_options = {"max_dist": 200} if len(char_points_idx[i]) else {}
++                draw_line(data[i], save_path=f"{save_path}/gt_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, **draw_options)
++                draw_line(recon, save_path=f"{save_path}/recon_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, **draw_options)
+             
+             # break
+ 
+diff --git a/utils/mask.py b/utils/mask.py
+index b62c005..dd20ac6 100644
+--- a/utils/mask.py
++++ b/utils/mask.py
+@@ -6,7 +6,17 @@ def build_prefix_mask_from_char_points(
+     compression_factor=4,
+     prefix_ratio=0.3,
+     max_label_len=None,
++    point_seq=None,  # Optional real trajectory for unaligned IAM lines.
+     ):
++    if len(char_points_idx) != mask.shape[0]:
++        raise ValueError("one alignment array is required per sample")
++    if any(len(x) == 0 for x in char_points_idx):
++        if not all(len(x) == 0 for x in char_points_idx):
++            raise ValueError("do not mix character-aligned and stroke-only samples")
++        if point_seq is None:
++            raise ValueError("unaligned IAM needs point_seq; refusing fake char alignment")
++        return build_prefix_mask_from_strokes(point_seq, mask, compression_factor, prefix_ratio)
++
+     B, T = mask.shape
+     device = mask.device
+ 
+@@ -49,4 +59,40 @@ def downsample_mask(mask, compression_factor):
+     valid_T = (T // compression_factor) * compression_factor
+     mask = mask[:, :valid_T]  # 保证整除
+     downsampled = mask.reshape(B, -1, compression_factor).float().mean(dim=2)
+-    return (downsampled > 0.0).float()  # 二值化
+\ No newline at end of file
++    return (downsampled > 0.0).float()  # 二值化
++
++def build_prefix_mask_from_strokes(point_seq, mask, compression_factor=8, prefix_ratio=0.3):
++    """IAM fallback: exclusive stroke end nearest target fraction of real points.
++
++    Returns the same THREE temporal masks as the released char-prefix helper.
++    No character boundaries or labels are fabricated. No full-line reference
++    when prefix_ratio < 1; a one-stroke line gets an empty reference.
++    """
++    if not 0 <= prefix_ratio <= 1:
++        raise ValueError("prefix_ratio must lie in [0, 1]")
++    if compression_factor < 1 or mask.shape[1] % compression_factor:
++        raise ValueError("sequence must be padded to the compression multiple")
++    B, T = mask.shape
++    if point_seq.shape == (B, 5, T):
++        point_seq = point_seq.transpose(1, 2)
++    if point_seq.shape != (B, T, 5):
++        raise ValueError("expected B×T×5 or B×5×T trajectory")
++    full_mask = torch.zeros(B, T, dtype=torch.float32, device=mask.device)
++    for b in range(B):
++        n = int(mask[b].sum().item())
++        if not bool(mask[b, :n].all()) or bool(mask[b, n:].any()):
++            raise ValueError("valid mask must be a contiguous prefix")
++        ends = torch.nonzero(point_seq[b, :n, 2] == 0, as_tuple=False).flatten() + 1
++        if n and (not len(ends) or int(ends[-1]) != n):
++            raise ValueError("trajectory lacks final stroke boundary")
++        if prefix_ratio == 0 or n == 0:
++            cutoff = 0
++        elif prefix_ratio == 1:
++            cutoff = n
++        else:
++            candidates = ends[ends < n]
++            cutoff = (int(candidates[torch.argmin(torch.abs(candidates.float() - n * prefix_ratio))])
++                      if len(candidates) else 0)
++        full_mask[b, :cutoff] = 1
++    return (1.0 - downsample_mask(full_mask, compression_factor),
++            downsample_mask(mask, compression_factor), 1.0 - full_mask)

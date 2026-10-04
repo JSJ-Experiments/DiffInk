@@ -6,7 +6,17 @@ def build_prefix_mask_from_char_points(
     compression_factor=4,
     prefix_ratio=0.3,
     max_label_len=None,
+    point_seq=None,  # Optional real trajectory for unaligned IAM lines.
     ):
+    if len(char_points_idx) != mask.shape[0]:
+        raise ValueError("one alignment array is required per sample")
+    if any(len(x) == 0 for x in char_points_idx):
+        if not all(len(x) == 0 for x in char_points_idx):
+            raise ValueError("do not mix character-aligned and stroke-only samples")
+        if point_seq is None:
+            raise ValueError("unaligned IAM needs point_seq; refusing fake char alignment")
+        return build_prefix_mask_from_strokes(point_seq, mask, compression_factor, prefix_ratio)
+
     B, T = mask.shape
     device = mask.device
 
@@ -50,3 +60,39 @@ def downsample_mask(mask, compression_factor):
     mask = mask[:, :valid_T]  # 保证整除
     downsampled = mask.reshape(B, -1, compression_factor).float().mean(dim=2)
     return (downsampled > 0.0).float()  # 二值化
+
+def build_prefix_mask_from_strokes(point_seq, mask, compression_factor=8, prefix_ratio=0.3):
+    """IAM fallback: exclusive stroke end nearest target fraction of real points.
+
+    Returns the same THREE temporal masks as the released char-prefix helper.
+    No character boundaries or labels are fabricated. No full-line reference
+    when prefix_ratio < 1; a one-stroke line gets an empty reference.
+    """
+    if not 0 <= prefix_ratio <= 1:
+        raise ValueError("prefix_ratio must lie in [0, 1]")
+    if compression_factor < 1 or mask.shape[1] % compression_factor:
+        raise ValueError("sequence must be padded to the compression multiple")
+    B, T = mask.shape
+    if point_seq.shape == (B, 5, T):
+        point_seq = point_seq.transpose(1, 2)
+    if point_seq.shape != (B, T, 5):
+        raise ValueError("expected B×T×5 or B×5×T trajectory")
+    full_mask = torch.zeros(B, T, dtype=torch.float32, device=mask.device)
+    for b in range(B):
+        n = int(mask[b].sum().item())
+        if not bool(mask[b, :n].all()) or bool(mask[b, n:].any()):
+            raise ValueError("valid mask must be a contiguous prefix")
+        ends = torch.nonzero(point_seq[b, :n, 2] == 0, as_tuple=False).flatten() + 1
+        if n and (not len(ends) or int(ends[-1]) != n):
+            raise ValueError("trajectory lacks final stroke boundary")
+        if prefix_ratio == 0 or n == 0:
+            cutoff = 0
+        elif prefix_ratio == 1:
+            cutoff = n
+        else:
+            candidates = ends[ends < n]
+            cutoff = (int(candidates[torch.argmin(torch.abs(candidates.float() - n * prefix_ratio))])
+                      if len(candidates) else 0)
+        full_mask[b, :cutoff] = 1
+    return (1.0 - downsample_mask(full_mask, compression_factor),
+            downsample_mask(mask, compression_factor), 1.0 - full_mask)
