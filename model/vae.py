@@ -109,41 +109,10 @@ class VAE(nn.Module):
         return loss
 
     def get_ocr_loss(self, features, labels, mask=None):
-        outputs = self.ocr_model(features)  # [T, B, C]
-        outputs = torch.clamp(outputs, -30.0, 30.0)
-        log_probs = outputs.log_softmax(2)
+        # VAE.forward uses this method, not a standalone OCR helper test.
+        # Share the implementation so the two paths cannot drift again.
+        return self.ocr_model.get_ocr_loss(features, labels, mask)
 
-        # 排除padding和前缀label（如果有）
-        labels = labels + 1
-        labels[labels == 0] = -100
-
-        input_lengths = mask.sum(dim=1).to(torch.long)
-        target_lengths = (labels != -100).sum(dim=1).to(torch.long)
-
-        # 过滤合法样本（CTC 要求 input_len >= 2 * target_len - 1 且 target_len > 0）
-        valid_mask = (target_lengths > 0) & (input_lengths >= (2 * target_lengths - 1))
-
-        if valid_mask.any():
-            input_lengths = input_lengths[valid_mask]
-            target_lengths = target_lengths[valid_mask]
-            log_probs = log_probs[:, valid_mask, :]
-            labels = labels[valid_mask]
-
-            try:
-                loss = self.ctc(log_probs, labels, input_lengths, target_lengths)
-            except Exception as e:
-                print("🔥 CTC.backward() failed")
-                print("input_lengths:", input_lengths)
-                print("target_lengths:", target_lengths)
-                print("log_probs shape:", log_probs.shape)
-                print("labels shape:", labels.shape)
-                raise e
-        else:
-            print("⚠️ 所有样本无效，返回0 loss 保持图连通")
-            loss = torch.tensor(0.0, requires_grad=True, device=features.device)
-
-        return loss
-    
     @torch.no_grad()
     def val(self, data):
         z, mu, logvar = self.encode(data)

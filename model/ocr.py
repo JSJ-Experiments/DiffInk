@@ -90,7 +90,7 @@ class ChineseHandwritingOCR(nn.Module):
             labels = labels[valid_mask]
 
             try:
-                loss = self.ctc(log_probs, labels, input_lengths, target_lengths)
+                loss = self.ctc(log_probs, labels, input_lengths.cpu(), target_lengths.cpu())
             except Exception as e:
                 print("🔥 CTC.backward() failed")
                 print("input_lengths:", input_lengths)
@@ -99,8 +99,8 @@ class ChineseHandwritingOCR(nn.Module):
                 print("labels shape:", labels.shape)
                 raise e
         else:
-            print("⚠️ 所有样本无效，返回0 loss 保持图连通")
-            loss = torch.tensor(0.0, requires_grad=True, device=features.device)
+            # Preserve graph connectivity without a standalone leaf constant.
+            loss = log_probs.sum() * 0.0
 
         return loss
     

@@ -62,10 +62,20 @@ def check(out, repo, batch_size=4):
                            'prefix_end_points':[(row==0).sum().item() for row in suffix],
                            'latent_mask_shape':list(latent.shape),'writer_count':len(writers[split])}
         finally:dataset.hf.close()
-    if membership['train']&membership['val'] or writers['train']&writers['val']:
-        raise AssertionError('split leakage')
+    same_writer_overfit=manifest.get('split_policy')=='same-writers-line-disjoint-overfit'
+    if membership['train']&membership['val']:raise AssertionError('line split leakage')
+    if same_writer_overfit:
+        if writers['train']!=writers['val']:raise AssertionError('overfit writers differ between splits')
+        from collections import Counter
+        for split in ('train','val'):
+            with h5py.File(out/f'tiny_{split}.h5') as hf:
+                counts=Counter(hf[k]['writer_id'][()].decode() for k in hf)
+            quota=manifest['lines_per_writer'] if split=='train' else manifest['val_lines_per_writer']
+            if set(counts.values())!={quota}:raise AssertionError('unbalanced writer quotas')
+            report[split]['lines_per_writer']=quota
+    elif writers['train']&writers['val']:raise AssertionError('writer split leakage')
     if reserved & (writers['train']|writers['val']):raise AssertionError('test writer leakage')
-    report.update({'reserved_test_writers':len(reserved),'ctc_targets_feasible':True,'training':False,'gpu':False,'device':'cpu','writer_disjoint':True,
+    report.update({'reserved_test_writers':len(reserved),'ctc_targets_feasible':True,'training':False,'gpu':False,'device':'cpu','writer_disjoint':not bool(writers['train']&writers['val']),'line_disjoint':True,'overfit_same_writers':same_writer_overfit,
                    'repo':str(repo),'upstream_commit':'97bc6a3c39a5bdaa9728daaab6d3707480006343',
                    'patch':'English val token + stroke prefix + exact CTC feasibility; TrainDataset unchanged'})
     (out/'batch_check.json').write_text(json.dumps(report,indent=2)+'\n')

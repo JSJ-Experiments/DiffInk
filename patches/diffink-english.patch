@@ -1,16 +1,3 @@
-diff --git a/README.md b/README.md
-index eefa8e2..819c6eb 100644
---- a/README.md
-+++ b/README.md
-@@ -1,3 +1,8 @@
-+> **Experimental English IAM adaptation:** see [English setup and CPU checks](docs/ENGLISH_IAM.md)
-+> and [compatibility audit](docs/DIFFINK_AUDIT.md). No English training or weights
-+> are included. Coordinate normalization and line-final state remain an explicit
-+> baseline, not a verified reproduction of the authors' English preprocessing.
-+
- <h1 align="center">
-   DiffInk: Glyph- and Style-Aware Latent Diffusion Transformer  
-   for Text to Online Handwriting Generation
 diff --git a/dataset/vae_dataset.py b/dataset/vae_dataset.py
 index d2a0668..086563c 100644
 --- a/dataset/vae_dataset.py
@@ -27,7 +14,7 @@ index d2a0668..086563c 100644
  
          text_tensor = [torch.tensor(lst, dtype=torch.long) for lst in char_idx]
 diff --git a/model/ocr.py b/model/ocr.py
-index 18c2904..c82d0db 100644
+index 18c2904..738e22b 100644
 --- a/model/ocr.py
 +++ b/model/ocr.py
 @@ -76,8 +76,12 @@ class ChineseHandwritingOCR(nn.Module):
@@ -45,6 +32,76 @@ index 18c2904..c82d0db 100644
  
          if valid_mask.any():
              input_lengths = input_lengths[valid_mask]
+@@ -86,7 +90,7 @@ class ChineseHandwritingOCR(nn.Module):
+             labels = labels[valid_mask]
+ 
+             try:
+-                loss = self.ctc(log_probs, labels, input_lengths, target_lengths)
++                loss = self.ctc(log_probs, labels, input_lengths.cpu(), target_lengths.cpu())
+             except Exception as e:
+                 print("🔥 CTC.backward() failed")
+                 print("input_lengths:", input_lengths)
+@@ -95,8 +99,8 @@ class ChineseHandwritingOCR(nn.Module):
+                 print("labels shape:", labels.shape)
+                 raise e
+         else:
+-            print("⚠️ 所有样本无效，返回0 loss 保持图连通")
+-            loss = torch.tensor(0.0, requires_grad=True, device=features.device)
++            # Preserve graph connectivity without a standalone leaf constant.
++            loss = log_probs.sum() * 0.0
+ 
+         return loss
+     
+\ No newline at end of file
+diff --git a/model/vae.py b/model/vae.py
+index d4e0e30..15cba45 100644
+--- a/model/vae.py
++++ b/model/vae.py
+@@ -109,41 +109,10 @@ class VAE(nn.Module):
+         return loss
+ 
+     def get_ocr_loss(self, features, labels, mask=None):
+-        outputs = self.ocr_model(features)  # [T, B, C]
+-        outputs = torch.clamp(outputs, -30.0, 30.0)
+-        log_probs = outputs.log_softmax(2)
+-
+-        # 排除padding和前缀label（如果有）
+-        labels = labels + 1
+-        labels[labels == 0] = -100
+-
+-        input_lengths = mask.sum(dim=1).to(torch.long)
+-        target_lengths = (labels != -100).sum(dim=1).to(torch.long)
+-
+-        # 过滤合法样本（CTC 要求 input_len >= 2 * target_len - 1 且 target_len > 0）
+-        valid_mask = (target_lengths > 0) & (input_lengths >= (2 * target_lengths - 1))
+-
+-        if valid_mask.any():
+-            input_lengths = input_lengths[valid_mask]
+-            target_lengths = target_lengths[valid_mask]
+-            log_probs = log_probs[:, valid_mask, :]
+-            labels = labels[valid_mask]
+-
+-            try:
+-                loss = self.ctc(log_probs, labels, input_lengths, target_lengths)
+-            except Exception as e:
+-                print("🔥 CTC.backward() failed")
+-                print("input_lengths:", input_lengths)
+-                print("target_lengths:", target_lengths)
+-                print("log_probs shape:", log_probs.shape)
+-                print("labels shape:", labels.shape)
+-                raise e
+-        else:
+-            print("⚠️ 所有样本无效，返回0 loss 保持图连通")
+-            loss = torch.tensor(0.0, requires_grad=True, device=features.device)
++        # VAE.forward uses this method, not a standalone OCR helper test.
++        # Share the implementation so the two paths cannot drift again.
++        return self.ocr_model.get_ocr_loss(features, labels, mask)
+ 
+-        return loss
+-    
+     @torch.no_grad()
+     def val(self, data):
+         z, mu, logvar = self.encode(data)
 diff --git a/trainer/dit_trainer.py b/trainer/dit_trainer.py
 index 6beeb3c..2de9f1f 100644
 --- a/trainer/dit_trainer.py

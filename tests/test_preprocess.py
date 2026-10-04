@@ -70,8 +70,6 @@ class PreprocessTests(unittest.TestCase):
         if old.returncode:self.skipTest('upstream commit not locally available')
         self.assertEqual(old.stdout.split('class ValDataset')[0],(REPO/'dataset/vae_dataset.py').read_text().split('class ValDataset')[0])
 
-if __name__=='__main__':unittest.main()
-
 class OCRCompatibilityTests(unittest.TestCase):
     def test_english_ctc_uses_exact_not_conservative_length(self):
         ocr=load_module(REPO/'model/ocr.py','ocr_check')
@@ -81,3 +79,5 @@ class OCRCompatibilityTests(unittest.TestCase):
             loss=model.get_ocr_loss(torch.randn(1,4,3),torch.tensor([[0,1,2]]),torch.ones(1,3,dtype=torch.bool))
         self.assertTrue(torch.isfinite(loss))
         self.assertGreater(float(loss),0)
+
+if __name__=='__main__':unittest.main()

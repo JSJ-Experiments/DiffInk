@@ -1,0 +1,43 @@
+# Experimental mechanics test, not a paper reproduction. No training by default.
+data_root: /data/diffink/iam_overfit
+train_file: tiny_train.h5
+val_file: tiny_val.h5
+text_file: chars.json
+writer_file: writers.json
+output_base: /data/checkpoints/iam_overfit
+in_channels: 5
+latent_dim: 384
+hidden_dims: [128, 256, 384]
+decoder_dims: [384, 256, 128]
+decoder_output_dim: 123
+trans_hidden_dim: 256
+trans_num_heads: 4
+trans_num_layers: 3
+ocr_hidden_dim: 384
+ocr_num_heads: 4
+ocr_num_layers: 3
+style_classifier_dim: 384
+# num_text_embedding and num_writer are derived from this dataset at runtime.
+train_batch_size: 2
+num_workers: 0
+aug_prob: 0.0
+seed: 42
+max_steps: 200
+max_wall_seconds: 600
+save_every: 50
+base_lr: 0.00015
+betas: [0.9, 0.99]
+weight_decay: 0.0001
+grad_clip: 10.0
+kl_weight: 0.0000001
+gmm_weight: 0.1
+pen_weight: 1.0
+ctc_weight: 1.0
+style_weight: 0.1
+# Same Gaussian-mixture density, evaluated in log space (no +1e-8 PDF floor).
+gmm_logspace: true
+# Reversible model-unit adapter: stored RDP geometry stays height=100.
+# Direct height-100 input overflows the randomly initialized latent variance.
+model_input_scale: 0.01
+experimental_normalization: true
+experimental_character_ends: true

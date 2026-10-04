@@ -96,3 +96,69 @@ plan an InkVAE overfit experiment. LaTeX/Markdown layout is not implemented.
 - Three actual before/after pairs were visually inspected in a contact sheet:
   orientation, letter shapes, and stroke separation were preserved. This is a
   spot check, not a review of all 300 labels or a mathematical quality claim.
+
+## Follow-up correction: real VAE CTC path and mechanics preparation
+
+The initial CTC patch/test covered `ChineseHandwritingOCR.get_ocr_loss`, but
+**not** the separate duplicate implementation invoked by `VAE.forward`.
+That omission is corrected: `VAE.get_ocr_loss` now delegates to the shared OCR
+implementation. Four regression tests invoke the actual `VAE.forward` path,
+including distinct targets at the exact minimum length, padding, repeated
+labels, and equality with the shared helper. CTC lengths are copied to CPU
+before CTCLoss for backend portability. All-invalid targets return a
+model-connected zero instead of a detached leaf constant.
+
+The user's reported eligibility counts were reproduced: the old VAE filter
+would wrongly reject 241/250 training and 47/50 validation lines. The correction
+changes no IAM coordinates, RDP points, transcripts, or writer splits.
+
+Builds now stage both generated directories and replace them only after a
+complete successful conversion. Successful rebuilds remove stale files;
+failed conversion preserves previous artifacts. The raw directories are
+protected from output overlap. Local tiny artifacts now have exactly 300 raw
+JSONs and 10 comparison previews. Publishing prunes stale generated remote
+JSONs/previews after uploading a successful build, and never modifies raw IAM.
+
+The dedicated `iam_overfit` dataset uses eight non-test, non-held-out-val
+writers: 24 training lines each (192 total) and four different validation lines
+each (32 total). This intentionally **shares writer identities**, not line IDs,
+for a mechanics/style-classifier check; it is not a held-out-writer benchmark.
+The original 250/50 writer-disjoint loader dataset remains separate. The 25
+future-test writers remain excluded from both datasets.
+
+### Additional numerical findings from the full CPU model
+
+A real 13,633,109-parameter VAE forward check, not just loader instantiation,
+found NaNs on direct height-100 input: the first line's learned log-variance at
+random initialization reached approximately 168. The new single-GPU mechanics
+config uses a **reversible model-input multiplier 0.01** on x,y. Stored HDF5,
+canonical JSON, and RDP remain unchanged; predictions are converted back for
+visualization, and the multiplier is saved in checkpoints. Thus the model sees
+height 1 and effective RDP tolerance 0.005. This is an experimental numerical
+adapter, NOT the authors' verified English normalization.
+
+The upstream probability-space GMM loss also saturates at its `+1e-8` density
+floor for ~25% of this first batch even after that adapter. The new English
+mechanics runner evaluates the same correlated Gaussian mixture in log space
+using `logsumexp`, and masks both coordinate and pen losses at padded points.
+It does not silently change the original trainer/GMM functions. A static
+loss-gradient test checks nonzero finite mean gradients at far coordinates;
+no optimizer or model update is involved.
+
+With the explicit adapter and log-space loss, the full CPU forward check
+passes: input `[1,584,5]`, output `[1,123,584]`, eight writer classes, 82 OCR
+classes (81 vocabulary characters + CTC blank), finite losses, CTC ≈6.19 and
+style ≈2.26. The report records zero optimizer steps, config/manifest SHA256s,
+and both experimental caveats. This does not validate CUDA execution or prove
+that a model can reconstruct training trajectories yet.
+
+Prepared, not executed: `configs/vae_iam_overfit.yaml`, `modal_inkvae.py`, and
+`iam_tools.inkvae`. The Modal job is one L4, at most 200 optimizer steps and
+600 training-loop seconds, with a 900-second container timeout. Both `--train`
+and `--allow-experimental` are required to invoke the remote GPU function.
+The CPU smoke report must match the exact config and dataset before optimizer
+creation. Metrics, checkpoints, and train/val reconstruction previews are saved
+on the Volume. No GPU has been allocated or training run during these fixes.
+
+Follow-up suite: 25 tests pass in both the workspace and fork checkout. No GPU
+training has run; the real VAE CTC path and staged-rebuild rollback are tested.

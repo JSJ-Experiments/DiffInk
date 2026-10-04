@@ -4,6 +4,8 @@ import html
 import json
 from pathlib import Path
 import random
+import tempfile
+import os
 import xml.etree.ElementTree as ET
 import h5py
 import numpy as np
@@ -54,7 +56,7 @@ def comparison(sample, seq, out):
     combined.save(out/(sample['id']+'-comparison.png'))
 
 
-def build(raw, canonical, out, train_size=250, val_size=50, holdout_writers=25, seed=42, height=100.0, epsilon=0.5, val_writers=5):
+def _build_into(raw, canonical, out, train_size=250, val_size=50, holdout_writers=25, seed=42, height=100.0, epsilon=0.5, val_writers=5, overfit_writers=0, lines_per_writer=24, val_lines_per_writer=4):
     if min(train_size,val_size,holdout_writers,val_writers)<=0: raise ValueError('sizes must be positive')
     entries,rejected=inventory(raw)
     all_writers=sorted({e['writer_id'] for e in entries})
@@ -66,10 +68,15 @@ def build(raw, canonical, out, train_size=250, val_size=50, holdout_writers=25, 
     val_pool=[e for e in entries if e['writer_id'] in val_held]
     # Training-only vocabulary: no val labels used to grow the vocabulary.
     chars=sorted({c for e in train_pool for c in e['text']})
+    balance_rejections=[]
+    if overfit_writers:
+        train_pool,val_pool,balance_rejections=balanced_pools(train_pool,chars,rng,overfit_writers,lines_per_writer,val_lines_per_writer,height,epsilon)
+        train_size=overfit_writers*lines_per_writer
+        val_size=overfit_writers*val_lines_per_writer
     out=Path(out);canonical=Path(canonical)
     out.mkdir(parents=True,exist_ok=True);canonical.mkdir(parents=True,exist_ok=True)
     (out/'chars.json').write_text(json.dumps({c:i for i,c in enumerate(chars)},ensure_ascii=False,indent=2)+'\n')
-    selected={}; dropped=[]; preview_ids=[]; tag_inventory=set();point_counts=[]
+    selected={}; dropped=balance_rejections; preview_ids=[]; tag_inventory=set();point_counts=[]
     for split,pool,target in [('train',train_pool,train_size),('val',val_pool,val_size)]:
         pool=pool.copy();rng.shuffle(pool);selected[split]=[]
         temp=out/(f'tiny_{split}.h5.tmp')
@@ -114,21 +121,92 @@ def build(raw, canonical, out, train_size=250, val_size=50, holdout_writers=25, 
         sampled_writer_ids[split]=sorted({e['writer_id'] for e in entries if e['id'] in set(selected[split])})
     writers={'train':sampled_writer_ids['train'],'val':sampled_writer_ids['val'],
              'test':sorted(held),'all_training_writers':sorted(set(all_writers)-held-val_held),
-             'all_validation_writers':sorted(val_held)}
+             'all_validation_writers':sampled_writer_ids['val'] if overfit_writers else sorted(val_held)}
     (out/'writers.json').write_text(json.dumps(writers,indent=2)+'\n')
-    report={'stage':'tiny-english-loader-gate','training':False,'gpu':False,'paper_equivalent':False,
+    report={'stage':'english-overfit-preparation' if overfit_writers else 'tiny-english-loader-gate','training':False,'gpu':False,'paper_equivalent':False,
             'normalization':NORMALIZATION,'height':height,'rdp_epsilon':epsilon,'seed':seed,
             'paired_lines':len(entries),'paired_writers':len(all_writers),'vocabulary_size':len(chars),
             'vocabulary_source':'all safely paired training transcripts excluding test and validation writers',
-            'heldout_writers':sorted(held),'validation_writers':sorted(val_held),'sample_ids':selected,'sample_writers':sampled_writer_ids,
+            'heldout_writers':sorted(held),'validation_writers':sampled_writer_ids['val'] if overfit_writers else sorted(val_held),'excluded_validation_writers':sorted(val_held),'sample_ids':selected,'sample_writers':sampled_writer_ids,
             'rejected_forms':rejected,'rejected_candidates':dropped,'xml_tags_observed':sorted(tag_inventory),
             'processed_length_range':[min(point_counts),max(point_counts)],'previews':preview_ids,
-            'alignment':'empty char_points_idx; explicit exclusive stroke_points_idx; patched mask required'}
+            'alignment':'empty char_points_idx; explicit exclusive stroke_points_idx; patched mask required',
+            'split_policy':'same-writers-line-disjoint-overfit' if overfit_writers else 'writer-disjoint',
+            'lines_per_writer':lines_per_writer if overfit_writers else None,
+            'val_lines_per_writer':val_lines_per_writer if overfit_writers else None}
     (out/'manifest.json').write_text(json.dumps(report,indent=2)+'\n')
     imgs=''.join(f'<h2>{html.escape(i)}</h2><p>Raw above / encoded N×5 below</p><img style="max-width:100%" src="{i}-comparison.png">' for i in preview_ids)
     (out/'previews/index.html').write_text('<!doctype html><meta charset="utf-8"><title>IAM conversion comparison</title><h1>Experimental normalization + RDP 0.5</h1>'+imgs)
     return report
 
+
+
+def balanced_pools(pool, chars, rng, count, train_quota, val_quota, height, epsilon):
+    if min(count,train_quota,val_quota)<=0:
+        raise ValueError('writer count and quotas must be positive')
+    grouped={}
+    for e in pool:grouped.setdefault(e['writer_id'],[]).append(e)
+    quota=train_quota+val_quota
+    eligible=sorted(w for w,items in grouped.items() if len(items)>=quota)
+    rng.shuffle(eligible)
+    train=[];val=[];dropped=[];chosen=[]
+    for writer in eligible:
+        candidates=grouped[writer].copy();rng.shuffle(candidates);accepted=[]
+        for entry in candidates:
+            try:
+                sample=parse_line(entry['xml'],entry['text'],writer)
+                seq,*_=convert(sample,height,epsilon)
+                required=len(entry['text'])+sum(a==b for a,b in zip(entry['text'],entry['text'][1:]))
+                if not 200<=len(seq)<=2000:raise ValueError('loader length filter')
+                if (len(seq)+7)//8<required:raise ValueError('CTC infeasible')
+                if set(entry['text'])-set(chars):raise ValueError('training vocabulary OOV')
+                accepted.append(entry)
+            except (ValueError,KeyError,ET.ParseError) as exc:
+                dropped.append({'id':entry['id'],'reason':str(exc)})
+            if len(accepted)==quota:break
+        if len(accepted)<quota:
+            dropped.append({'writer_id':writer,'reason':f'only {len(accepted)}/{quota} acceptable lines'})
+            continue
+        train.extend(accepted[:train_quota]);val.extend(accepted[train_quota:]);chosen.append(writer)
+        if len(chosen)==count:return train,val,dropped
+    raise ValueError(f'only {len(chosen)}/{count} writers meet balanced quotas')
+
+
+def build(raw, canonical, out, **options):
+    """Stage a whole build, then replace generated dirs; never touch raw IAM.
+
+    Failed conversion preserves the previous complete artifacts. Successful
+    replacement removes stale canonical JSON/previews rather than accumulating
+    files from past manifests. Canonical and output paths must be disjoint.
+    """
+    raw=Path(raw).resolve();canonical=Path(canonical).absolute();out=Path(out).absolute()
+    targets=(canonical,out)
+    for target in targets:
+        if target.is_symlink():raise ValueError('generated output cannot be a symlink')
+        if target.exists() and not target.is_dir():raise ValueError('generated output must be a directory')
+        resolved=target.resolve()
+        if resolved==raw or resolved in raw.parents or raw in resolved.parents:
+            raise ValueError('generated output overlaps raw data')
+        if resolved in (Path('/'),Path.home(),Path.cwd()):raise ValueError('unsafe generated output path')
+        target.parent.mkdir(parents=True,exist_ok=True)
+    a,b=[p.resolve() for p in targets]
+    if a==b or a in b.parents or b in a.parents:raise ValueError('generated directories must be disjoint')
+    with tempfile.TemporaryDirectory(prefix='.iam-build-',dir=out.parent) as od, \
+         tempfile.TemporaryDirectory(prefix='.iam-build-',dir=canonical.parent) as cd:
+        staging=(Path(cd)/'canonical',Path(od)/'output')
+        report=_build_into(raw,*staging,**options)
+        promoted=[];backups={}
+        try:
+            for src,dst in zip(staging,targets):
+                if dst.exists():
+                    backup=src.parent/'previous';os.replace(dst,backup);backups[dst]=backup
+                os.replace(src,dst);promoted.append(dst)
+        except BaseException:
+            import shutil
+            for dst in reversed(promoted):shutil.rmtree(dst)
+            for dst,backup in backups.items():os.replace(backup,dst)
+            raise
+    return report
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)

@@ -6,7 +6,7 @@ experimental preprocessing, a tiny HDF5 exporter, and CPU loader validation.
 Fork: https://github.com/JSJ-Experiments/DiffInk/tree/english-iam
 
 This branch is based on upstream commit
-`97bc6a3c39a5bdaa9728daaab6d3707480006343`. Our four-file English compatibility
+`97bc6a3c39a5bdaa9728daaab6d3707480006343`. Our English compatibility
 patch is saved in `patches/diffink-english.patch`.
 
 ## Read this caveat first
@@ -120,3 +120,44 @@ Review before/after shape preservation, and confirm normalization/end-state
 choices against the authors' prepared English data or forthcoming multilingual
 code. Only then consider a tiny InkVAE overfit job. We have **not** proved model
 reconstruction, English generation, Markdown layout, or LaTeX handling.
+
+## Follow-up fixes and separate overfit preparation
+
+The earlier CTC test missed the duplicate `VAE.get_ocr_loss` used in the actual
+forward/training path. That is fixed by delegating to the shared helper, with
+regression tests through `VAE.forward`. The previous claim of a complete CTC
+training fix was premature; see the audit above for the correction.
+
+Generated-output rebuilds now replace completed directories rather than
+accumulating stale JSONs/previews. Failed conversion preserves the prior build;
+raw IAM is never cleaned. Publishing also removes stale generated remote files.
+
+A separate same-writer, **line-disjoint** mechanics dataset has eight writers
+×24 train lines (192) and ×4 val lines (32). This is not the original 250/50
+writer-disjoint dataset and is not a held-out-writer benchmark. Test writers
+remain reserved. Prepare/check it without training:
+
+```sh
+python -m iam_tools.overfit
+python -m iam_tools.check_batch --out data/diffink/iam_overfit
+python -m iam_tools.inkvae --data-root data/diffink/iam_overfit  # CPU forward only
+python publish_iam.py --overfit
+```
+
+The CPU smoke report is `data/diffink/iam_overfit/vae_smoke.json`. All actual
+model/loss terms are finite with the explicitly documented config. No optimizer
+step, backward pass on the model, or GPU allocation occurs in that smoke check.
+
+**Additional caveat:** direct height-100 input caused NaNs at initialization.
+The prepared mechanics config therefore multiplies model x,y by 0.01, leaving
+the stored RDP data unchanged; checkpoint and preview code preserve/undo the
+adapter. The new runner also uses a log-space GMM density, because upstream's
+PDF floor saturates. These are numerical mechanics choices, not paper-equivalent
+English preprocessing. The exact author normalization and internal character
+endings remain unresolved.
+
+A bounded single-L4 job is implemented in `modal_inkvae.py` and
+`configs/vae_iam_overfit.yaml`, but **has not been launched**. Its limits are 200
+steps / 600 loop seconds, and the container times out after 900 seconds. Both
+explicit flags `--train` and `--allow-experimental` are required; the default
+entrypoint never invokes the remote function. Approval to run it is still needed.
