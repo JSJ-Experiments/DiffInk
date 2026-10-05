@@ -156,8 +156,23 @@ PDF floor saturates. These are numerical mechanics choices, not paper-equivalent
 English preprocessing. The exact author normalization and internal character
 endings remain unresolved.
 
-A bounded single-L4 job is implemented in `modal_inkvae.py` and
+A bounded single-T4 job is implemented in `modal_inkvae.py` and
 `configs/vae_iam_overfit.yaml`, but **has not been launched**. Its limits are 200
 steps / 600 loop seconds, and the container times out after 900 seconds. Both
 explicit flags `--train` and `--allow-experimental` are required; the default
-entrypoint never invokes the remote function. Approval to run it is still needed.
+entrypoint never invokes the remote function. The user approved a first T4 mechanics run; results are recorded separately below.
+
+### Fixed-sample instrumentation for the first T4 run
+
+The runner evaluates the same train/validation line at step 0, 50, 100, 150,
+200 (or the budget-limited final step). `fixed_metrics.jsonl` records all loss
+terms, greedy OCR/CER, writer correctness, coordinate RMSE in model units and
+pen accuracy. Evaluation disables dropout and reuses a fixed latent-noise seed,
+restoring the training RNG and model mode afterward. Input and reconstruction
+renders use that same forward. Training metrics record nonzero/finite OCR and
+style gradient norms as a supervision diagnostic.
+
+Only one T4 container is permitted, with no automatic retries or GPU fallback.
+The run remains experimental: line normalization, internal character endings,
+the reversible input adapter, log-space GMM and masked reconstruction losses
+are not the authors' released English training pipeline.

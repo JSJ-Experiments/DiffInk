@@ -2,7 +2,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 import torch
-from iam_tools.inkvae import logspace_gmm_nll,train_opt_in
+from iam_tools.inkvae import logspace_gmm_nll,train_opt_in,fixed_evaluation,greedy_ctc,edit_distance
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -21,6 +21,28 @@ class SmokeRunnerTests(unittest.TestCase):
         grad=torch.autograd.grad(loss,mean)[0]
         self.assertTrue(torch.isfinite(loss));self.assertTrue(torch.isfinite(grad).all())
         self.assertTrue((grad!=0).all())
+
+    def test_fixed_evaluation_reuses_noise_and_preserves_training_rng(self):
+        model=torch.nn.Linear(2,2).train()
+        torch.manual_seed(123)
+        state=torch.random.get_rng_state().clone()
+        with fixed_evaluation(model,1042,'cpu'):
+            first=torch.randn(10)
+            self.assertFalse(model.training)
+            self.assertFalse(torch.is_grad_enabled())
+        self.assertTrue(model.training)
+        torch.testing.assert_close(state,torch.random.get_rng_state())
+        with fixed_evaluation(model,1042,'cpu'):second=torch.randn(10)
+        torch.testing.assert_close(first,second)
+        with self.assertRaises(RuntimeError):
+            with fixed_evaluation(model,1042,'cpu'):raise RuntimeError('test cleanup')
+        self.assertTrue(model.training)
+        torch.testing.assert_close(state,torch.random.get_rng_state())
+
+    def test_ctc_collapse_and_edit_distance(self):
+        self.assertEqual(greedy_ctc([1,1,0,1,2,2,0],['a','b']),'aab')
+        self.assertEqual(edit_distance('hello','helo'),1)
+        self.assertEqual(edit_distance('','abc'),3)
 
     def test_explicit_training_ack_required(self):
         with self.assertRaises(ValueError):train_opt_in('missing','missing',allow_experimental=False)

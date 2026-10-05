@@ -1,4 +1,4 @@
-"""Prepared single-L4 mechanics job. NOT launched without both explicit flags."""
+"""Prepared single-T4 mechanics job. NOT launched without both explicit flags."""
 from pathlib import Path
 import modal
 
@@ -14,7 +14,7 @@ image=(modal.Image.debian_slim(python_version='3.12')
        .add_local_file(str(repo/'configs/vae_iam_overfit.yaml'),'/app/configs/vae_iam_overfit.yaml')
        .workdir('/app'))
 
-@app.function(image=image,volumes={'/data':volume},gpu='L4',cpu=4,memory=16384,timeout=900)
+@app.function(image=image,volumes={'/data':volume},gpu='T4',cpu=4,memory=16384,timeout=900,retries=0,max_containers=1)
 def run_overfit():
     from iam_tools.inkvae import train_opt_in
     try:
@@ -33,5 +33,5 @@ def require_opt_in(train, allow_experimental):
 def main(train: bool=False,allow_experimental: bool=False):
     # Refusal is before ANY .remote invocation; importing this module allocates no GPU.
     if not require_opt_in(train,allow_experimental):
-        print('Training not launched. Prepared single-L4 config: at most 200 steps / 600 seconds.');return
+        print('Training not launched. Prepared single-T4 config: at most 200 steps / 600 seconds.');return
     print(run_overfit.remote())
