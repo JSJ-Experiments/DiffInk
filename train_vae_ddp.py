@@ -22,14 +22,13 @@ from torch.utils.data.distributed import DistributedSampler
 def strip_module_prefix(state_dict):
     return {k.replace("module.", ""): v for k, v in state_dict.items()}
 
-def train_vae(task_name, time):
+def train_vae(task_name, time, config_path="./configs/vae_config.yaml"):
     # === Setup DDP ===
     dist.init_process_group(backend='nccl')
     local_rank = int(os.environ["LOCAL_RANK"])
     torch.cuda.set_device(local_rank)
     device = torch.device(f"cuda:{local_rank}")
 
-    config_path = "./configs/vae_config.yaml"
     config_dict = load_config_from_yaml(config_path)
 
     train_loader, val_loader, config_dict = build_datasets_and_loaders_ddp(config_dict, ddp=True)
@@ -39,7 +38,7 @@ def train_vae(task_name, time):
     set_seed(42)
     vae = VAE(config).to(device)
 
-    optimizer, scheduler = dit_build_optimizer_and_scheduler(vae, config_dict, len(train_loader))
+    optimizer, scheduler = dit_build_optimizer_and_scheduler(vae, config_dict, (len(train_loader) + config_dict.get("gradient_accumulation_steps", 1) - 1) // config_dict.get("gradient_accumulation_steps", 1))
 
     # === load vae ====
     vae_model_path = config_dict.get("vae_model_path")
@@ -70,6 +69,17 @@ def train_vae(task_name, time):
         start_epoch = ckpt.get("epoch", 0)
     else:
         start_epoch = 0
+
+    if config_dict.get('anchor_gradient_fraction', 0) > 0 and config_dict.get('expected_xy_weight', 0) <= 0:
+        from itertools import islice
+        from model.losses import calibrate_anchor
+        vae.train()
+        calibration = calibrate_anchor(vae, list(islice(train_loader, config_dict.get('gradient_accumulation_steps', 1))),
+                                       config, device, config_dict['anchor_gradient_fraction'])
+        value = torch.tensor(calibration['weight'], device=device)
+        dist.all_reduce(value); value /= dist.get_world_size()
+        config.expected_xy_weight = config_dict['expected_xy_weight'] = float(value)
+        if local_rank == 0: print({'anchor_calibration_rank0': calibration, 'cross_rank_weight': float(value)})
 
     vae = DDP(vae, device_ids=[local_rank], find_unused_parameters=True)
 
@@ -105,4 +115,7 @@ if __name__ == "__main__":
     print("Time:", now)
     formatted_time = now.strftime("%m_%d_%H_%M")
     task_name = 'ink_vae'
-    train_vae(task_name, formatted_time)
+    import argparse
+    parser = argparse.ArgumentParser(); parser.add_argument('--config', default='./configs/vae_config.yaml')
+    args = parser.parse_args()
+    train_vae(task_name, formatted_time, args.config)

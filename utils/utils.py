@@ -19,6 +19,7 @@ def save_checkpoint(model, optimizer, scheduler, epoch, name, save_dir):
     ckpt_path = os.path.join(save_dir, name + "_epoch_" + str(epoch + 1) + ".pt")
     torch.save({
         'epoch': epoch,
+        'config': vars((model.module if hasattr(model, 'module') else model).config),
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict() if optimizer else None,
         'scheduler_state_dict': scheduler.state_dict() if scheduler else None,

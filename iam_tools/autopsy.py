@@ -48,7 +48,7 @@ def coordinate_forward(model,batch,cfg,device):
     mask=mask.to(device)
     # Flags actually suppress auxiliary forwards; zero loss weights alone are insufficient.
     output,ctc,kl,style=model(data.transpose(1,2),downsample_mask(mask,8),text.to(device),writers.to(device),
-                           get_ctc_loss=False,get_style_loss=False)
+                           get_ctc_loss=False,get_style_loss=False,input_is_model_space=True)
     pi,mx,my,sx,sy,rho,pen,logits=get_mixture_coef_max(output,20)
     element=logspace_gmm_nll(pi,mx,my,sx,sy,rho,data[:,:,:1].transpose(1,2),data[:,:,1:2].transpose(1,2))
     loss=element[mask].mean() # only this term participates in backward

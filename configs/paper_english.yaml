@@ -1,0 +1,61 @@
+in_channels: 5
+latent_dim: 384
+hidden_dims:
+- 128
+- 256
+- 384
+decoder_dims:
+- 384
+- 256
+- 128
+decoder_output_dim: 123
+trans_hidden_dim: 256
+trans_num_heads: 4
+trans_num_layers: 3
+ocr_hidden_dim: 384
+ocr_num_heads: 4
+ocr_num_layers: 3
+style_classifier_dim: 384
+language: en
+data_root: /data/diffink/iam_overfit
+train_file: /data/diffink/iam_overfit/tiny_train.h5
+val_file: /data/diffink/iam_overfit/tiny_val.h5
+text_file: /data/diffink/iam_overfit/chars.json
+writer_file: /data/diffink/iam_overfit/writers.json
+model_input_scale: 0.01
+experimental_normalization: true
+experimental_character_ends: true
+gmm_logspace: true
+aug_prob: 0
+rotation_degrees: 0
+scaling_augmentation: false
+num_workers: 0
+betas:
+- 0.9
+- 0.99
+weight_decay: 0.0001
+seed: 42
+num_epochs: 100
+profile: paper-informed-hyperparameter-control-not-reproduction
+paper_settings_source: local ICLR 2026 paper sections 4.1/B.3/D.3
+reproduction_claim: false
+trans_dropout: 0.1
+decoder_dropout_in_paper: not specified; 0.1 is released PyTorch default
+use_decoder_padding_mask: false
+train_batch_size: 128
+val_batch_size: 1
+gradient_accumulation_steps: 1
+gmm_weight: 1
+pen_weight: 2
+expected_xy_weight: 0
+kl_weight: 1.0e-06
+ctc_weight: 1
+style_weight: 0.5
+pen_policy: inverse_frequency
+base_lr: 5.0e-05
+grad_clip: 5
+warmup_fraction: 0.05
+min_lr: 1.0e-06
+output_base: /data/checkpoints/iam_paper_control
+unresolved: English normalization / character boundaries / author test-writer split
+  are not reproduced

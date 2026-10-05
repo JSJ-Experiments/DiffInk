@@ -86,18 +86,15 @@ def get_loss(pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits,
     return gmm_loss, ce_loss
 
 
-def get_mixture_coef(output, num_mixture):
-    pen_logits = output[:, :3, :]
-    gmm_params = output[:, 3:, :]
-    pi, mu1, mu2, sigma1, sigma2, corr = torch.split(gmm_params, num_mixture, dim=1)
-
-    pi = torch.softmax(pi, dim=1)
-    pen = torch.softmax(pen_logits, dim=1)
-    sigma1 = torch.exp(sigma1)
-    sigma2 = torch.exp(sigma2)
-    corr = torch.tanh(corr)
-
-    return [pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits]
+def get_mixture_coef(output, num_mixture, sigma_parameterization='softplus'):
+    """One train/inference contract. exp is an explicit legacy-checkpoint control."""
+    values = get_mixture_coef_max(output, num_mixture)
+    if sigma_parameterization == 'exp':
+        raw = output[:, 3:, :].split(num_mixture, dim=1)
+        values[3], values[4] = raw[3].exp(), raw[4].exp()
+    elif sigma_parameterization != 'softplus':
+        raise ValueError('unknown sigma parameterization')
+    return values
 
 def get_mixture_coef_max(output, num_mixture):
     pen_logits = output[:, :3, :]             # [B, 3, T]
@@ -126,24 +123,29 @@ def sample_gaussian_2d(mu1, mu2, s1, s2, rho, sqrt_temp=1.0, greedy=False):
     return np.random.multivariate_normal([mu1, mu2], cov)
 
 
-def sample_from_params(params, temp=0.1, max_seq_len=400, greedy=False):
-    [o_pi, o_mu1, o_mu2, o_sigma1, o_sigma2, o_corr, o_pen] = params
-    num_mixture, seq_len = o_pi.shape
-    strokes = np.zeros((seq_len, 5), dtype=np.float32)
+def sample_from_params(params, temp=0.1, max_seq_len=400, greedy=False, mode=None):
+    """expectation / greedy-component / sample; pen argmax in all three modes.
 
-    for step in range(max_seq_len):
-        eos = [0, 0, 0]
-        idx = torch.distributions.Categorical(o_pi[:, step]).sample().item()
-        x1, x2 = sample_gaussian_2d(
-            o_mu1[idx, step].item(),
-            o_mu2[idx, step].item(),
-            o_sigma1[idx, step].item(),
-            o_sigma2[idx, step].item(),
-            o_corr[idx, step].item(),
-            sqrt_temp=np.sqrt(temp),
-            greedy=greedy
-        )
-        eos[np.argmax(o_pen[:, step].cpu().numpy())] = 1
-        strokes[step] = [x1, x2] + eos
-
+    Compatibility: greedy=True now REALLY picks argmax(pi), not random means.
+    Mixture expectation uses no random calls. Output is truncated to requested T.
+    """
+    mode = mode or ('greedy' if greedy else 'sample')
+    if mode not in ('expectation', 'greedy', 'sample'):
+        raise ValueError('unknown GMM decoding mode')
+    if temp < 0 or max_seq_len < 1:
+        raise ValueError('invalid sampling temperature/length')
+    pi, mx, my, sx, sy, rho, pen = params
+    length = min(int(max_seq_len), pi.shape[1])
+    strokes = np.zeros((length, 5), dtype=np.float32)
+    for step in range(length):
+        if mode == 'expectation':
+            x = (pi[:, step] * mx[:, step]).sum().item()
+            y = (pi[:, step] * my[:, step]).sum().item()
+        else:
+            index = pi[:, step].argmax().item() if mode == 'greedy' else torch.distributions.Categorical(pi[:, step]).sample().item()
+            x, y = sample_gaussian_2d(mx[index, step].item(), my[index, step].item(),
+                                      sx[index, step].item(), sy[index, step].item(), rho[index, step].item(),
+                                      sqrt_temp=np.sqrt(temp), greedy=mode == 'greedy')
+        strokes[step, :2] = [x, y]
+        strokes[step, 2 + pen[:, step].argmax().item()] = 1
     return strokes

@@ -654,3 +654,112 @@ fit bounded pen rows against the new frozen geometry, then test the rendered
 coordinate objective alongside GMM/pen with careful stochastic controls.
 Only promote once predicted-pen reconstruction retains the input geometry;
 CTC, eight-line/writer and full-IAM experiments are still deferred.
+
+## Engineering contract patches and bounded eight-line T4 result (2026-10-05)
+
+**Current status: eight-line reconstruction/pen gate NOT passed. No CTC, KL,
+style, InkDiT, or full-IAM training promoted or launched.** This section
+supersedes the earlier proposed next steps, not the historical experiment data.
+
+### Frozen geometry pen refit
+
+On the deterministic MSE checkpoint, 1,000 CPU head-only updates per arm yield
+identical pen-up F1 **0.9474**, precision 0.9 / recall 1.0, four false breaks,
+zero missed breaks, no internal EOC and correct final EOC. Bounded three-state
+and binary-with-forced-final-EOC tie. We retain **bounded three-state B**:
+binary rendering uses known target length to force EOC, so does not prove learned
+stopping. Both arms start from identical pen rows; non-pen state, GMM output
+and expected XY are checked bitwise unchanged. Source and outputs remain on
+the Volume, not GitHub.
+
+### Implemented contract/stability changes
+
+- `trans_dropout` explicit (legacy default 0.1, engineering English 0).
+- Deterministic mixture `expectation`, genuinely greedy `argmax`, separate
+  stochastic `sample`; same softplus+epsilon sigma in train and inference.
+  Explicit `sigma_parameterization='exp'` retains a legacy control.
+- KL averages valid latent **elements**, independent of channel/time lengths;
+  padded values are excluded before exponentiation.
+- VAE public `encode`/`forward` own `model_input_scale`; raw HDF5 XY is scaled
+  automatically, and `to_data_space` reverses it for rendering. Explicit
+  `input_is_model_space=True` is reserved for already-scaled helpers.
+  VAE checkpoint metadata propagates this contract to DiT loading/encoding.
+- Optional full-resolution Transformer decoder padding mask is wired; temporal
+  **GroupNorm is unchanged and still padding-sensitive**. Batch one with gradient
+  accumulation mitigates this; it does not establish padding invariance.
+- Rotation/scaling independently configurable; engineering rotation/augmentation
+  are off. No new smoothing or normalization layers.
+- Actual `trainer/vae_trainer.py` implements log-space GMM, bounded real-only pen,
+  expected-XY anchor, physical gradient accumulation, configured clipping, and
+  independently gated auxiliaries. Production launcher supports calibration and
+  config selection. The bounded test uses this real trainer; multi-rank DDP and
+  DiT training have not been GPU-tested. Checkpoints save the model contract.
+
+`configs/engineering_english.yaml` is the guarded engineering experiment.
+`configs/paper_english.yaml` is a **paper-informed hyperparameter control**, not
+an exact reproduction: paper LR 5e-5, batch 128, clip 5, weights GMM/pen/OCR/style/KL
+1/2/1/0.5/1e-6 and 5% warmup. English coordinate normalization, final-only EOC,
+scale, and augmentation remain provisional. Decoder dropout is not specified in
+the paper; its 0.1 control value comes from the released code default.
+
+### Authorized T4 test: completed, not promoted
+
+Persistent report: `checkpoints/iam_eightline/20261005-102304/index.html`.
+Eight **training** lines from writer 10174, deliberately narrow lengths
+514–581; no held-out evaluation or full-length-range/generalization claim.
+All 200 optimizer updates / 1,600 physical microbatches completed. Physical
+batch 1 + accumulation 8, LR 1e-5, dropout 0, rotation off, model scale 0.01,
+GMM + bounded pen + expected-XY anchor. CTC/style/KL **weights zero**.
+
+| Fixed eight-line mean metric | Step 0 | Step 200 |
+|---|---:|---:|
+| Latent-mean X RMSE (model units) | 0.944 | 0.388 |
+| Latent-mean Y RMSE (model units) | 0.115 | 0.059 |
+| Macro pen-up F1 | 0.287 | 0.698 |
+
+Twenty fixed-seeded sampled latents **per line per checkpoint**, at steps
+0/50/100/150/200, are saved with raw arrays, per-axis errors, within-stroke
+index-difference diagnostics, pen histograms/F1, posterior uncertainty and
+mean/median/worst galleries. Final sampled reconstructions are close to the
+latent-mean errors; geometry is still visibly degraded, not simply hidden by
+latent sampling. The formerly memorized line regresses from approximately
+0.0033/0.0018 to 0.0765/0.0416 X/Y RMSE. Two unfamiliar lines remain especially
+poor in X (1.377 and 0.843). Final EOC is correct on **3/8**, with **51** false
+internal EOCs across the eight latent-mean reconstructions.
+
+All **200/200** updates clip at norm 5; median raw norm 29.58. No numeric crash.
+Loop/evaluation/render/save time 103.3 s excludes startup/loading, and is **not
+billed duration/cost**. Checkpoints/optimizer state are finite; all Adam states
+record step 200. Source and frozen OCR/style state were verified unchanged.
+
+Anchor coefficient **6.6665** was calibrated from median matched per-line decoder
+gradient ratios targeting 15%; actual initial per-line ratios range **0.0038 to
+0.3735**. This is not a uniform or aggregate 15% guarantee. That heterogeneity
+and the geometry regression need diagnosis before another experiment.
+
+Historical `metrics.jsonl` losses are **last-microbatch values**, not effective-
+batch averages, although gradients were accumulated correctly. Therefore don't
+interpret their first/last NLL as convergence. Future trainer logging is corrected
+to effective-batch means with a regression test; this correction did not rerun
+or alter the completed test. Nonzero logged KL is a diagnostic with zero weight.
+
+All **61 tests pass** in root and fork. GroupNorm, compression, latent width,
+RDP=0.5 and absolute XY representation remain unchanged. Defer KL/CTC until
+multi-line geometry and boundaries are clean; do not infer failure of model
+capacity from this short combined-objective experiment.
+
+```sh
+# CPU-only refit (from root); use --repo . when running inside fork:
+python -m iam_tools.pen_refit --help
+# Verify/report existing artifacts: no training/GPU:
+python -m iam_tools.report_eightline data/checkpoints/iam_eightline/20261005-102304
+# Import/default invocation does not allocate a GPU:
+modal run modal_eightline.py
+# Already executed with explicit authorization; repeating incurs another job:
+# modal run modal_eightline.py --train --allow-experimental
+```
+
+In your Modal shell use `/mnt/diffink-data/checkpoints/iam_eightline/20261005-102304/`;
+inside the job use `/data/checkpoints/...`; locally use `data/checkpoints/...`.
+No SSH server is needed. CPU refit artifacts live at
+`checkpoints/iam_autopsy/pen_refit/20261005-100653/` on the same Volume.

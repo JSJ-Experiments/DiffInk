@@ -1,3 +1,111 @@
+diff --git a/dataset/__init__.py b/dataset/__init__.py
+index 617f031..9961210 100644
+--- a/dataset/__init__.py
++++ b/dataset/__init__.py
+@@ -4,7 +4,10 @@ from torch.utils.data import DataLoader, DistributedSampler
+ 
+ def build_datasets_and_loaders(config):
+     transform = Transform(data_fixed_length=config.get("data_fixed_length", 1000),
+-                          prob=config.get("aug_prob", 0.5))
++                          prob=config.get("aug_prob", 0.5),
++                          rotation_degrees=config.get("rotation_degrees", 5.0),
++                          scaling=config.get("scaling_augmentation", True),
++                          center_rotation=config.get("center_rotation", False))
+ 
+     train_dataset = TrainDataset(config["train_file"], text_file=config["text_file"], writer_file=config["writer_file"], transform=transform)
+     val_dataset = ValDataset(config["val_file"], text_file=config["text_file"], writer_file=None, transform=None)
+@@ -15,9 +18,9 @@ def build_datasets_and_loaders(config):
+     train_batch_size = config.get("train_batch_size", 1)
+     val_batch_size = config.get("val_batch_size", 50)
+ 
+-    train_loader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True, num_workers=8,
++    train_loader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True, num_workers=config.get("num_workers", 8),
+                               collate_fn=TrainDataset.collate_fn)
+-    val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=True, num_workers=8,
++    val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=True, num_workers=config.get("num_workers", 8),
+                             collate_fn=ValDataset.collate_fn)
+ 
+     return train_loader, val_loader, config
+@@ -29,14 +32,17 @@ def build_test_datasets_and_loaders(config):
+ 
+     val_batch_size = config.get("val_batch_size", 50)
+ 
+-    val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=True, num_workers=8,
++    val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=True, num_workers=config.get("num_workers", 8),
+                             collate_fn=ValDataset.collate_fn)
+ 
+     return val_loader, config
+ 
+ def build_datasets_and_loaders_ddp(config, ddp=False):
+     transform = Transform(data_fixed_length=config.get("data_fixed_length", 1000),
+-                          prob=config.get("aug_prob", 0.5))
++                          prob=config.get("aug_prob", 0.5),
++                          rotation_degrees=config.get("rotation_degrees", 5.0),
++                          scaling=config.get("scaling_augmentation", True),
++                          center_rotation=config.get("center_rotation", False))
+ 
+     train_dataset = TrainDataset(config["train_file"], text_file=config["text_file"], writer_file=config["writer_file"], transform=transform)
+     val_dataset = ValDataset(config["val_file"], text_file=config["text_file"], writer_file=None, transform=None)
+@@ -55,9 +61,9 @@ def build_datasets_and_loaders_ddp(config, ddp=False):
+         shuffle = True
+ 
+     train_loader = DataLoader(train_dataset, batch_size=train_batch_size, sampler=train_sampler,
+-                              shuffle=shuffle, num_workers=8, collate_fn=TrainDataset.collate_fn)
++                              shuffle=shuffle, num_workers=config.get("num_workers", 8), collate_fn=TrainDataset.collate_fn)
+ 
+-    val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=False, num_workers=8,
++    val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=False, num_workers=config.get("num_workers", 8),
+                             collate_fn=ValDataset.collate_fn)
+ 
+     return train_loader, val_loader, config
+\ No newline at end of file
+diff --git a/dataset/transform.py b/dataset/transform.py
+index 5c800b1..90c2a68 100644
+--- a/dataset/transform.py
++++ b/dataset/transform.py
+@@ -2,20 +2,25 @@ import math
+ import numpy as np
+ 
+ class Transform:
+-    def __init__(self, data_fixed_length, prob=0.5):
++    def __init__(self, data_fixed_length, prob=0.5, rotation_degrees=5.0, scaling=True, center_rotation=False):
+         self.data_fixed_length = data_fixed_length
+         self.prob = prob
++        self.rotation_degrees = rotation_degrees
++        self.scaling = scaling
++        self.center_rotation = center_rotation
+ 
+     def random_scaling(self, data, scale_range=(0.9, 1.1)):
+         scale = np.random.uniform(*scale_range)
+         data[:, :2] *= scale
+         return data
+ 
+-    def random_rotation(self, data, angle_range=(-math.pi / 36, math.pi / 36)):
++    def random_rotation(self, data, angle_range=None):
++        angle_range = angle_range or (-math.radians(self.rotation_degrees), math.radians(self.rotation_degrees))
+         angle = np.random.uniform(*angle_range)
+         rotation_matrix = np.array([[math.cos(angle), -math.sin(angle)],
+                                     [math.sin(angle), math.cos(angle)]])
+-        data[:, :2] = np.dot(data[:, :2], rotation_matrix)
++        center = data[:, :2].mean(axis=0) if self.center_rotation else np.zeros(2)
++        data[:, :2] = np.dot(data[:, :2] - center, rotation_matrix) + center
+         return data
+     
+     def point_dropping(self, data, drop_prob=0.02):
+@@ -34,11 +39,8 @@ class Transform:
+ 
+     def augment_data(self, data):
+         augmented_data = data.copy()
+-        methods = [
+-            self.random_scaling,    # global scaling
+-            self.random_rotation,   # geometric rotation
+-            # self.point_dropping,    # trajectory sparsification + interpolation
+-        ]
++        methods = ([self.random_scaling] if self.scaling else [])
++        if self.rotation_degrees: methods.append(self.random_rotation)
+ 
+         for method in methods:
+             if np.random.rand() < self.prob:
 diff --git a/dataset/vae_dataset.py b/dataset/vae_dataset.py
 index d2a0668..086563c 100644
 --- a/dataset/vae_dataset.py
@@ -13,6 +121,199 @@ index d2a0668..086563c 100644
              char_idx.append(converted)
  
          text_tensor = [torch.tensor(lst, dtype=torch.long) for lst in char_idx]
+diff --git a/model/blocks.py b/model/blocks.py
+index 5e7a029..09185d0 100644
+--- a/model/blocks.py
++++ b/model/blocks.py
+@@ -76,7 +76,7 @@ class Decoder(nn.Module):
+         return x
+ 
+ class TransformerDecoder(nn.Module):
+-    def __init__(self, input_dim=128, hidden_dim=256, output_dim=123, num_layers=4, num_heads=4):
++    def __init__(self, input_dim=128, hidden_dim=256, output_dim=123, num_layers=4, num_heads=4, dropout=0.1):
+         super().__init__()
+         self.input_proj = nn.Linear(input_dim, hidden_dim)
+         # self.input_norm = nn.LayerNorm(hidden_dim)
+@@ -85,7 +85,8 @@ class TransformerDecoder(nn.Module):
+             d_model=hidden_dim,
+             nhead=num_heads,
+             dim_feedforward=1024,
+-            batch_first=True
++            batch_first=True,
++            dropout=dropout
+         )
+         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+         self.fc = nn.Linear(hidden_dim, output_dim)
+diff --git a/model/gmm.py b/model/gmm.py
+index 2e22b7c..5805b5f 100644
+--- a/model/gmm.py
++++ b/model/gmm.py
+@@ -86,18 +86,15 @@ def get_loss(pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits,
+     return gmm_loss, ce_loss
+ 
+ 
+-def get_mixture_coef(output, num_mixture):
+-    pen_logits = output[:, :3, :]
+-    gmm_params = output[:, 3:, :]
+-    pi, mu1, mu2, sigma1, sigma2, corr = torch.split(gmm_params, num_mixture, dim=1)
+-
+-    pi = torch.softmax(pi, dim=1)
+-    pen = torch.softmax(pen_logits, dim=1)
+-    sigma1 = torch.exp(sigma1)
+-    sigma2 = torch.exp(sigma2)
+-    corr = torch.tanh(corr)
+-
+-    return [pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits]
++def get_mixture_coef(output, num_mixture, sigma_parameterization='softplus'):
++    """One train/inference contract. exp is an explicit legacy-checkpoint control."""
++    values = get_mixture_coef_max(output, num_mixture)
++    if sigma_parameterization == 'exp':
++        raw = output[:, 3:, :].split(num_mixture, dim=1)
++        values[3], values[4] = raw[3].exp(), raw[4].exp()
++    elif sigma_parameterization != 'softplus':
++        raise ValueError('unknown sigma parameterization')
++    return values
+ 
+ def get_mixture_coef_max(output, num_mixture):
+     pen_logits = output[:, :3, :]             # [B, 3, T]
+@@ -126,24 +123,29 @@ def sample_gaussian_2d(mu1, mu2, s1, s2, rho, sqrt_temp=1.0, greedy=False):
+     return np.random.multivariate_normal([mu1, mu2], cov)
+ 
+ 
+-def sample_from_params(params, temp=0.1, max_seq_len=400, greedy=False):
+-    [o_pi, o_mu1, o_mu2, o_sigma1, o_sigma2, o_corr, o_pen] = params
+-    num_mixture, seq_len = o_pi.shape
+-    strokes = np.zeros((seq_len, 5), dtype=np.float32)
+-
+-    for step in range(max_seq_len):
+-        eos = [0, 0, 0]
+-        idx = torch.distributions.Categorical(o_pi[:, step]).sample().item()
+-        x1, x2 = sample_gaussian_2d(
+-            o_mu1[idx, step].item(),
+-            o_mu2[idx, step].item(),
+-            o_sigma1[idx, step].item(),
+-            o_sigma2[idx, step].item(),
+-            o_corr[idx, step].item(),
+-            sqrt_temp=np.sqrt(temp),
+-            greedy=greedy
+-        )
+-        eos[np.argmax(o_pen[:, step].cpu().numpy())] = 1
+-        strokes[step] = [x1, x2] + eos
+-
++def sample_from_params(params, temp=0.1, max_seq_len=400, greedy=False, mode=None):
++    """expectation / greedy-component / sample; pen argmax in all three modes.
++
++    Compatibility: greedy=True now REALLY picks argmax(pi), not random means.
++    Mixture expectation uses no random calls. Output is truncated to requested T.
++    """
++    mode = mode or ('greedy' if greedy else 'sample')
++    if mode not in ('expectation', 'greedy', 'sample'):
++        raise ValueError('unknown GMM decoding mode')
++    if temp < 0 or max_seq_len < 1:
++        raise ValueError('invalid sampling temperature/length')
++    pi, mx, my, sx, sy, rho, pen = params
++    length = min(int(max_seq_len), pi.shape[1])
++    strokes = np.zeros((length, 5), dtype=np.float32)
++    for step in range(length):
++        if mode == 'expectation':
++            x = (pi[:, step] * mx[:, step]).sum().item()
++            y = (pi[:, step] * my[:, step]).sum().item()
++        else:
++            index = pi[:, step].argmax().item() if mode == 'greedy' else torch.distributions.Categorical(pi[:, step]).sample().item()
++            x, y = sample_gaussian_2d(mx[index, step].item(), my[index, step].item(),
++                                      sx[index, step].item(), sy[index, step].item(), rho[index, step].item(),
++                                      sqrt_temp=np.sqrt(temp), greedy=mode == 'greedy')
++        strokes[step, :2] = [x, y]
++        strokes[step, 2 + pen[:, step].argmax().item()] = 1
+     return strokes
+diff --git a/model/losses.py b/model/losses.py
+new file mode 100644
+index 0000000..547a7df
+--- /dev/null
++++ b/model/losses.py
+@@ -0,0 +1,82 @@
++"""Shared actual InkVAE training losses and decoder-gradient anchor calibration."""
++import math
++import torch
++import torch.nn.functional as F
++from .gmm import get_mixture_coef, get_loss
++
++
++def mixture_expectation(output):
++    pi=output[:,3:23].softmax(1)
++    return torch.stack([(pi*output[:,23:43]).sum(1),(pi*output[:,43:63]).sum(1)],-1)
++
++
++def stable_nll(pi,mx,my,sx,sy,rho,x,y):
++    rho=rho.clamp(-1+1e-5,1-1e-5);one=(1-rho.square()).clamp_min(1e-8)
++    dx=(x-mx)/sx;dy=(y-my)/sy
++    logpdf=-math.log(2*math.pi)-sx.log()-sy.log()-.5*one.log()-.5*((dx-rho*dy).square()/one+dy.square())
++    return -torch.logsumexp(pi.clamp_min(torch.finfo(pi.dtype).tiny).log()+logpdf,1)
++
++
++def bounded_pen(logits,targets,mask,gamma=2,cap=8,policy='bounded_three_state'):
++    losses=[]
++    for i in range(len(logits)):
++        labels=targets[i,mask[i]];real_logits=logits[i,mask[i]]
++        if policy=='binary_forced_final':
++            if labels[-1]!=2 or (labels[:-1]>1).any():raise ValueError('binary policy needs final-only EOC')
++            real_logits=real_logits[:-1,:2];labels=labels[:-1]
++        elif policy!='bounded_three_state':raise ValueError('unknown bounded pen policy')
++        counts=labels.bincount(minlength=real_logits.shape[-1]).float()
++        weights=(counts[0]/counts.clamp_min(1)).sqrt().clamp(max=cap);weights[counts==0]=0
++        ce=F.cross_entropy(real_logits,labels,reduction='none')
++        losses.append((weights[labels]*(1-ce.neg().exp()).pow(gamma)*ce).mean())
++    return torch.stack(losses).mean()
++
++
++def loss_terms(output,target_model_space,mask,config,ctc,kl,style):
++    pi,mx,my,sx,sy,rho,pen,logits=get_mixture_coef(output,20)
++    channel=target_model_space
++    element=stable_nll(pi,mx,my,sx,sy,rho,channel[:,:1],channel[:,1:2])
++    if not getattr(config,'gmm_logspace',False):
++        element,legacy_pen=get_loss(pi,mx,my,sx,sy,rho,pen,logits,channel[:,:1],channel[:,1:2],channel[:,2:])
++    else:legacy_pen=None
++    policy=getattr(config,'pen_policy','inverse_frequency')
++    if policy=='inverse_frequency':
++        if legacy_pen is None:
++            _,legacy_pen=get_loss(pi,mx,my,sx,sy,rho,pen,logits,channel[:,:1],channel[:,1:2],channel[:,2:])
++        pen_loss=legacy_pen
++    else:
++        pen_loss=bounded_pen(logits.transpose(1,2),channel[:,2:].argmax(1),mask.bool(),
++                             getattr(config,'pen_focal_gamma',2),getattr(config,'pen_weight_cap',8),policy)
++    xy=mixture_expectation(output);target=channel[:,:2].transpose(1,2)
++    mse=(xy[mask.bool()]-target[mask.bool()]).square().mean()
++    return {'gmm':element[mask.bool()].mean(),'pen':pen_loss,'expected_xy':mse,
++            'ctc':ctc.mean(),'kl':kl.mean(),'style':style.mean()}
++
++
++def weighted_loss(terms,config):
++    return sum(v*float(getattr(config,k+'_weight',0)) for k,v in terms.items())
++
++
++def calibrate_anchor(model,batches,config,device,fraction=.15):
++    """Median per-line decoder gradient ratio, on SAME sampled forward per loss.
++
++    No optimizer steps and no .grad accumulation. Logs actual weighted ratio per
++    line; a scalar calibrated on one sample is not assumed valid for every line.
++    """
++    from utils.mask import downsample_mask
++    parameters=list(model.decoder.parameters())+list(model.transformer_decoder.parameters())
++    rows=[]
++    for batch in batches:
++        data,mask,text,_,writer=batch
++        data=data.to(device).transpose(1,2);mask=mask.to(device)
++        output,ctc,kl,style=model(data,downsample_mask(mask,8),text.to(device),writer.to(device),False,False,point_mask=mask)
++        terms=loss_terms(output,model.to_model_space(data),mask,config,ctc,kl,style)
++        a=torch.autograd.grad(terms['gmm']*config.gmm_weight,parameters,retain_graph=True,allow_unused=True)
++        b=torch.autograd.grad(terms['expected_xy'],parameters,allow_unused=True)
++        norm=lambda gradients:float(torch.stack([g.detach().square().sum() for g in gradients if g is not None]).sum().sqrt())
++        gn,mn=norm(a),norm(b)
++        if not math.isfinite(gn+mn) or gn<=0 or mn<=1e-12:raise ValueError('invalid anchor gradient calibration')
++        rows.append({'gmm_decoder_norm':gn,'mse_decoder_norm':mn,'suggested_weight':fraction*gn/mn})
++    weight=float(torch.tensor([r['suggested_weight'] for r in rows],dtype=torch.float64).quantile(.5))
++    for row in rows:row['actual_initial_weighted_ratio']=weight*row['mse_decoder_norm']/row['gmm_decoder_norm']
++    return {'weight':weight,'target_fraction':fraction,'method':'median matched-per-line decoder gradient ratio','lines':rows}
 diff --git a/model/ocr.py b/model/ocr.py
 index 18c2904..738e22b 100644
 --- a/model/ocr.py
@@ -54,10 +355,127 @@ index 18c2904..738e22b 100644
      
 \ No newline at end of file
 diff --git a/model/vae.py b/model/vae.py
-index d4e0e30..15cba45 100644
+index d4e0e30..8e7c303 100644
 --- a/model/vae.py
 +++ b/model/vae.py
-@@ -109,41 +109,10 @@ class VAE(nn.Module):
+@@ -22,7 +22,8 @@ class VAE(nn.Module):
+             hidden_dim=config.trans_hidden_dim,
+             output_dim=config.decoder_output_dim,
+             num_layers=config.trans_num_layers,
+-            num_heads=config.trans_num_heads
++            num_heads=config.trans_num_heads,
++            dropout=getattr(config, "trans_dropout", 0.1)
+         )
+         self.ocr_model = ChineseHandwritingOCR(
+             input_dim=config.latent_dim,
+@@ -38,6 +39,20 @@ class VAE(nn.Module):
+             num_writers=config.num_writer
+         )
+         
++    def apply_checkpoint_contract(self, checkpoint):
++        saved = checkpoint.get('config')
++        if saved is None:
++            if getattr(self.config, 'language', None) == 'en':
++                raise ValueError('English VAE checkpoint missing scale/config contract')
++            return
++        for key in ('model_input_scale', 'trans_dropout', 'use_decoder_padding_mask', 'pen_policy'):
++            if key in saved: setattr(self.config, key, saved[key])
++        dropout = float(getattr(self.config, 'trans_dropout', .1))
++        for layer in self.transformer_decoder.transformer.layers:
++            layer.self_attn.dropout = dropout
++            for module in layer.modules():
++                if isinstance(module, nn.Dropout): module.p = dropout
++
+     def init_weights(m):
+         if isinstance(m, nn.Linear):
+             torch.nn.init.xavier_uniform_(m.weight)
+@@ -49,23 +64,46 @@ class VAE(nn.Module):
+         eps = torch.randn_like(std)
+         return mu + eps * std
+ 
+-    def encode(self, x):
++    def to_model_space(self, x):
++        """Public encode/forward accept raw HDF5 XY; decoder emits MODEL-space XY."""
++        if x.ndim != 3 or x.shape[1] != 5:
++            raise ValueError('expected B x 5 x T trajectory')
++        scale = float(getattr(self.config, 'model_input_scale', 1.0))
++        if not 0 < scale <= 1:
++            raise ValueError('model_input_scale must be in (0,1]')
++        result = x.clone(); result[:, :2] *= scale
++        return result
++
++    def to_data_space(self, sequence):
++        """Inverse adapter for N x 5 rendered trajectories; pen states unchanged."""
++        result = sequence.clone() if torch.is_tensor(sequence) else sequence.copy()
++        result[..., :2] /= float(getattr(self.config, 'model_input_scale', 1.0))
++        return result
++
++    def encode(self, x, input_is_model_space=False):
++        x = x if input_is_model_space else self.to_model_space(x)
+         features = self.encoder(x)
+         mu = self.conv_mu(features)
+         logvar = self.conv_logvar(features)
+         z = self.reparameterize(mu, logvar)
+         return z, mu, logvar
+     
+-    def decode(self, x):
++    def decode(self, x, padding_mask=None):
+         decoded = self.decoder(x)
+-        output = self.transformer_decoder(decoded)
++        output = self.transformer_decoder(decoded, padding_mask=padding_mask)
+         return output
+ 
+-    def forward(self, data, pad_mask, labels, writer_labels, get_ctc_loss=True, get_style_loss=True):
++    def forward(self, data, pad_mask, labels, writer_labels, get_ctc_loss=True, get_style_loss=True, point_mask=None, input_is_model_space=False):
+         # encoder and decode
+-        z, mu, logvar = self.encode(data)
+-        decoded = self.decoder(z)
+-        output = self.transformer_decoder(decoded)
++        z, mu, logvar = self.encode(data, input_is_model_space=input_is_model_space)
++        if getattr(self.config, 'use_decoder_padding_mask', False):
++            if point_mask is None:
++                sentinel = data.new_tensor([0, 0, 0, 0, 1])[None, :, None]
++                point_mask = ~(data == sentinel).all(dim=1)
++            padding_mask = ~point_mask.bool()
++        else:
++            padding_mask = None
++        output = self.decode(z, padding_mask=padding_mask)
+ 
+         # ocr loss and kl loss
+         kl_loss = self.kl_divergence_new(mu, logvar, pad_mask)
+@@ -88,75 +126,31 @@ class VAE(nn.Module):
+         return kl_loss
+     
+     def kl_divergence_new(self, mu, logvar, mask=None):
+-        kl = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())  # [B, T, C]
+-        kl = kl.sum(dim=1)  # [B, T]
+-
+-        if mask is not None:
+-            kl = kl * mask  # apply mask to ignore padded regions
+-            loss = kl.sum() / (mask.sum() * kl.size(-1))
++        # B,C,T: average over actual valid latent ELEMENTS, not C-summed / T.
++        if mu.shape != logvar.shape:
++            raise ValueError('mu/logvar shape mismatch')
++        if mask is None:
++            selected_mu, selected_logvar = mu, logvar
+         else:
+-            loss = kl.mean()
+-        
+-        # 4. Final loss clamp to avoid explosion
+-        loss = torch.clamp(loss, max=1e4)
++            if mask.shape != (mu.shape[0], mu.shape[2]) or not mask.bool().any():
++                raise ValueError('nonempty matching latent mask required')
++            valid = mask.bool().unsqueeze(1).expand_as(mu)
++            selected_mu, selected_logvar = mu[valid], logvar[valid]
++        loss = (-0.5 * (1 + selected_logvar - selected_mu.square() - selected_logvar.exp())).mean()
++        return loss.clamp(max=1e4)
+ 
+-        return loss
+-
+-    
+     def get_style_loss(self, z, writer_labels, mask):
+         writer_logits = self.style_classifier(z, mask)  # [B, num_writers]
+         loss = F.cross_entropy(writer_logits, writer_labels)
          return loss
  
      def get_ocr_loss(self, features, labels, mask=None):
@@ -100,10 +518,97 @@ index d4e0e30..15cba45 100644
 -        return loss
 -    
      @torch.no_grad()
-     def val(self, data):
-         z, mu, logvar = self.encode(data)
+-    def val(self, data):
+-        z, mu, logvar = self.encode(data)
+-        decoded = self.decoder(z)
+-        output = self.transformer_decoder(decoded)
+-
+-        return output
+-
+-
+-
+-
+-
+-
+-
+-
+-
++    def val(self, data, point_mask=None, latent_mean=True, input_is_model_space=False):
++        z, mu, _ = self.encode(data, input_is_model_space=input_is_model_space)
++        padding_mask = ~point_mask.bool() if point_mask is not None and getattr(self.config, 'use_decoder_padding_mask', False) else None
++        return self.decode(mu if latent_mean else z, padding_mask=padding_mask)
+diff --git a/train_dit_ddp.py b/train_dit_ddp.py
+index 6ae5688..2ef3706 100644
+--- a/train_dit_ddp.py
++++ b/train_dit_ddp.py
+@@ -48,6 +48,7 @@ def train_dit_ddp(task_name, time):
+     if vae_model_path and os.path.exists(vae_model_path):
+         print(f"Resuming VAE from checkpoint: {vae_model_path}")
+         ckpt = torch.load(vae_model_path, map_location=device)
++        vae.apply_checkpoint_contract(ckpt)
+         state_dict = ckpt["model_state_dict"]
+         if any(k.startswith("module.") for k in state_dict.keys()):
+             state_dict = strip_module_prefix(state_dict)
+diff --git a/train_vae_ddp.py b/train_vae_ddp.py
+index 4b6c677..e2411e5 100644
+--- a/train_vae_ddp.py
++++ b/train_vae_ddp.py
+@@ -22,14 +22,13 @@ from torch.utils.data.distributed import DistributedSampler
+ def strip_module_prefix(state_dict):
+     return {k.replace("module.", ""): v for k, v in state_dict.items()}
+ 
+-def train_vae(task_name, time):
++def train_vae(task_name, time, config_path="./configs/vae_config.yaml"):
+     # === Setup DDP ===
+     dist.init_process_group(backend='nccl')
+     local_rank = int(os.environ["LOCAL_RANK"])
+     torch.cuda.set_device(local_rank)
+     device = torch.device(f"cuda:{local_rank}")
+ 
+-    config_path = "./configs/vae_config.yaml"
+     config_dict = load_config_from_yaml(config_path)
+ 
+     train_loader, val_loader, config_dict = build_datasets_and_loaders_ddp(config_dict, ddp=True)
+@@ -39,7 +38,7 @@ def train_vae(task_name, time):
+     set_seed(42)
+     vae = VAE(config).to(device)
+ 
+-    optimizer, scheduler = dit_build_optimizer_and_scheduler(vae, config_dict, len(train_loader))
++    optimizer, scheduler = dit_build_optimizer_and_scheduler(vae, config_dict, (len(train_loader) + config_dict.get("gradient_accumulation_steps", 1) - 1) // config_dict.get("gradient_accumulation_steps", 1))
+ 
+     # === load vae ====
+     vae_model_path = config_dict.get("vae_model_path")
+@@ -71,6 +70,17 @@ def train_vae(task_name, time):
+     else:
+         start_epoch = 0
+ 
++    if config_dict.get('anchor_gradient_fraction', 0) > 0 and config_dict.get('expected_xy_weight', 0) <= 0:
++        from itertools import islice
++        from model.losses import calibrate_anchor
++        vae.train()
++        calibration = calibrate_anchor(vae, list(islice(train_loader, config_dict.get('gradient_accumulation_steps', 1))),
++                                       config, device, config_dict['anchor_gradient_fraction'])
++        value = torch.tensor(calibration['weight'], device=device)
++        dist.all_reduce(value); value /= dist.get_world_size()
++        config.expected_xy_weight = config_dict['expected_xy_weight'] = float(value)
++        if local_rank == 0: print({'anchor_calibration_rank0': calibration, 'cross_rank_weight': float(value)})
++
+     vae = DDP(vae, device_ids=[local_rank], find_unused_parameters=True)
+ 
+     if local_rank == 0:
+@@ -105,4 +115,7 @@ if __name__ == "__main__":
+     print("Time:", now)
+     formatted_time = now.strftime("%m_%d_%H_%M")
+     task_name = 'ink_vae'
+-    train_vae(task_name, formatted_time)
+\ No newline at end of file
++    import argparse
++    parser = argparse.ArgumentParser(); parser.add_argument('--config', default='./configs/vae_config.yaml')
++    args = parser.parse_args()
++    train_vae(task_name, formatted_time, args.config)
+\ No newline at end of file
 diff --git a/trainer/dit_trainer.py b/trainer/dit_trainer.py
-index 6beeb3c..2de9f1f 100644
+index 6beeb3c..1f8f625 100644
 --- a/trainer/dit_trainer.py
 +++ b/trainer/dit_trainer.py
 @@ -42,6 +42,7 @@ def train_dit_one_epoch(dit, vae, train_loader, optimizer, scheduler, epoch, num
@@ -130,7 +635,26 @@ index 6beeb3c..2de9f1f 100644
                  mask=mask,  # e.g., mask from dataloader
                  compression_factor=8,
                  prefix_ratio=0.3
-@@ -269,6 +272,7 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
+@@ -219,7 +222,7 @@ def val_dit_one_batch(dit, vae, val_loader, device, save_path):
+             x_mix = x_pred.permute(0, 2, 1) * (final_noise_mask.unsqueeze(1)) + feat.permute(0, 2, 1) * (1 - final_noise_mask).unsqueeze(1)
+ 
+             # decoder and visualized
+-            output = vae.decode(x_mix)
++            output = vae.decode(x_mix, padding_mask=~mask.bool() if getattr(vae.config, "use_decoder_padding_mask", False) else None)
+ 
+             # sample from gmm
+             pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits = get_mixture_coef(output, num_mixture=20)
+@@ -237,7 +240,8 @@ def val_dit_one_batch(dit, vae, val_loader, device, save_path):
+                     pen[sample_idx].cpu()  # 结束状态的概率
+                 ]
+ 
+-                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, greedy=True) # T 5
++                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, mode="expectation") # T 5
++                recon = vae.to_data_space(recon)
+                 plot_line(data[i], save_path=f"{save_path}/gt_{p}_{i}.png", title='gt')
+                 plot_line(recon, save_path=f"{save_path}/recon_{p}_{i}.png", title='recon')
+             
+@@ -269,6 +273,7 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
  
              latent_mask, latent_padding_mask, prefix_label_mask = build_prefix_mask_from_char_points(
                  char_points_idx=char_points_idx,
@@ -138,12 +662,24 @@ index 6beeb3c..2de9f1f 100644
                  mask=mask,  # e.g., mask from dataloader
                  compression_factor=8,
                  prefix_ratio=0.3
-@@ -300,8 +304,12 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
+@@ -280,7 +285,7 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
+             x_mix = x_pred.permute(0, 2, 1) * (final_noise_mask.unsqueeze(1)) + feat.permute(0, 2, 1) * (1 - final_noise_mask).unsqueeze(1)
+ 
+             # decoder and visualized
+-            output = vae.decode(x_mix)
++            output = vae.decode(x_mix, padding_mask=~mask.bool() if getattr(vae.config, "use_decoder_padding_mask", False) else None)
+ 
+             # sample from gmm
+             pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits = get_mixture_coef(output, num_mixture=20)
+@@ -299,9 +304,14 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
+                 ]
  
                  # 生成样本
-                 recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, greedy=True) # T 5
+-                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, greedy=True) # T 5
 -                plot_line_cv2_new(data[i], save_path=f"{save_path}/gt_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, max_dist=200)
 -                plot_line_cv2_new(recon, save_path=f"{save_path}/recon_{p * batch_size + i}.png", canvas_height=256, padding=20, line_thickness=2, max_dist=200)
++                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, mode="expectation") # T 5
++                recon = vae.to_data_space(recon)
 +                # Chinese renderer truncates at the penultimate character end;
 +                # unaligned English has no internal character ends to truncate at.
 +                draw_line = plot_line_cv2_new if len(char_points_idx[i]) else plot_line_cv2
@@ -153,6 +689,281 @@ index 6beeb3c..2de9f1f 100644
              
              # break
  
+diff --git a/trainer/vae_trainer.py b/trainer/vae_trainer.py
+index f3e2faf..9ae70e9 100644
+--- a/trainer/vae_trainer.py
++++ b/trainer/vae_trainer.py
+@@ -1,188 +1,76 @@
+-
++"""Real VAE training path: model-owned scaling, masked English losses, accumulation."""
+ import os
+-import wandb
++from contextlib import nullcontext
+ import torch
+-import torch.nn.functional as F
+-from tqdm import tqdm
+-import numpy as np
+-
+-from model.gmm import get_mixture_coef, get_mixture_coef_max, get_loss, sample_from_params
+-from utils.visual import plot_line_cv2
++from model.losses import loss_terms, weighted_loss
+ from utils.mask import downsample_mask
+-from utils.ddp import reduce_loss, is_main_process, ddp_print, ddp_log_to_wandb
+-
+-def train_vae_one_epoch(vae, config, train_loader, optimizer, scheduler, epoch, num_epochs, device, ddp=False):
+-    vae.train()
+-    total_gmm_loss = 0.0
+-    total_ce_loss = 0.0
+-    total_kl_loss = 0.0
+-    total_ctc_loss = 0.0
+-    total_style_loss = 0.0
+-    total_total_loss = 0.0
+-
+-    gmm_weight, kl_weight, pen_weight, ctc_weight, style_weight = config.gmm_weight, config.kl_weight, config.pen_weight, config.ctc_weight, config.style_weight
+-    get_ctc_loss = ctc_weight != 0
+-    get_style_loss = style_weight != 0
+-
+-    steps_per_epoch = len(train_loader)
+-    for i, batch in tqdm(enumerate(train_loader), desc=f"Epoch {epoch + 1}", unit="batch"):
+-        global_step = epoch * steps_per_epoch + i + 1
+-        data, mask, text_idx, char_points_idx, writer_id = batch
+-        data, mask, text_idx, writer_id = data.to(device), mask.to(device), text_idx.to(device), writer_id.to(device)
+-
+-        optimizer.zero_grad(set_to_none=True)
+-
+-        pad_mask = downsample_mask(mask, compression_factor=8)
+-
+-        data = data.permute(0, 2, 1)    # [B, T, 5] → [B, 5, T]
+-
+-        output, ctc_loss, kl_loss, style_loss = vae(data, pad_mask, text_idx, writer_id, get_ctc_loss, get_style_loss)
+-
+-        # 获取连续值和 one-hot 向量的真值
+-        x_true = data[:, :1, :]
+-        y_true = data[:, 1:2, :]
+-        pen_state_true = data[:, 2:, :]
+-        
+-        # 获取 GMM 参数
+-        pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits = get_mixture_coef_max(output, num_mixture=20)
+-
+-        # 计算损失
+-        loss_d, loss_c = get_loss(pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits, x_true, y_true, pen_state_true)
+-
+-        gmm_loss = (loss_d * mask).sum() / mask.sum()
+-        ce_loss = loss_c
+-        kl_loss = kl_loss.mean()
+-        ctc_loss = ctc_loss.mean()
+-        style_loss = style_loss.mean()
+-
+-        total_loss = gmm_loss * gmm_weight + ce_loss * pen_weight + kl_loss * kl_weight
+-
+-        if ctc_weight != 0:
+-            total_loss += ctc_loss * ctc_weight
+-        if style_weight != 0:
+-            total_loss += style_loss * style_weight
+-
+-        if ddp:
+-            is_finite = torch.isfinite(total_loss).to(dtype=torch.float32)
+-            torch.distributed.all_reduce(is_finite, op=torch.distributed.ReduceOp.MIN)
+-            skip_step = (is_finite.item() == 0)
+-        else:
+-            skip_step = (not torch.isfinite(total_loss).item())
+-
+-        if skip_step:
+-            if (not ddp) or torch.distributed.get_rank() == 0:
+-                def safe_item(x):
+-                    try:
+-                        return x.item()
+-                    except Exception:
+-                        return float("nan")
+-
+-                print(
+-                    f"[Warning] Skipping step at epoch {epoch}, step {i}: "
+-                    f"Total Loss: {safe_item(total_loss):.4f}, "
+-                    f"GMM Loss: {safe_item(gmm_loss):.4f}, "
+-                    f"CE Loss: {safe_item(ce_loss):.4f}, "
+-                    f"KL Loss: {safe_item(kl_loss):.4f}, "
+-                    f"CTC Loss: {safe_item(ctc_loss):.4f}, "
+-                    f"Style Loss: {safe_item(style_loss):.4f}"
+-                )
+-
+-            # 释放所有仍可能持有计算图引用的 tensor
+-            del total_loss
+-            del gmm_loss, ce_loss, kl_loss, ctc_loss, style_loss
+-            del loss_d, loss_c
+-            del pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits
+-            del x_true, y_true, pen_state_true
+-            del output
+-            del pad_mask
+-            del data, mask, text_idx, writer_id, char_points_idx, batch
+-
+-            torch.cuda.empty_cache()   # 仅异常分支用一次即可
+-            continue
+-
+-        total_loss.backward()
+-        torch.nn.utils.clip_grad_norm_(vae.parameters(), max_norm=10.0)
++from utils.ddp import reduce_loss
++
++
++def train_vae_one_epoch(vae,config,train_loader,optimizer,scheduler,epoch,num_epochs,device,ddp=False,
++                        on_optimizer_step=None,max_optimizer_updates=None):
++    vae.train();base=vae.module if hasattr(vae,'module') else vae
++    accumulation=int(getattr(config,'gradient_accumulation_steps',1))
++    if accumulation<1:raise ValueError('positive gradient accumulation required')
++    if getattr(config,'padding_strategy',None)=='microbatch' and getattr(config,'train_batch_size',1)!=1:
++        raise ValueError('microbatch padding mitigation requires physical batch 1')
++    if getattr(config,'post_end_eoc_window',0):
++        raise ValueError('fixed post-end window not implemented; do not silently use random batch padding')
++    if getattr(config,'anchor_gradient_fraction',0)>0 and getattr(config,'expected_xy_weight',0)<=0:
++        raise ValueError('calibrate expected-XY anchor before training; do not silently train with anchor weight zero')
++    optimizer.zero_grad(set_to_none=True);rows=[];failed=False;last_terms=None
++    for i,batch in enumerate(train_loader):
++        group_start=(i//accumulation)*accumulation
++        group_size=min(accumulation,len(train_loader)-group_start)
++        if i==group_start:group_terms={};group_loss=0.0
++        boundary=(i-group_start+1)==group_size
++        data,mask,text,_,writer=batch
++        data=data.to(device).transpose(1,2);mask=mask.to(device)
++        sync=vae.no_sync() if ddp and not boundary else nullcontext()
++        with sync:
++            output,ctc,kl,style=vae(data,downsample_mask(mask,8),text.to(device),writer.to(device),
++                                  getattr(config,'ctc_weight',0)!=0,getattr(config,'style_weight',0)!=0,point_mask=mask)
++            terms=loss_terms(output,base.to_model_space(data),mask,config,ctc,kl,style)
++            total=weighted_loss(terms,config)
++            finite=torch.isfinite(total).float()
++            if ddp:torch.distributed.all_reduce(finite,op=torch.distributed.ReduceOp.MIN)
++            if not finite.item():
++                failed=True;optimizer.zero_grad(set_to_none=True)
++            elif not failed:(total/group_size).backward()
++        last_terms={k:float(v.detach()) for k,v in terms.items()}
++        for key,value in last_terms.items():group_terms[key]=group_terms.get(key,0.0)+value
++        group_loss+=float(total.detach())
++        if not boundary:continue
++        if failed:
++            optimizer.zero_grad(set_to_none=True);failed=False;continue
++        norm=torch.nn.utils.clip_grad_norm_(vae.parameters(),getattr(config,'grad_clip',10),error_if_nonfinite=True)
+         optimizer.step()
+-        scheduler.step()
+-        current_lr = optimizer.param_groups[0]["lr"]
+-            
+-        if ddp:
+-            total_loss = reduce_loss(total_loss)
+-            gmm_loss = reduce_loss(gmm_loss)
+-            ce_loss = reduce_loss(ce_loss)
+-            kl_loss = reduce_loss(kl_loss)
+-
+-            if get_ctc_loss:
+-                ctc_loss = reduce_loss(ctc_loss)
+-            else:
+-                ctc_loss = torch.tensor(0.0, device=total_loss.device)
+-
+-            if get_style_loss:
+-                style_loss = reduce_loss(style_loss)
+-            else:
+-                style_loss = torch.tensor(0.0, device=total_loss.device)
+-
+-            # 每 50 step 输出一次
+-            if is_main_process() and global_step % 50 == 0:
+-                ddp_print(
+-                    f'Epoch [{epoch + 1}/{num_epochs}], '
+-                    f'Step [{i}/{steps_per_epoch}], '
+-                    f'LR: {current_lr:.6f}, '
+-                    f'Total Loss: {total_loss.item():.4f}, '
+-                    f'GMM Loss: {gmm_loss.item():.4f}, '
+-                    f'CE Loss: {ce_loss.item():.4f}, '
+-                    f'KL Loss: {kl_loss.item():.4f}, '
+-                    f'CTC Loss: {ctc_loss.item():.4f}, '
+-                    f'Style Loss: {style_loss.item():.4f}'
+-                )
+-        
+-        else:
+-            print(f'Epoch [{epoch + 1}/{num_epochs}], LR: {current_lr}, Total Loss: {total_loss.item():.4f}, GMM Loss: {gmm_loss.item():.4f}, CE Loss: {ce_loss.item():.4f}, KL Loss: {kl_loss.item():.4f}, CTC Loss: {ctc_loss.item():.4f}, Style Loss: {style_loss.item():.4f}')
+-        
+-        # 正常 step 结束后统一清理
+-        del total_loss
+-        del gmm_loss, ce_loss, kl_loss, ctc_loss, style_loss
+-        del loss_d, loss_c
+-        del pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits
+-        del x_true, y_true, pen_state_true
+-        del output
+-        del pad_mask
+-        del data, mask, text_idx, writer_id, char_points_idx, batch
+-
+-def val_vae_one_batch(model, val_loader, epoch, device, save_path):
+-    model.eval()
+-    model = model.module if hasattr(model, 'module') else model
+-    os.makedirs(save_path, exist_ok=True)
+-
++        if scheduler is not None:scheduler.step()
++        optimizer.zero_grad(set_to_none=True)
++        row={'optimizer_step':len(rows)+1,'microbatches':group_size,'loss':group_loss/group_size,
++             'loss_log_scope':'effective_batch_mean','last_microbatch_loss':float(total.detach()),
++             **{k:v/group_size for k,v in group_terms.items()},'gradient_norm':float(norm),'lr':optimizer.param_groups[0]['lr']}
++        rows.append(row)
++        if on_optimizer_step:on_optimizer_step(row)
++        elif not ddp or torch.distributed.get_rank()==0:print(row,flush=True)
++        if max_optimizer_updates is not None and len(rows)>=max_optimizer_updates:break
++    return rows
++
++
++def val_vae_one_batch(model,val_loader,epoch,device,save_path):
++    from model.gmm import get_mixture_coef,sample_from_params
++    from utils.visual import plot_line_cv2
++    model.eval();model=model.module if hasattr(model,'module') else model
++    os.makedirs(save_path,exist_ok=True)
+     with torch.no_grad():
+-        for p, batch in tqdm(enumerate(val_loader), desc=f"Epoch {epoch + 1}", unit="batch"):
+-            data, mask, labels, char_points_idx, writer_id = batch
+-            data, mask = data.to(device), mask.to(device)
+-
+-            data = data.permute(0, 2, 1)    # [B, T, 5] → [B, 5, T]
+-
+-            output = model.val(data)
+-
+-            # sample from gmm
+-            pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits = get_mixture_coef(output, num_mixture=20)
+-
+-            for i in range(data.size(0)):
+-                sample_idx = i
+-                seq_len = int(mask[i].sum().item())
+-                params = [
+-                    pi[sample_idx].cpu(),  # 混合系数
+-                    mu1[sample_idx].cpu(),  # 第一个分量的均值
+-                    mu2[sample_idx].cpu(),  # 第二个分量的均值
+-                    sigma1[sample_idx].cpu(),  # 第一个分量的标准差
+-                    sigma2[sample_idx].cpu(),  # 第二个分量的标准差
+-                    corr[sample_idx].cpu(),  # 相关系数 
+-                    pen[sample_idx].cpu()  # 结束状态的概率
+-                ]
+-
+-                # 生成样本
+-                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, greedy=True) # T 5
+-                plot_line_cv2(data[i], save_path=f"{save_path}/gt_{p}_{i}.png", canvas_height=256, padding=20, line_thickness=2)
+-                plot_line_cv2(recon, save_path=f"{save_path}/recon_{p}_{i}.png", canvas_height=256, padding=20, line_thickness=2)
+-
++        for p,batch in enumerate(val_loader):
++            data,mask,*_=batch;data=data.to(device);mask=mask.to(device)
++            output=model.val(data.transpose(1,2),point_mask=mask,latent_mean=True)
++            coefficients=get_mixture_coef(output,20)
++            for i in range(len(data)):
++                params=[v[i].cpu() for v in coefficients[:7]]
++                sequence=sample_from_params(params,max_seq_len=int(mask[i].sum()),mode='expectation')
++                recon=model.to_data_space(sequence)
++                plot_line_cv2(data[i].transpose(0,1),save_path=f'{save_path}/gt_{p}_{i}.png',canvas_height=256,padding=20,line_thickness=2)
++                plot_line_cv2(recon,save_path=f'{save_path}/recon_{p}_{i}.png',canvas_height=256,padding=20,line_thickness=2)
+             break
+-
+diff --git a/tune_dit_ddp.py b/tune_dit_ddp.py
+index ca25b28..9cf305f 100644
+--- a/tune_dit_ddp.py
++++ b/tune_dit_ddp.py
+@@ -47,6 +47,7 @@ def train_dit(task_name, time):
+     if vae_model_path and os.path.exists(vae_model_path):
+         print(f"Resuming VAE from checkpoint: {vae_model_path}")
+         ckpt = torch.load(vae_model_path, map_location=device)
++        vae.apply_checkpoint_contract(ckpt)
+         state_dict = ckpt["model_state_dict"]
+         if any(k.startswith("module.") for k in state_dict.keys()):
+             state_dict = strip_module_prefix(state_dict)
 diff --git a/utils/mask.py b/utils/mask.py
 index b62c005..dd20ac6 100644
 --- a/utils/mask.py
@@ -218,3 +1029,27 @@ index b62c005..dd20ac6 100644
 +        full_mask[b, :cutoff] = 1
 +    return (1.0 - downsample_mask(full_mask, compression_factor),
 +            downsample_mask(mask, compression_factor), 1.0 - full_mask)
+diff --git a/utils/utils.py b/utils/utils.py
+index 0062bed..5b4d171 100644
+--- a/utils/utils.py
++++ b/utils/utils.py
+@@ -19,6 +19,7 @@ def save_checkpoint(model, optimizer, scheduler, epoch, name, save_dir):
+     ckpt_path = os.path.join(save_dir, name + "_epoch_" + str(epoch + 1) + ".pt")
+     torch.save({
+         'epoch': epoch,
++        'config': vars((model.module if hasattr(model, 'module') else model).config),
+         'model_state_dict': model.state_dict(),
+         'optimizer_state_dict': optimizer.state_dict() if optimizer else None,
+         'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
+diff --git a/val_dit.py b/val_dit.py
+index 66a828c..f566bb1 100644
+--- a/val_dit.py
++++ b/val_dit.py
+@@ -42,6 +42,7 @@ def val_diffink():
+     if vae_model_path and os.path.exists(vae_model_path):
+         print(f"Resuming VAE from checkpoint: {vae_model_path}")
+         ckpt = torch.load(vae_model_path, map_location=device)
++        vae.apply_checkpoint_contract(ckpt)
+         state_dict = ckpt["model_state_dict"]
+         if any(k.startswith("module.") for k in state_dict.keys()):
+             state_dict = strip_module_prefix(state_dict)

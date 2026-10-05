@@ -262,3 +262,32 @@ SHA unchanged; optimizer steps 2050 joint and 1000 MSE. No CTC followed.
 Joint `reconstruction/20261005-091556/joint`; MSE/report
 `reconstruction/20261005-091827`. Full settings, invariants, nonmonotonic
 convergence/readout caveats, failed-attempt history and commands in ENGLISH_IAM.
+
+## Contract patches and eight-line integration (2026-10-05)
+
+Frozen deterministic-geometry pen refit: B and known-length binary tie at F1
+0.9474, FP4/FN0. Keep B; binary forced EOC does not prove learned termination.
+Exposed dropout, deterministic/greedy/stochastic readout, shared softplus sigma,
+valid-element KL, model-owned XY scaling/checkpoint metadata, decoder mask,
+independent rotation control and real-trainer accumulated masked losses are now
+implemented. GroupNorm and fundamental architecture are unchanged.
+
+User-authorized T4 test uses actual VAE trainer, 8 writer-10174 training lines
+(514–581 points), batch1/accum8, sampled latent, dropout0, LR1e-5, GMM+boundedpen
++gradient-calibrated expectedXY. CTC/style/KL off. Completes 200 updates/1600
+microbatches; 20 sampled-z evaluations per line at five checkpoints. Mean mu X/Y
+RMSE .944/.115→.388/.059, macro F1 .287→.698. **Gate NOT passed:** original-line
+geometry regresses, unfamiliar lines remain jagged, 51 false internal EOC,
+correct final EOC only3/8. All200 updates clipped at5. No extra run/KL/CTC follows.
+
+Anchor6.6665 is median per-line gradient calibration, not uniform15%: initial
+ratios .0038–.3735. Historical training rows log last microbatch, not effective
+batch mean; corrected future logging has regression coverage, with no rerun.
+Nonzero logged KL diagnostic has zero objective weight. Source/frozen auxiliaries
+unchanged; finite final state and Adam step200 independently CPU checked.
+61 tests pass in root/fork. Full DDP/DiT are not GPU validated.
+
+Engineering and paper-informed control configs are separate; latter is not exact
+English reproduction because normalization/EOC/data-contract remain unresolved.
+Details, commands, refit provenance and limitations are in ENGLISH_IAM.md.
+Volume report: `checkpoints/iam_eightline/20261005-102304/index.html`.

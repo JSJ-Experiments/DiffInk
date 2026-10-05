@@ -21,8 +21,11 @@ def setup(config_path, repo, data_root=None):
     ds=load_module(repo/'dataset/vae_dataset.py','inkvae_dataset')
     # Explicit cache reset when switching loader-test vs overfit vocabularies.
     ds.TrainDataset.text_cache=None;ds.TrainDataset.writer_cache=None
-    train=ds.TrainDataset(str(root/cfg['train_file']),str(root/cfg['text_file']),str(root/cfg['writer_file']),transform=None)
-    val=ds.TrainDataset(str(root/cfg['val_file']),str(root/cfg['text_file']),str(root/cfg['writer_file']),transform=None)
+    def locate(name):
+        value=Path(cfg[name])
+        return root/value.name if data_root and value.is_absolute() else root/value
+    train=ds.TrainDataset(str(locate('train_file')),str(locate('text_file')),str(locate('writer_file')),transform=None)
+    val=ds.TrainDataset(str(locate('val_file')),str(locate('text_file')),str(locate('writer_file')),transform=None)
     cfg['num_text_embedding']=len(train.text_cache)+1;cfg['num_writer']=len(train.writer_cache)
     manifest=json.loads((root/'manifest.json').read_text())
     if manifest.get('split_policy')!='same-writers-line-disjoint-overfit':
@@ -53,7 +56,7 @@ def batch_losses(model,batch,cfg,device):
     data=data.clone()
     data[:,:,:2]*=cfg['model_input_scale']
     channel=data.transpose(1,2)
-    output,ctc,kl,style=model(channel,downsample_mask(mask,8),text,writers)
+    output,ctc,kl,style=model(channel,downsample_mask(mask,8),text,writers,input_is_model_space=True)
     pi,mx,my,sx,sy,rho,pen,logits=get_mixture_coef_max(output,20)
     legacy,pen_element=get_loss(pi,mx,my,sx,sy,rho,pen,logits,
                               channel[:,:1],channel[:,1:2],channel[:,2:],focal_loss_reduction='none')

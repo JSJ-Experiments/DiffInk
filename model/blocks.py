@@ -76,7 +76,7 @@ class Decoder(nn.Module):
         return x
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, input_dim=128, hidden_dim=256, output_dim=123, num_layers=4, num_heads=4):
+    def __init__(self, input_dim=128, hidden_dim=256, output_dim=123, num_layers=4, num_heads=4, dropout=0.1):
         super().__init__()
         self.input_proj = nn.Linear(input_dim, hidden_dim)
         # self.input_norm = nn.LayerNorm(hidden_dim)
@@ -85,7 +85,8 @@ class TransformerDecoder(nn.Module):
             d_model=hidden_dim,
             nhead=num_heads,
             dim_feedforward=1024,
-            batch_first=True
+            batch_first=True,
+            dropout=dropout
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.fc = nn.Linear(hidden_dim, output_dim)

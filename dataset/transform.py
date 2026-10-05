@@ -2,20 +2,25 @@ import math
 import numpy as np
 
 class Transform:
-    def __init__(self, data_fixed_length, prob=0.5):
+    def __init__(self, data_fixed_length, prob=0.5, rotation_degrees=5.0, scaling=True, center_rotation=False):
         self.data_fixed_length = data_fixed_length
         self.prob = prob
+        self.rotation_degrees = rotation_degrees
+        self.scaling = scaling
+        self.center_rotation = center_rotation
 
     def random_scaling(self, data, scale_range=(0.9, 1.1)):
         scale = np.random.uniform(*scale_range)
         data[:, :2] *= scale
         return data
 
-    def random_rotation(self, data, angle_range=(-math.pi / 36, math.pi / 36)):
+    def random_rotation(self, data, angle_range=None):
+        angle_range = angle_range or (-math.radians(self.rotation_degrees), math.radians(self.rotation_degrees))
         angle = np.random.uniform(*angle_range)
         rotation_matrix = np.array([[math.cos(angle), -math.sin(angle)],
                                     [math.sin(angle), math.cos(angle)]])
-        data[:, :2] = np.dot(data[:, :2], rotation_matrix)
+        center = data[:, :2].mean(axis=0) if self.center_rotation else np.zeros(2)
+        data[:, :2] = np.dot(data[:, :2] - center, rotation_matrix) + center
         return data
     
     def point_dropping(self, data, drop_prob=0.02):
@@ -34,11 +39,8 @@ class Transform:
 
     def augment_data(self, data):
         augmented_data = data.copy()
-        methods = [
-            self.random_scaling,    # global scaling
-            self.random_rotation,   # geometric rotation
-            # self.point_dropping,    # trajectory sparsification + interpolation
-        ]
+        methods = ([self.random_scaling] if self.scaling else [])
+        if self.rotation_degrees: methods.append(self.random_rotation)
 
         for method in methods:
             if np.random.rand() < self.prob:

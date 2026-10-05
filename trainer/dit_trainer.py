@@ -222,7 +222,7 @@ def val_dit_one_batch(dit, vae, val_loader, device, save_path):
             x_mix = x_pred.permute(0, 2, 1) * (final_noise_mask.unsqueeze(1)) + feat.permute(0, 2, 1) * (1 - final_noise_mask).unsqueeze(1)
 
             # decoder and visualized
-            output = vae.decode(x_mix)
+            output = vae.decode(x_mix, padding_mask=~mask.bool() if getattr(vae.config, "use_decoder_padding_mask", False) else None)
 
             # sample from gmm
             pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits = get_mixture_coef(output, num_mixture=20)
@@ -240,7 +240,8 @@ def val_dit_one_batch(dit, vae, val_loader, device, save_path):
                     pen[sample_idx].cpu()  # 结束状态的概率
                 ]
 
-                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, greedy=True) # T 5
+                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, mode="expectation") # T 5
+                recon = vae.to_data_space(recon)
                 plot_line(data[i], save_path=f"{save_path}/gt_{p}_{i}.png", title='gt')
                 plot_line(recon, save_path=f"{save_path}/recon_{p}_{i}.png", title='recon')
             
@@ -284,7 +285,7 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
             x_mix = x_pred.permute(0, 2, 1) * (final_noise_mask.unsqueeze(1)) + feat.permute(0, 2, 1) * (1 - final_noise_mask).unsqueeze(1)
 
             # decoder and visualized
-            output = vae.decode(x_mix)
+            output = vae.decode(x_mix, padding_mask=~mask.bool() if getattr(vae.config, "use_decoder_padding_mask", False) else None)
 
             # sample from gmm
             pi, mu1, mu2, sigma1, sigma2, corr, pen, pen_logits = get_mixture_coef(output, num_mixture=20)
@@ -303,7 +304,8 @@ def infer_diffink(dit, vae, val_loader, device, save_path):
                 ]
 
                 # 生成样本
-                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, greedy=True) # T 5
+                recon = sample_from_params(params, temp=0.1, max_seq_len=seq_len, mode="expectation") # T 5
+                recon = vae.to_data_space(recon)
                 # Chinese renderer truncates at the penultimate character end;
                 # unaligned English has no internal character ends to truncate at.
                 draw_line = plot_line_cv2_new if len(char_points_idx[i]) else plot_line_cv2

@@ -47,6 +47,7 @@ def train_dit(task_name, time):
     if vae_model_path and os.path.exists(vae_model_path):
         print(f"Resuming VAE from checkpoint: {vae_model_path}")
         ckpt = torch.load(vae_model_path, map_location=device)
+        vae.apply_checkpoint_contract(ckpt)
         state_dict = ckpt["model_state_dict"]
         if any(k.startswith("module.") for k in state_dict.keys()):
             state_dict = strip_module_prefix(state_dict)
