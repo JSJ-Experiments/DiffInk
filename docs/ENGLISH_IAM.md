@@ -513,3 +513,144 @@ IAM/checkpoint artifacts stay in local/Volume storage, never GitHub. All 43
 unit tests pass in both root and fork, including padding exclusion, exact
 upstream focal parity, majority-class failure, AdamW row isolation and an
 actual full-VAE merge/forward invariance regression test.
+
+### Joint compatibility and deterministic coordinate diagnostic — 2026-10-05
+
+The user correctly noted that even true-pen XY remained angular. The earlier
+numerical geometry gate was a mechanics gate, **not a human-realism gate**.
+We implemented two independent branches from the exact step-2,000 geometry
+checkpoint, retaining IAM/RDP/scale 0.01 and the same architecture. No CTC,
+style or KL loss, no temporal smoothing/resampling, and no derivative loss.
+
+**Joint branch:** the user chose trained Arm B pen rows; all other model state
+comes from the original step-2,000 geometry checkpoint. The source geometry
+AdamW moments restore at step 2,000 (pen rows' old moments were zero), LR1e-5,
+GMM NLL 1 + bounded focal 1. Train mode/sampled latent/dropout follow the previous
+geometry runner. The cap is 300 updates, evaluating every 50. Geometry must not
+regress in either per-axis RMSE or correlation against the exact same-device
+baseline; only absolute numerical tolerance 1e-7 is allowed. Failed snapshots
+are saved for diagnosis but not promoted.
+
+The joint branch **stopped at 50** under that guard:
+
+| Fixed T4 primary readout | Before | After 50 |
+|---|---:|---:|
+| X RMSE | 0.05902 | 0.05011 |
+| Y RMSE | 0.03120 | 0.03252 |
+| Y correlation | 0.97583 | 0.97416 |
+| Pen-up F1 | 0.87179 | 0.86842 |
+| Within-stroke first-difference error | 0.05079 | 0.05326 |
+| Within-stroke second-difference error | 0.08625 | 0.09082 |
+
+Y error increased 4.2%; jitter metrics also worsened. All 50 steps clipped at 10.
+This did **not** prove geometry/pen coexistence under these optimizer/objective
+settings. It does not prove the objectives fundamentally cannot coexist.
+The T4 pen baseline differs slightly from the CPU A/B (0.861), so only the
+same-device 0.87179→0.86842 comparison is used to judge this branch.
+
+**Deterministic branch:** resets to the *untouched* step-2,000 geometry model,
+not the joint model or trained B head. It optimizes
+`MSE(sum_k softmax(pi_logits)_k * mu_k, true_XY)` over 581 real points and both
+coordinate axes, excluding padding. One line, 1,000 updates, fresh AdamW at
+LR1e-4, betas 0.9/0.99, decay 0, clip 10. It decodes **latent mean** in **eval mode**
+(dropout off, gradients enabled). Only the pi/mu output rows receive objective
+gradients; pen/sigma/rho FC rows and the latent-variance head remain unchanged.
+The encoder/decoder/transformer and latent-mean head still optimize normally.
+
+This deliberately deterministic capacity test differs from stochastic GMM
+training in loss, latent/dropout behavior and optimizer initialization. Success
+is **not a pure loss-only causal ablation**. Each evaluation therefore records
+all four controls: sampled latent seed 1042 vs latent mean, and highest-weight
+component mean vs mixture expectation. No target-aware component selection.
+
+| Deterministic latent-mean / expectation readout | Before | After 1,000 |
+|---|---:|---:|
+| X RMSE | 0.05497 | **0.00228** |
+| Y RMSE | 0.02740 | **0.00170** |
+| Y correlation | 0.98139 | **0.99993** |
+| Within-stroke first-difference vector RMSE | 0.04482 | **0.00297** |
+| Within-stroke second-difference vector RMSE | 0.07689 | **0.00551** |
+| Expected-XY MSE | 0.0018864 | **0.00000406** |
+
+X/Y RMSE fell 95.8%/93.8%; first-/second-difference errors fell 93.4%/92.8%.
+The final true-pen reconstruction visually follows the processed input very
+closely, without the earlier local zig-zags. **The deterministic one-line
+capacity diagnostic passes our visual/numerical inspection.** It is not literal
+pixel equality, generalization to other lines, or reproduction of unprocessed
+IAM/source images. The same 8× architecture and provisional representation can
+represent this line closely; they are not a hard capacity barrier here.
+No derivative objective was required to obtain this local-shape improvement.
+
+No clipping occurred in the MSE branch (median/mean/max raw norms
+0.094/0.182/5.98). Nevertheless convergence is not monotonic: step 950 had
+X/Y RMSE 0.00985/0.01078 before the strong step 1,000 result. This is a good
+saved reconstruction, not proof training has reached a stable asymptote.
+The loop/evaluation/render/save time was 91.8 seconds on T4, excluding startup
+and source loading; this is not total billed time.
+
+**Readout/noise still matter.** At the same final MSE checkpoint:
+
+| Final XY readout | X RMSE | Y RMSE |
+|---|---:|---:|
+| Latent mean + mixture expectation | 0.00228 | 0.00170 |
+| Latent mean + highest-weight component | 0.02565 | 0.03549 |
+| Fixed sampled latent + mixture expectation | 0.01768 | 0.00990 |
+| Fixed sampled latent + highest-weight component | 0.03195 | 0.03575 |
+
+Only the expectation was explicitly supervised. A beautiful expectation does
+not imply beautiful individual components or sampled trajectories. The fixed
+sampled-latent expectation also improves substantially from its own baseline,
+but is noticeably worse than the deterministic mean. The next production
+loss decision must account for stochastic behavior and the actual rendered
+readout; do not blindly replace GMM or claim likelihood alone caused everything.
+
+**Derivative definitions:** first differences use 544 connected true-stroke
+edges; second differences use 508 three-point windows fully inside true strokes.
+Both report vector and per-axis RMSE plus target-relative error. All-point
+versions including pen-up jumps are recorded as secondary controls. These
+are index-difference errors on nonuniformly RDP-sampled points, **not physical
+velocity or arc-length-normalized curvature**.
+
+**A runner handoff bug was caught:** the first worker completed the guarded
+joint branch, then stopped before its first MSE optimizer update because a
+newly frozen latent-variance head retained old `.grad` buffers. Changing
+`requires_grad` does not clear existing gradients. Branch initialization now
+clears *all* gradients before changing trainability. A regression test covers
+this transition. Only MSE was relaunched; the joint run was not repeated.
+`attempt.json` preserves this history rather than hiding the failed worker.
+
+Independent CPU saved-state checks confirm unchanged OCR/style state, all
+MSE pen/sigma/rho FC rows and latent-variance parameters unchanged, finite
+weights, source checkpoint SHA unchanged, joint Adam step 2,050 (200 entries)
+and fresh MSE Adam step 1,000 (198 entries). CPU/CUDA bitwise equivalence is
+not claimed. All 51 unit tests pass in both root and fork.
+
+```sh
+# CPU-only preflight, zero updates; upload reconstruction_preflight.json:
+python -m iam_tools.reconstruction --data-root data/diffink/iam_overfit --source-checkpoint data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356/checkpoint.pt --pen-checkpoint data/checkpoints/iam_autopsy/pen_ab/20261005-084901/B_bounded_english/checkpoint.pt
+# Guarded bounded pair, NOT a production training command:
+modal run modal_reconstruction.py --train --allow-experimental
+# To run ONLY the independent MSE branch, not redo joint:
+modal run modal_reconstruction.py --train --allow-experimental --mse-only
+# Report/verify existing results, no training/GPU:
+python -m iam_tools.report_reconstruction data/checkpoints/iam_autopsy/reconstruction/20261005-091827 --joint-directory data/checkpoints/iam_autopsy/reconstruction/20261005-091556 --data-root data/diffink/iam_overfit --source-checkpoint data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356/checkpoint.pt --pen-checkpoint data/checkpoints/iam_autopsy/pen_ab/20261005-084901/B_bounded_english/checkpoint.pt
+```
+
+```text
+Joint: /data/checkpoints/iam_autopsy/reconstruction/20261005-091556/joint/
+MSE:   /data/checkpoints/iam_autopsy/reconstruction/20261005-091827/deterministic_mse/
+Report: /data/checkpoints/iam_autopsy/reconstruction/20261005-091827/index.html
+```
+
+Replace `/data` with `/mnt/diffink-data` in a Modal shell, or `data` locally.
+The report links both runs and contains true-pen before/after panels, derivative
+curves, readout/noise controls, raw snapshots and CPU checkpoint checks. All
+IAM/checkpoint artifacts remain on local disk/Volume, never GitHub.
+
+**No CTC enabled.** Pen loss was intentionally off in MSE and its raw predicted
+pen states are meaningless. Its hidden representation changed, so simply
+transplanting the old B head is not an end-to-end solution. Proposed next step:
+fit bounded pen rows against the new frozen geometry, then test the rendered
+coordinate objective alongside GMM/pen with careful stochastic controls.
+Only promote once predicted-pen reconstruction retains the input geometry;
+CTC, eight-line/writer and full-IAM experiments are still deferred.

@@ -231,3 +231,34 @@ B is the boundary-F1 winner at this budget, not perfect boundary reconstruction
 or proof A cannot converge. Generalization, earlier joint-run causation and
 paper-English reproduction remain unproven. No joint training or CTC followed.
 See ENGLISH_IAM.md for commands, experiment controls and persistent paths.
+
+## Joint compatibility failed; deterministic one-line capacity succeeded
+
+Both branches use the pinned step-2,000 geometry source. Joint inserts ONLY
+trained B pen rows (user selected), restores original geometry Adam state,
+LR1e-5, GMM 1 + bounded-focal 1, stochastic train mode. Its strict XY RMSE and
+correlation guard stops at 50: Y RMSE 0.03120→0.03252, Y corr 0.97583→0.97416,
+pen F1 (T4 same-device) 0.87179→0.86842. It is not promoted.
+
+Independent deterministic MSE resets ORIGINAL geometry (not joint/B head),
+uses latent mean/eval dropout off, fresh AdamW LR1e-4/decay 0, 1,000 updates.
+Only expected-XY MSE participates; true pens for the geometry assessment,
+CTC/style/KL/derivative objectives off. X/Y RMSE 0.05497/0.02740→0.00228/0.00170;
+Y corr 0.99993. Within-stroke first/second-difference vector errors
+0.04482/0.07689→0.00297/0.00551. The rendered observed line is very close to
+processed input: architecture/8× bottleneck/encoding can represent this line.
+This is NOT a pure loss-only ablation or English reproduction/generalization.
+Fixed-noise expected readout remains worse (0.01768/0.00990), and even latent
+mean max-pi readout remains rough (0.02565/0.03549). Production sampling/readout
+and objective integration remain unresolved.
+
+First worker completed joint then caught stale conv_logvar.grad on switching
+branches BEFORE first MSE optimizer step. Initialization now clears every .grad;
+transition regression added. Only MSE relaunched, no repeated joint spend.
+All 51 root/fork tests pass. Independent saved-state CPU checks confirm MSE
+pen/sigma/rho output rows + conv_logvar + OCR/style unchanged; original source
+SHA unchanged; optimizer steps 2050 joint and 1000 MSE. No CTC followed.
+
+Joint `reconstruction/20261005-091556/joint`; MSE/report
+`reconstruction/20261005-091827`. Full settings, invariants, nonmonotonic
+convergence/readout caveats, failed-attempt history and commands in ENGLISH_IAM.
