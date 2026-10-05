@@ -9,6 +9,8 @@ from utils.ddp import reduce_loss
 
 def train_vae_one_epoch(vae,config,train_loader,optimizer,scheduler,epoch,num_epochs,device,ddp=False,
                         on_optimizer_step=None,max_optimizer_updates=None):
+    if getattr(config,'mean_xy_anchor_weight',0):
+        raise ValueError('mean XY anchor requires iam_tools.latent_integration; standard trainer would silently drop it')
     vae.train();base=vae.module if hasattr(vae,'module') else vae
     accumulation=int(getattr(config,'gradient_accumulation_steps',1))
     if accumulation<1:raise ValueError('positive gradient accumulation required')

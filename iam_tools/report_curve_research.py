@@ -26,6 +26,7 @@ def report(data_root='data'):
     (out/'summary.json').write_text(json.dumps(summary, indent=2)+'\n')
     page = ['<!doctype html><meta charset="utf-8"><title>English InkVAE curve fidelity investigation</title>',
             '<style>body{font:16px system-ui;max-width:1200px;margin:2em auto;padding:0 1em}td,th{padding:.5em;text-align:left}table{border-collapse:collapse}tr{border-bottom:1px solid #ddd}img{max-width:100%}pre{white-space:pre-wrap}</style>',
+            '<p><strong>Later integration:</strong> <a href="../../iam_latent_integration/latest/index.html">Sampled latent / tiny KL / joint OCR report</a>. Results below remain historical.</p>',
             '<h1>Curve fidelity: investigation and improved reconstruction</h1>',
             '<p><strong>Result:</strong> The old checkpoint was under-converged. Continued point supervision removes most artifacts; a small target-difference anchor adds a consistent local-fidelity benefit. No decoder/normalization/mixture-count/RDP change, smoothing, or KL/OCR/style training was required.</p>',
             '<p>The final highlighted c no longer has the added shelf, and the h arch tracks its target rather than forming an exaggerated roof. All eight final mean line renders were inspected. This is a visual engineering judgment on eight memorized lines, not pixel identity or generalization.</p>',

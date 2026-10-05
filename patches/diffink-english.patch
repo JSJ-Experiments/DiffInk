@@ -745,10 +745,10 @@ index 6beeb3c..1f8f625 100644
              # break
  
 diff --git a/trainer/vae_trainer.py b/trainer/vae_trainer.py
-index f3e2faf..9ae70e9 100644
+index f3e2faf..2ed4b82 100644
 --- a/trainer/vae_trainer.py
 +++ b/trainer/vae_trainer.py
-@@ -1,188 +1,76 @@
+@@ -1,188 +1,78 @@
 -
 +"""Real VAE training path: model-owned scaling, masked English losses, accumulation."""
  import os
@@ -861,6 +861,8 @@ index f3e2faf..9ae70e9 100644
 +
 +def train_vae_one_epoch(vae,config,train_loader,optimizer,scheduler,epoch,num_epochs,device,ddp=False,
 +                        on_optimizer_step=None,max_optimizer_updates=None):
++    if getattr(config,'mean_xy_anchor_weight',0):
++        raise ValueError('mean XY anchor requires iam_tools.latent_integration; standard trainer would silently drop it')
 +    vae.train();base=vae.module if hasattr(vae,'module') else vae
 +    accumulation=int(getattr(config,'gradient_accumulation_steps',1))
 +    if accumulation<1:raise ValueError('positive gradient accumulation required')

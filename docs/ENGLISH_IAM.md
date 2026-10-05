@@ -3,8 +3,11 @@
 This workspace implements IAM parsing, experimental preprocessing, HDF5 export,
 and bounded T4 reconstruction/OCR mechanics experiments. **Full IAM/InkDiT
 training has not run.** The later [curve fidelity investigation](CURVE_FIDELITY.md)
-passes the eight-memorized-line geometry gate for bounded joint integration,
-not a generalization/full-training gate; it supersedes earlier curve-audit status.
+passes the eight-memorized-line geometry gate. The subsequent
+[bounded sampled/KL/OCR integration](LATENT_INTEGRATION.md) also passes, with
+faithful geometry, perfect pen boundaries and CER0 on means/all160 sampled
+latents. Neither is a generalization/full-training gate; earlier audit status
+remains historical.
 
 Fork: https://github.com/JSJ-Experiments/DiffInk/tree/english-iam
 
@@ -989,3 +992,22 @@ Final raw/target/before/after/all-eight/sample gallery:
 Selected checkpoint: `checkpoints/iam_curve_study/20261005-124900/delta50/checkpoint.pt`.
 These are memorized training lines, not full English generation/paper reproduction.
 Joint auxiliary/regularized latent behavior remains a separate bounded test.
+
+### Completed bounded posterior/KL/OCR integration
+
+Three sequential400-update T4 stages preserve the reference and improve local
+geometry. Mean X/Y RMSE0.000270/0.001162, turn p90 3.63° (reference5.17°);
+all8 means and all160 draws retain genuine pen F1=1 and OCR CER0. The transferred
+OCR head already works on the changed encoder, so warmup needed zero updates.
+A paired-noise CPU control with **original fixed std** improves too, ruling out
+variance narrowing as the only source of the sampled improvement.
+
+See [LATENT_INTEGRATION.md](LATENT_INTEGRATION.md) for exact objective, failed
+attempts, gates, clipping, tiny-KL/CTC limitations, hashes and commands. This is
+custom mean-anchored engineering training, not the paper/production GMM baseline.
+Tiny KL does not establish prior matching; held-out/multi-writer behavior remains
+unvalidated. The standard trainer now rejects unsupported mean-anchor configs.
+
+Volume report: `checkpoints/iam_latent_integration/latest/index.html`.
+Final: `checkpoints/iam_latent_integration/20261005-133620/ocr/checkpoint-best.pt`.
+89 root/fork tests pass. All T4 jobs completed/stopped.

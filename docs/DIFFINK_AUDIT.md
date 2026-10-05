@@ -346,3 +346,27 @@ CPU reload checks and marker-free galleries: [CURVE_FIDELITY.md](CURVE_FIDELITY.
 
 Volume overview: `checkpoints/iam_curve_study/research-summary/index.html`.
 Selected: `checkpoints/iam_curve_study/20261005-124900/delta50/checkpoint.pt`.
+
+## Bounded posterior/KL/OCR follow-up (2026-10-05)
+
+The immutable visually faithful reference survives three400-update stages:
+sampled+mean-anchored XY/targetΔ/pen, then KL1e-6, then joint OCR. Final mean
+X/Y .000270/.001162 and turn p90 3.63° versus reference .000538/.001437 /5.17°.
+Pen F1=1 and CER0 on all8 means/all160 draws. Old OCR weights were revalidated
+on the changed encoder (zero warmup needed), not assumed valid. Full all-line
+marker-free mean/median/worst galleries were reviewed.
+
+First equal-anchor LR1e-6 attempt stopped at200 on position regression; retry
+uses mean anchor1000 versus sampled100 and LR5e-7. This changes two knobs and is
+not a one-factor ablation. Tiny KL/CTC have very weak gradients on memorized
+lines: compatibility only, not prior matching or strong regularization proof.
+Posterior std narrows, but CPU paired-noise reconstruction with original std
+also improves. Clipping remains frequent. See [LATENT_INTEGRATION.md](LATENT_INTEGRATION.md)
+for all controls, source hashes, attempts and independently reloaded checkpoints.
+
+Volume report `checkpoints/iam_latent_integration/latest/index.html`; final
+`checkpoints/iam_latent_integration/20261005-133620/ocr/checkpoint-best.pt`.
+SHA256 `fffe1405db10f8f6c2ce6ec1e030706b7947c93d83fa4eaeffec3b6a8c5b08f9`.
+89 tests pass; standard trainer fails closed on mean-anchor configs it cannot
+implement. Next gate is more/held-out lines, then multi-writer/style, not full
+IAM/InkDiT or paper reproduction. No source architecture/preprocessing change.

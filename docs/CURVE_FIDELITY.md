@@ -218,3 +218,12 @@ modal run --detach modal_curve_study.py --train --steps 100 --arms point,delta50
   --source-path /data/checkpoints/iam_curve_study/20261005-123232/point/checkpoint.pt \
   --source-sha 17a102009fa373dead243c922862859e6d36a9990eebb05f001fe2a9f3008204
 ```
+
+## Subsequent integration
+
+[Bounded sampled-latent / tiny KL / joint OCR integration](LATENT_INTEGRATION.md)
+now also passes on the same eight memorized lines, with the original checkpoint
+unchanged. The final marker-free geometry remains faithful, pen/OCR stay exact
+on means/all160 draws, and a fixed-reference-std CPU control improves too.
+This does not retroactively change the controls or claims of the geometry study
+above, and does not establish held-out/multi-writer or production GMM behavior.

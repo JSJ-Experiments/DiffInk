@@ -1,6 +1,7 @@
 > **Experimental English IAM adaptation:** see [English setup and CPU checks](docs/ENGLISH_IAM.md)
-> and [compatibility audit](docs/DIFFINK_AUDIT.md). No English training or weights
-> are included. Coordinate normalization and line-final state remain an explicit
+> and [compatibility audit](docs/DIFFINK_AUDIT.md). Bounded reconstruction/
+> [posterior-KL-OCR experiments](docs/LATENT_INTEGRATION.md) are documented;
+> English weights and full-IAM training are not included. Coordinate normalization and line-final state remain an explicit
 > baseline, not a verified reproduction of the authors' English preprocessing.
 
 <h1 align="center">
