@@ -192,3 +192,18 @@ padding is masked. For the fixed 581-point line padded to 584, this reduces the
 real-point-only EOC factor 581 to an effective fixed-batch 146 while retaining
 approximately 16x pen-up weighting. Training-batch composition can change the
 EOC factor. A controlled pen-policy A/B is still needed to establish causality.
+
+## Pinned low-LR model/optimizer continuation (2026-10-05)
+
+`20261005-081356` resumes the exact step-1,000 model and Adam state at 1e-5 LR,
+with no other setting/objective changes. It reaches global step2,000 after
+1,000 additional T4 updates. Fixed X/Y RMSE decreases to0.059/0.031 and Y
+correlation reaches0.976. True-pen handwriting is more recognizable, with
+residual roughness; the visual gate remains subject to review. Clipping persists
+on every update, and sigma continues decreasing despite real mean-location
+improvement. No later-stage GPU run or MSE objective was launched.
+
+The original checkpoint omitted RNG state; provenance records the seed42
+restart rather than claiming bitwise continuation. New checkpoints save RNG
+states and final Adam steps are verified at2,000. `ENGLISH_IAM.md` records the
+metrics, strict resume/config checks and artifact paths.

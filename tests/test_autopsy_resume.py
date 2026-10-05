@@ -1,6 +1,8 @@
 from copy import deepcopy
 from pathlib import Path
 import unittest
+import json
+import tempfile
 import torch
 import yaml
 from iam_tools.autopsy import check_geometry_config
@@ -41,6 +43,15 @@ class ResumeTests(unittest.TestCase):
         torch.testing.assert_close(new.state[new_parameter]['exp_avg_sq'],state['state'][0]['exp_avg_sq'])
         self.assertEqual(restored['state_entries'],1)
         self.assertTrue(torch.equal(new_parameter,torch.zeros(2)))
+
+    def test_report_rejects_missing_continuation_updates(self):
+        from iam_tools.report_autopsy import report
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            (root/'result.json').write_text(json.dumps({'start_step':1000,'steps':2000,'additional_steps':1000}))
+            (root/'metrics.jsonl').write_text('')
+            (root/'fixed_metrics.jsonl').write_text('')
+            with self.assertRaisesRegex(ValueError,'incomplete'):report(root)
 
     def test_clipping_fraction(self):
         self.assertEqual(clipping_summary([{'gradient_norm':x} for x in [2,10,20,40]],10)['fraction'],.5)

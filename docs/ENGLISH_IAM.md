@@ -360,3 +360,62 @@ The strict geometry gate remains mean-error/visual, not just NLL: ideally
 Y correlation >0.97, materially lower X/Y RMSE, recognizable smooth letters
 using true pen boundaries, and no apparent variance tightening without location
 improvement. Pen A/B remains conditional, and MSE is not included in this run.
+
+### Low-LR continuation result — 2026-10-05
+
+Run `20261005-081356` restored the pinned model and all 200 AdamW state entries
+at step 1,000, then executed exactly 1,000 additional updates at LR 1e-5 on
+Tesla T4. Reported loop/evaluation/checkpoint time was 54.6 seconds (not total
+billed duration). Fixed evaluations at global steps 1,000/1,100/…/2,000 use the
+same latent seed 1042; the resumed step-1,000 GPU evaluation matches the source
+run's final fixed evaluation exactly. Other training settings stayed identical.
+
+| Fixed diagnostic | Step 1,000 | Step 2,000 |
+|---|---:|---:|
+| X RMSE (model units) | 0.10186 | 0.05902 |
+| Y RMSE (model units) | 0.06368 | 0.03120 |
+| Y correlation | 0.89788 | 0.97583 |
+| GMM NLL | -2.399 | -3.144 |
+| Selected sigma X median | 0.10035 | 0.03652 |
+| Selected sigma Y median | 0.06391 | 0.03153 |
+
+X/Y RMSE improved 42%/51%; Y correlation exceeded the suggested 0.97 numeric
+criterion. True-pen renders are much more recognizable and follow the sentence,
+but retain angular/noisy details, especially the initial R and final word.
+This is numerical-gate progress, not perfect memorization or an end-to-end
+handwriting success. The visual gate should be reviewed before pen-policy A/B.
+
+**Clipping persists:** 1,000/1,000 continuation updates clipped at the unchanged
+cap 10. First/last 100 mean raw norms were 30.9/82.4 (last median 81.3, max149.1).
+Sigma keeps shrinking, and final X RMSE/NLL are not monotonic over snapshots.
+Thus this is not fully settled optimization. However location errors improve
+substantially alongside uncertainty reduction: it is not *merely* tightening
+density around unchanged means. Raw gradient norm/clipping alone is not a
+measurement of Adam parameter update size.
+
+CPU verification confirms all final Adam steps are 2,000, LR1e-5, finite model
+state, saved CPU/CUDA RNG, and the original local source checkpoint unchanged.
+The successful job saved its new checkpoint in a separate directory; the old
+source was not overwritten. The old missing-RNG limitation remains explicitly
+recorded, so this is model/optimizer continuation rather than bitwise stochastic
+continuation. No MSE, pen, CTC, style, normalization or larger-data experiment
+was launched after this run.
+
+```text
+Volume: /data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356/
+Shell:  /mnt/diffink-data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356/
+Local:  data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356/
+```
+
+`index.html` shows the same-frame comparisons and six-panel curves separating
+mean errors, sigma, NLL and clipping. Raw metrics, fixed metrics, model/Adam/RNG
+checkpoint, summary and CPU verification are persisted alongside it. Regenerate
+the report without training/GPU:
+
+```sh
+python -m iam_tools.report_autopsy data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356 --parent-dir data/checkpoints/iam_autopsy/geometry/20261005-075059 --visual-assessment recognizable-with-residual-errors
+```
+
+The IAM normalization and EOC encoding remain experimental. No authors' English
+result, OCR accuracy, writer-style learning or English text generation has been
+reproduced by this one-line test.
