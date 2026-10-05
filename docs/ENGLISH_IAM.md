@@ -419,3 +419,97 @@ python -m iam_tools.report_autopsy data/checkpoints/iam_autopsy/geometry_lr1e5/2
 The IAM normalization and EOC encoding remain experimental. No authors' English
 result, OCR accuracy, writer-style learning or English text generation has been
 reproduced by this one-line test.
+
+### Geometry accepted; controlled pen-head A/B — 2026-10-05
+
+The user reviewed the step-2,000 continuation and **passed the geometry gate
+for the autopsy**. Geometry polishing stops: no further LR continuation and
+no MSE. This does not establish the authors' English result or generalization.
+
+`iam_tools.pen_ab` branches from that exact step-2,000 checkpoint, SHA256
+`23fc747d82773d6714385f1e25af650ab018c14d95f11c2db54afbe0c8a8ac33`.
+Only the first three decoder FC output rows and their biases can change.
+The frozen VAE is in eval mode; one deterministic representation (latent seed
+1042) is cached. Each arm gets an independently initialized **identical 771-value
+linear head**, fresh AdamW at LR1e-3, betas 0.9/0.99, weight decay 0, clip 10,
+and exactly 1,000 updates. This is a deliberately head-only optimization setup,
+not a continuation of the geometry optimizer. No dropout or latent-noise drift
+is introduced between arms. All other VAE weights and auxiliary objectives
+remain frozen/off. Neither arm hit clipping.
+
+This very small optimization ran on **CPU**, with no GPU allocation/credit.
+There are 581 real points and 3 padding points; padding is excluded before class
+counting, focal loss and metrics. Both arms use upstream's *same* focal formula,
+`alpha[target] * (1 - exp(-unweighted_CE))**2 * unweighted_CE`; only alpha differs:
+
+- A inverse frequency: `1.068 / 16.139 / 581`.
+- B sqrt inverse frequency normalized to continue, capped 8: `1 / 3.887 / 8`.
+
+A separate linear head, rather than masking gradients on the full FC, prevents
+optimizer weight decay/moments from moving GMM rows. At every 100-update snapshot,
+the head is merged into the **full VAE** and a deterministic forward verifies
+bitwise-identical GMM outputs and XY, identical NLL, and unchanged non-pen state.
+A separate CPU checker reloads both saved branch models and reproduces these
+invariants and boundary metrics. The parent checkpoint's SHA stays unchanged.
+
+**Same-device comparison:** CPU is not claimed bitwise equal to the prior T4
+forward. The source CPU X/Y RMSE is 0.05890/0.03098 and Y correlation 0.97615
+(vs 0.05902/0.03120/0.97583 on T4). Both arms' XY is exactly equal to that same
+CPU source throughout. Source CPU pen counts before either arm are 299/35/247;
+the untrained geometry-stage pen head is not a learned pen baseline.
+
+| After 1,000 head updates | A inverse | B bounded |
+|---|---:|---:|
+| Pen-up precision | 0.590 | **0.791** |
+| Pen-up recall | **1.000** | 0.944 |
+| Pen-up F1 | 0.742 | **0.861** |
+| True-positive boundaries | 36 | 34 |
+| False pen-up breaks | 25 | **9** |
+| Missed pen-up boundaries | **0** | 2 |
+| Predicted continue / pen-up / EOC | 519 / 61 / 1 | 537 / 43 / 1 |
+| Non-final false EOC | 0 | 0 |
+| Final EOC correct | yes | yes |
+
+Target counts are 544/36/1. Raw overall accuracy is logged but **not a gate**;
+always-continue already gets 93.6%. B wins the requested boundary-F1 comparison
+and markedly reduces false pen breaks. Its predicted-pen render is recognizably
+close to the fixed-XY/true-pen reference, but still has 9 extra breaks and 2
+missing boundaries. **The perfect-boundary gate has not passed.** Both policies
+learned final EOC and eliminated false internal EOCs; this run does NOT show
+that A inevitably fails, that it cannot improve with more updates, or that
+weighting alone caused the old jointly trained 192-line failure. It supports
+bounded weighting as the better policy at this fixed representation/budget,
+not an English/multilingual generalization claim. Weighted losses have different
+scales and should not be compared as objective-quality scores.
+
+Run `20261005-084901` took 21.4 seconds for both head loops, evaluations, renders
+and saves (excluding source loading). No CTC/style/KL, joint-VAE or larger-data
+stage was started. The next proposed experiment is joint geometry+pen using B
+on this same line, checking geometry retention and boundary improvement;
+**CTC remains off until the single-line boundary reconstruction is acceptable**.
+
+```sh
+# Default is CPU preflight only, zero optimizer steps:
+python -m iam_tools.pen_ab --data-root data/diffink/iam_overfit --checkpoint data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356/checkpoint.pt
+# Re-run the bounded A/B (CPU only), into a new output directory:
+python -m iam_tools.pen_ab --data-root data/diffink/iam_overfit --checkpoint data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356/checkpoint.pt --output-base data/checkpoints/iam_autopsy/pen_ab --train --allow-experimental
+# Independent saved-model verification and curves, no training:
+python -m iam_tools.report_pen_ab data/checkpoints/iam_autopsy/pen_ab/20261005-084901 --data-root data/diffink/iam_overfit
+```
+
+```text
+Local:  data/checkpoints/iam_autopsy/pen_ab/20261005-084901/
+Volume: /data/checkpoints/iam_autopsy/pen_ab/20261005-084901/
+Shell:  /mnt/diffink-data/checkpoints/iam_autopsy/pen_ab/20261005-084901/
+```
+
+`index.html` contains the A/B snapshots and six-panel boundary curves. Raw NPY
+predictions are never rewritten to force a final EOC; renders draw any unfinished
+last path without relabeling it and explicitly display final-EOC correctness.
+Each arm has fixed metrics, every-update loss/gradient logs, and its own merged
+model checkpoint with head optimizer state. `frozen_features.pt` and
+`saved_checkpoint_check.json` preserve the cache and independent verification.
+IAM/checkpoint artifacts stay in local/Volume storage, never GitHub. All 43
+unit tests pass in both root and fork, including padding exclusion, exact
+upstream focal parity, majority-class failure, AdamW row isolation and an
+actual full-VAE merge/forward invariance regression test.

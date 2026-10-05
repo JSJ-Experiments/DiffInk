@@ -1,0 +1,21 @@
+# Conditional linear-head test only, no geometry/CTC/style/KL optimization.
+# Cache one eval-mode source representation at seed 1042, identical for both arms.
+stage: pen-head-ab
+source_config: configs/vae_iam_autopsy_resume.yaml
+source_checkpoint: /data/checkpoints/iam_autopsy/geometry_lr1e5/20261005-081356/checkpoint.pt
+source_sha256: 23fc747d82773d6714385f1e25af650ab018c14d95f11c2db54afbe0c8a8ac33
+source_step: 2000
+sample_id: c08-434z-05
+latent_noise_seed: 1042
+device: cpu
+output_base: /data/checkpoints/iam_autopsy/pen_ab
+# Same fresh AdamW and budget for both arms; never reuse geometry optimizer.
+base_lr: 0.001
+betas: [0.9, 0.99]
+weight_decay: 0
+grad_clip: 10
+gamma: 2
+weight_cap: 8
+max_steps: 1000
+max_wall_seconds: 180
+save_every: 100

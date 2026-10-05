@@ -207,3 +207,27 @@ The original checkpoint omitted RNG state; provenance records the seed42
 restart rather than claiming bitwise continuation. New checkpoints save RNG
 states and final Adam steps are verified at2,000. `ENGLISH_IAM.md` records the
 metrics, strict resume/config checks and artifact paths.
+
+## Geometry gate accepted and frozen pen-policy A/B
+
+The user accepted the step-2,000 geometry autopsy gate. No additional geometry
+optimization/MSE was performed. Run `20261005-084901` is CPU-only, two identical
+fresh 771-scalar heads, 1,000 updates each, cached eval features/latent seed 1042,
+LR1e-3 AdamW (0.9/0.99), no decay, gamma 2 focal and clip 10. Source checkpoint
+SHA256 `23fc747d82773d6714385f1e25af650ab018c14d95f11c2db54afbe0c8a8ac33`
+remains unchanged. Padding is excluded from weighting/loss/metrics. This runner
+is separate from upstream `get_loss`: it does not silently change the upstream
+Chinese pen policy or existing smoke runner.
+
+Arm A real inverse weights 1.068/16.139/581: pen-up precision/recall/F1
+0.590/1.000/0.742 ; 25 false breaks, 0 missed, counts 519/61/1.
+Arm B sqrt inverse normalized/capped 8, weights 1/3.887/8:
+0.791/0.944/0.861; 9 false breaks, 2 missed, counts 537/43/1.
+Both eliminate false internal EOC and learn correct final EOC. Target 544/36/1.
+Every snapshot merges into the full model and checks all non-pen state,
+GMM outputs and fixed XY **bitwise unchanged**; reloading saved branch models
+independently confirms this. CPU and prior CUDA output equality is NOT claimed.
+B is the boundary-F1 winner at this budget, not perfect boundary reconstruction
+or proof A cannot converge. Generalization, earlier joint-run causation and
+paper-English reproduction remain unproven. No joint training or CTC followed.
+See ENGLISH_IAM.md for commands, experiment controls and persistent paths.
