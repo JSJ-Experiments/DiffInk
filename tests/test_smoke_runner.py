@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import tempfile
 from pathlib import Path
 import unittest
 import torch
@@ -43,6 +45,15 @@ class SmokeRunnerTests(unittest.TestCase):
         self.assertEqual(greedy_ctc([1,1,0,1,2,2,0],['a','b']),'aab')
         self.assertEqual(edit_distance('hello','helo'),1)
         self.assertEqual(edit_distance('','abc'),3)
+
+    def test_report_rejects_incomplete_metrics(self):
+        from iam_tools.report_inkvae import report
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            (root/'result.json').write_text(json.dumps({'steps':2}))
+            (root/'metrics.jsonl').write_text(json.dumps({'step':1,'total':1})+'\n')
+            (root/'fixed_metrics.jsonl').write_text('')
+            with self.assertRaisesRegex(ValueError,'incomplete'):report(root)
 
     def test_explicit_training_ack_required(self):
         with self.assertRaises(ValueError):train_opt_in('missing','missing',allow_experimental=False)

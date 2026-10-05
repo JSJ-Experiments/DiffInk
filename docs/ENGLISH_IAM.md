@@ -109,7 +109,7 @@ Volume root
 ├── canonical/iam/preview/        # original raw visual gate
 ├── canonical/iam/tiny/           # raw JSON for tiny conversion
 ├── diffink/iam/                  # HDF5 + metadata + comparisons + check report
-└── checkpoints/                 # no checkpoints; no training
+└── checkpoints/                 # experimental InkVAE mechanics runs
 ```
 
 Modal docs: https://modal.com/docs/guide/volumes
@@ -157,7 +157,7 @@ English preprocessing. The exact author normalization and internal character
 endings remain unresolved.
 
 A bounded single-T4 job is implemented in `modal_inkvae.py` and
-`configs/vae_iam_overfit.yaml`, but **has not been launched**. Its limits are 200
+`configs/vae_iam_overfit.yaml`, and was launched with user approval on 2026-10-05. Its limits are 200
 steps / 600 loop seconds, and the container times out after 900 seconds. Both
 explicit flags `--train` and `--allow-experimental` are required; the default
 entrypoint never invokes the remote function. The user approved a first T4 mechanics run; results are recorded separately below.
@@ -176,3 +176,42 @@ Only one T4 container is permitted, with no automatic retries or GPU fallback.
 The run remains experimental: line normalization, internal character endings,
 the reversible input adapter, log-space GMM and masked reconstruction losses
 are not the authors' released English training pipeline.
+
+### First T4 result — 2026-10-05
+
+Run `20261005-072316` completed 200 updates on a Tesla T4 with PyTorch
+2.14.1+cu130; reported loop/evaluation/checkpoint time was 17.0 seconds
+(not total container lifetime or billed duration). One earlier attempt stopped
+at step 0 because the newly added OCR hook was bypassed by a direct `.forward`
+call; that instrumentation was fixed and regression-tested before relaunch.
+No L4, full-dataset training, or InkDiT job was launched.
+
+All 200 logged losses/gradient norms are finite, and OCR/style parameter
+gradients are nonzero every step. First/last 20-step mean total loss fell
+5.96 → 3.91; CTC 4.16 → 3.23; style CE 2.13 → 1.86. Fixed train total
+fell 10.13 → 3.64, fixed val 9.50 → 3.85.
+
+**Reconstruction gate NOT passed.** Visual inspection of both final examples
+shows mostly flattened, noisy traces rather than legible words. Their greedy
+OCR outputs are empty (CER 1.0), and both fixed writer predictions are wrong
+at step 200. Coordinate RMSE improved substantially, but global x progression
+is not letter-shape reconstruction. Lower auxiliary losses/nonzero gradients
+show that supervision is wired, not that OCR/style objectives are solved.
+
+At batch size 2, 200 updates cover only about two passes over 192 train lines.
+Next recommendation: stay on T4, use a truly minimal 1–8-line memorization
+experiment with a separately approved bounded budget, and inspect letter shape,
+pen-state accuracy and blank-heavy CTC behavior before expanding or using L4.
+The normalization/character-ending policies and runner numerical changes
+remain experimental; no author English result has been reproduced.
+
+Persistent artifacts: `/data/checkpoints/iam_overfit/20261005-072316/`
+(or `/mnt/diffink-data/checkpoints/iam_overfit/20261005-072316/` in your shell).
+This contains checkpoint, shuffled/fixed metrics, prediction arrays, stepwise
+input/reconstruction PNG/SVG, `result.json`, `summary.json`, `loss-curves.png`,
+and `index.html`. Downloaded local copy: `data/checkpoints/iam_overfit/20261005-072316/`.
+To regenerate the CPU-only report:
+
+```sh
+python -m iam_tools.report_inkvae data/checkpoints/iam_overfit/20261005-072316
+```

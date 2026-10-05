@@ -3,7 +3,7 @@
 Upstream: https://github.com/awei669/DiffInk
 
 Inspected commit: `97bc6a3c39a5bdaa9728daaab6d3707480006343`.
-Branch: `english-iam`. No weights downloaded; no training or GPU jobs run.
+Branch: `english-iam`. Initial audit was CPU-only; the approved first T4 run and its failed reconstruction gate are documented in `ENGLISH_IAM.md`.
 
 ## Confirmed from released code
 
@@ -162,3 +162,17 @@ on the Volume. No GPU has been allocated or training run during these fixes.
 
 Follow-up suite: 25 tests pass in both the workspace and fork checkout. No GPU
 training has run; the real VAE CTC path and staged-rebuild rollback are tested.
+
+## Approved first T4 mechanics run (2026-10-05)
+
+The previously prepared run was changed from L4 to T4 and instrumented with
+fixed train/val checks at 0/50/100/150/200, preserving latent-noise seed and
+training RNG. A zero-update logging failure was corrected before a successful
+200-update run. The complete run is persisted as `20261005-072316`.
+
+Finite/decreasing losses and nonzero OCR/style gradients passed the numerical
+wiring gate. Visual reconstruction did not pass: flattened/noisy traces, empty
+greedy OCR (CER 1.0) and wrong fixed writer predictions at the final step.
+These results warrant a smaller memorization test, not full-scale training
+or a claim of reproducing the authors' English experiment. No further GPU job
+was started after this result. See `ENGLISH_IAM.md` for metrics and paths.
