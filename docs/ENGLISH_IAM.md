@@ -1,7 +1,9 @@
 # English IAM-OnDB → DiffInk
 
-**No training or GPU job has run.** This workspace now implements a raw parser,
-experimental preprocessing, a tiny HDF5 exporter, and CPU loader validation.
+This workspace implements IAM parsing, experimental preprocessing, HDF5 export,
+and bounded T4 reconstruction/OCR mechanics experiments. **Full IAM/InkDiT
+training has not run; visual curve fidelity remains unresolved.** The final
+curve-audit section supersedes earlier recommendations to promote joint training.
 
 Fork: https://github.com/JSJ-Experiments/DiffInk/tree/english-iam
 
@@ -918,9 +920,9 @@ and decoded transcripts are on the Volume, not inferred from CTC loss alone.
 
 CTC run: `checkpoints/iam_ctc_head_ab/20261005-114305/`.
 **KL, style and joint encoder/decoder CTC training remain off/unvalidated.**
-Next is a joint sampled-latent reconstruction/pen + tiny corrected KL + warmed
-OCR integration, with strict geometry/boundary/CER checks; only then expand to
-more lines/writers. This is a meaningful new stage, not another one-line autopsy.
+Originally proposed next: joint sampled-latent reconstruction/pen + tiny corrected
+KL + warmed OCR. The curve audit below supersedes that promotion: residual shape
+distortion needs its own visual gate before joint auxiliary training/scaling.
 All65 unit tests pass in root/fork. No restricted IAM/checkpoint files are pushed.
 
 Combined report: `checkpoints/iam_objective_study/research-summary/index.html`
@@ -941,3 +943,32 @@ python -m iam_tools.report_research
 #   --resume-checkpoint /data/checkpoints/iam_lbfgs_geometry/20261005-113159/pen_refit/checkpoint.pt \
 #   --resume-sha 700f84eda8b523917f0c7f337bc21f75cc6d4075a101edc979fa5432212cd4f8
 ```
+
+### User-identified curve distortion: visual gate not passed
+
+CPU-only audit of all eight saved posterior-mean/mixture-expectation trajectories,
+with focused marker-free common-scale crops of `p08-936z-05` (c in chocolate)
+and `a07-421z-02` (h in hope). The report's old **input was the RDP target**, not
+raw IAM. Re-parsing canonical JSON exactly reproduces the HDF5 targets. Raw IAM
+and RDP both contain polygonality; the model adds real kinks that persist without
+point markers, with true pen boundaries and no sampling/dropout/display smoothing.
+
+Within-stroke first-difference relative RMS errors for these full lines are
+17.0% /20.2%; second-difference errors are32.7% /37.6%. In the indicated strokes,
+second-difference errors are72.4% /54.3%. These are differences by **point index**,
+not physical velocity or arc-length-normalized geometric curvature: RDP spacing
+is uneven. Max coordinate-vector errors across the full lines are0.06483 /0.07950
+model units (full normalized line height1); global X/Y averages hide local spikes.
+
+Pointwise position loss does not directly match neighboring segment directions.
+Residual displacement can turn a shallow arc into a corner while preserving low
+RMSE, perfect pen state, and exact OCR transcript. This identifies the immediate
+geometric error, **not** a proven architectural/optimization root cause. One-line
+capacity does not prove all eight lines have been optimized to equivalent quality.
+Do not mask the issue with spline rendering or claim visual fidelity has passed.
+Next diagnostic if training: matched point-MSE control versus a target first/second
+difference anchor, within real strokes only (not generic smoothing to straightness).
+
+Report: `checkpoints/iam_objective_study/research-summary/curve-audit/index.html`.
+Run `python -m iam_tools.curve_audit` or rebuild `iam_tools.report_research`;
+both are CPU-only and perform zero optimizer steps. No new GPU credit spent.
