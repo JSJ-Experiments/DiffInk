@@ -11,6 +11,8 @@ from trainer.vae_trainer import train_vae_one_epoch
 from dataset.transform import Transform
 from iam_tools.pen_refit import refit_loss,refit_states
 from iam_tools.eightline import check_config
+from iam_tools.objective_study import arm_config,gradient_diagnostics
+from iam_tools.lbfgs_geometry import geometry_loss
 import yaml
 
 
@@ -128,5 +130,41 @@ class EnglishContractTests(unittest.TestCase):
         for k,v in [('trans_dropout',.1),('ctc_weight',1),('max_optimizer_updates',201),('train_batch_size',8),('sampled_z_evaluations',1)]:
             bad=deepcopy(cfg);bad[k]=v
             with self.assertRaises(ValueError):check_config(bad)
+
+    def test_objective_arms_change_only_gmm_coefficient(self):
+        base=yaml.safe_load((REPO/'configs/engineering_english.yaml').read_text())
+        a,b=arm_config(base,'xy_pen'),arm_config(base,'gmm_xy_pen')
+        self.assertEqual({k for k in a if a[k]!=b[k]},{'gmm_weight','objective_arm'})
+        self.assertEqual(a['max_optimizer_updates'],1000)
+        self.assertEqual(base['max_optimizer_updates'],200)
+        for key in ('ctc_weight','kl_weight','style_weight'):self.assertEqual(a[key],0)
+        with self.assertRaises(ValueError):arm_config(base,'unknown')
+
+    def test_objective_gradient_diagnostic_is_no_update_and_no_buffers(self):
+        model,cfg=self.model();self.training_cfg(cfg);before=deepcopy(model.state_dict())
+        rows=gradient_diagnostics(model,[self.batch()],vars(cfg),'cpu')
+        self.assertTrue(-1.001<=rows[0]['gmm_xy_cosine']<=1.001)
+        self.assertTrue(all(torch.equal(v,model.state_dict()[k]) for k,v in before.items()))
+        self.assertTrue(all(p.grad is None for p in model.parameters()))
+
+    def test_lbfgs_deterministic_closure_has_gradients_without_latent_sampling(self):
+        model,cfg=self.model();model.eval();raw,mask,*_=self.batch();raw=raw.transpose(1,2)
+        optimizer=torch.optim.LBFGS(model.parameters(),max_iter=2,history_size=2,line_search_fn='strong_wolfe')
+        def closure():
+            optimizer.zero_grad(set_to_none=True);loss=geometry_loss(model,raw,mask);loss.backward();return loss
+        with patch.object(model,'reparameterize',side_effect=AssertionError('mean diagnostic must not sample')):
+            before=float(geometry_loss(model,raw,mask).detach());optimizer.step(closure)
+            after=float(geometry_loss(model,raw,mask).detach())
+        self.assertLess(after,before)
+        self.assertTrue(all(p.grad is None for p in model.conv_logvar.parameters()))
+
+    def test_cached_ctc_head_training_does_not_call_encoder_or_decoder(self):
+        model,cfg=self.model();model.requires_grad_(False);model.ocr_model.requires_grad_(True)
+        features=torch.randn(1,cfg.latent_dim,8);labels=torch.tensor([[0,1,1]])
+        with patch.object(model,'encode',side_effect=AssertionError('frozen cached latent')),patch.object(model,'decode',side_effect=AssertionError('geometry must not run')):
+            loss=model.get_ocr_loss(features,labels,torch.ones(1,8));loss.backward()
+        self.assertTrue(torch.isfinite(loss));self.assertGreater(float(loss.detach()),0)
+        self.assertTrue(all(p.grad is None for p in model.encoder.parameters()))
+        self.assertTrue(any(p.grad is not None for p in model.ocr_model.parameters()))
 
 if __name__=='__main__':unittest.main()

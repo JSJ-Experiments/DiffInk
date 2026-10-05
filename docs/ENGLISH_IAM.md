@@ -763,3 +763,181 @@ In your Modal shell use `/mnt/diffink-data/checkpoints/iam_eightline/20261005-10
 inside the job use `/data/checkpoints/...`; locally use `data/checkpoints/...`.
 No SSH server is needed. CPU refit artifacts live at
 `checkpoints/iam_autopsy/pen_refit/20261005-100653/` on the same Volume.
+
+## Continuing objective research (user lifted the 200-update limit)
+
+`modal_objective_study.py` runs explicitly authorized research chunks rather
+than changing the original bounded-test guard. `--train` is still required;
+import/default invocation allocates no GPU. CPU preflight and unit tests run
+before the new experiments. All source/sample/manifest pins are retained.
+
+The first pair branches from the **same original eight-line step-200 model**,
+with fresh identical Adam, sampled latents, dropout0, batch1/accum8, no rotation,
+no KL/CTC/style. Both use expected-XY MSE100 + bounded pen1, LR5e-5 reduced to
+1e-5 after 800 updates, weight decay0. Only GMM coefficient changes (0 vs1).
+This pair isolates the extra GMM objective; comparison against the older
+200-update experiment is NOT a single-variable ablation (budget/LR/anchor change).
+The 100 coefficient is an intentionally strong diagnostic, not a paper weight
+or claimed best production hyperparameter.
+
+At 1,000 additional updates:
+
+| Arm | Mean X/Y RMSE | Macro pen F1 | Final EOC | False internal EOC |
+|---|---|---:|---:|---:|
+| expected XY + pen | 0.04163 / 0.03564 | 0.99476 | 8/8 | 1 |
+| GMM + expected XY + pen | 0.05055 / 0.02851 | 0.93155 | 7/8 | 4 |
+
+Both improve greatly; pure direct-XY learns almost-perfect boundaries, while
+GMM improves Y somewhat more but has worse X/boundaries. Neither dominates
+all geometry metrics, and the rendered trajectories still have shape distortion.
+All updates clip at5 (raw-norm median138.2 vs377.9 respectively). Loop times
+297.7/313.5 seconds are NOT billed time. Twenty fixed-seeded sampled-z outputs
+per line/checkpoint remain close to the mean reconstruction; posterior std has
+shrunk further without KL, so this is not a regularized-latent validation.
+Saved-state CPU checks confirm finite weights, Adam step1000 and frozen OCR/style.
+Pure-XY sigma/rho FC rows remain exactly unchanged (no weight decay/no GMM).
+
+CPU head-only refit on frozen **GMM-arm step1000** improves F1 .93155→.96576,
+removes all false EOCs and learns final EOC8/8. No forced-final rule is used.
+Every non-pen parameter and GMM FC row stays bitwise unchanged. Recomputed GMM
+outputs agree within float tolerance; CPU/CUDA bitwise output equality is not
+claimed. This independently isolates residual boundary readout from geometry.
+The head-refitted checkpoint is a separate diagnostic, not silently substituted
+into either continuing arm; its obsolete Adam state is deliberately omitted.
+
+Decoder-gradient diagnostics use matched stochastic forwards, norms and cosines
+per line. Some poorly reconstructed lines have near-orthogonal/negative GMM-XY
+cosines. That is evidence of objective interaction, not proof GMM fundamentally
+cannot work, nor proof normalization/generalization is solved.
+
+Two first launchers failed during remote bootstrap (missing local launcher
+import), before any optimizer updates. Those failed apps were stopped explicitly;
+the launcher is now self-contained. `research_attempts.json` records app IDs and
+successful replacements. Files remain on Volume/local disk, never GitHub.
+
+```sh
+# CPU-only gradient/data/model check:
+python -m iam_tools.objective_study
+# Fresh controlled pair (already executed):
+modal run modal_objective_study.py --train --arm xy_pen --steps 1000
+modal run modal_objective_study.py --train --arm gmm_xy_pen --steps 1000
+# Resume a saved arm with model + Adam + Torch RNG, pinned SHA, same objective:
+# modal run modal_objective_study.py --train --arm xy_pen --steps 2000 \
+#   --resume-checkpoint /data/checkpoints/iam_objective_study/<run>/xy_pen/checkpoint.pt \
+#   --resume-sha <SHA256>
+```
+
+Report: `checkpoints/iam_objective_study/comparison-1000/index.html`.
+Arms: `20261005-110842/xy_pen`, `20261005-110843/gmm_xy_pen` under that study root.
+Frozen CPU head refit: `pen_refit-gmm-1000/`.
+Both arms are being continued from their own saved states at1e-5, reduced to1e-6
+for the final20%. This is polishing actual reconstructions, not adding auxiliaries.
+
+### Continuations completed: direct XY wins this eight-line control
+
+Both arms completed **3,000 objective-study Adam updates each** beyond the old
+200-update run. Continuations restore model, Adam, Torch RNG and advance the
+same seeded per-update line permutations; LR1e-5→1e-6 for the last20%.
+
+| Arm at 3,000 | Mean X/Y RMSE | Pen F1 | Final EOC | False internal EOC |
+|---|---|---:|---:|---:|
+| expected XY + pen | **0.01191 / 0.01822** | **1.000** | **8/8** | **0** |
+| GMM + expected XY + pen | 0.03150 / 0.02060 | 0.93783 | 8/8 | 3 |
+
+Direct XY now wins both axes and boundaries in this particular controlled
+training-set test. It is NOT a universal claim that likelihood cannot work.
+Continuation clipping rates:81.15% direct vs100% GMM; raw norm medians29.27 vs641.21.
+Direct finishes below the clip limit at the lower LR. GMM highest-pi component
+sigmas are typically ~0.013 X/~0.011 Y versus ~0.065/~0.049 for direct-only;
+active correlations are not near singularity (no |rho|>0.99). Density tightening
+and gradient scale, rather than correlation saturation, remain relevant.
+Full gradient/uncertainty diagnostics are retained, not inferred from NLL alone.
+
+Continuation report: `checkpoints/iam_objective_study/comparison-3000/index.html`.
+Runs: `20261005-111735/xy_pen`, `20261005-111714/gmm_xy_pen` under that study root.
+Adam states independently verified at step3000, finite model states, frozen
+OCR/style unchanged. No full-IAM or InkDiT training.
+
+### Deterministic L-BFGS diagnostic and frozen pen refit
+
+To test residual optimization rather than repeat the same Adam loop, branch
+from direct-XY step3000, train **mean-latent expected-XY MSE only** with L-BFGS,
+50 outer steps /593 full-eight-line closure evaluations. No GMM/pen/CTC/style/KL
+objective. LR1, strong-Wolfe search, history10, max10 inner iterations per outer
+step; **no clipping or weight decay**. This changes optimizer, latent readout
+and pen objective together, so is explicitly a **multi-knob capacity diagnostic**,
+not a causal optimizer-only ablation. API verified against
+[PyTorch L-BFGS documentation](https://docs.pytorch.org/docs/2.14/generated/torch.optim.LBFGS.html).
+
+Mean X/Y improves **0.01191/0.01822→0.00525/0.01003**. Predicted pen F1 falls to
+0.90474 because shared hidden features change even though the pen rows stay
+fixed. Therefore refit ONLY the pen rows on cached new features: bounded3state,
+gamma2/cap8, 3,000 CPU updates, genuine learned final EOC (not forced). F1 reaches
+**1.000 on all8 lines**, no false breaks, missed breaks or false internal EOCs;
+final EOC8/8. All non-pen state/GMM rows remain exactly unchanged. Expected XY
+recomputations differ only at float tolerance; CPU/CUDA bitwise outputs are not
+claimed. Obsolete optimizer state is removed from the head-refitted checkpoint.
+
+Mean per-line **20-sampled-z median** X/Y errors after refit are **0.00602/0.01011**,
+and every one of the20 sampled pen predictions on every line has F1=1.0 in
+this saved CPU evaluation. These are the eight training lines only, narrow
+length range, unregularized posterior; not generalization/paper reproduction or
+pixel-perfect input identity. The rendered lines now track processed input
+closely enough to proceed to an isolated OCR-head test, while some letter-shape
+error remains. No velocity/curvature objective or architecture change was added.
+
+L-BFGS loop/eval/save225.9seconds excludes startup, not billed duration. The first
+runner's config carried inactive baseline LR/clip/budget fields; actual optimizer
+settings are annotated in result.json. Future runner metadata is corrected, with
+no optimizer change or rerun. Do not count outer steps as Adam-equivalent updates.
+
+Volume: `checkpoints/iam_lbfgs_geometry/20261005-113159/index.html`;
+refit galleries/checkpoint: same run's `pen_refit/` directory.
+Source SHA: `c59a3d7d70405d10d0de6f284a8866bd0dd13c669948a7cc36d141132db806b2`.
+Head-refitted SHA: `700f84eda8b523917f0c7f337bc21f75cc6d4075a101edc979fa5432212cd4f8`.
+
+### Frozen English CTC head A/B
+
+After inspecting close geometry and perfect genuine pen boundaries, freeze the
+**entire** handwriting/pen/variance/style model and cache its eight latent means.
+Train only the original OCR Transformer head, through **VAE.get_ocr_loss()**.
+Two identical source heads/data/RNG, changing only initial blank bias−5 versus0.
+Batch1/accum8, OCR dropout0.1 (unchanged), AdamW LR5e-4→1e-4 after800 updates,
+clip5, 1,000 updates per arm. Correct target+adjacent-repeat CTC lengths are
+checked before allocation; CPU backward is finite with no encoder gradients.
+
+Five lines contain adjacent repeated labels, three do not. Compare CER in both
+groups and overall; this is cached-latent training-set memorization, **not joint
+VAE/CTC training**, useful OCR generalization, or full English generation.
+Geometry/pen/style state is checked bitwise unchanged for both arms. Blank bias
+is trainable after initialization, not permanently clamped. The −5 arm already
+reaches CER0 /8 exact transcripts at500 updates; zero bias reaches that at250.
+This disproves an absolute “−5 cannot learn English repeats” claim on this test,
+while supporting zero as a reasonable next engineering control. Final results
+and decoded transcripts are on the Volume, not inferred from CTC loss alone.
+
+CTC run: `checkpoints/iam_ctc_head_ab/20261005-114305/`.
+**KL, style and joint encoder/decoder CTC training remain off/unvalidated.**
+Next is a joint sampled-latent reconstruction/pen + tiny corrected KL + warmed
+OCR integration, with strict geometry/boundary/CER checks; only then expand to
+more lines/writers. This is a meaningful new stage, not another one-line autopsy.
+All65 unit tests pass in root/fork. No restricted IAM/checkpoint files are pushed.
+
+Combined report: `checkpoints/iam_objective_study/research-summary/index.html`
+(on your shell: `/mnt/diffink-data/checkpoints/iam_objective_study/research-summary/index.html`).
+Final CTC CER is0 for both arms at1,000 updates, with all8 transcripts exact;
+independent CPU checks confirm ONLY OCR state changed and every saved weight is
+finite. Joint encoder/decoder auxiliary training remains a separate next test.
+
+```sh
+# Rebuild the existing session report on CPU; no GPU/training:
+python -m iam_tools.report_research
+# Executed deterministic geometry diagnostic (not production training):
+# modal run modal_objective_study.py --train --arm lbfgs --steps 50 \
+#   --resume-checkpoint /data/checkpoints/iam_objective_study/20261005-111735/xy_pen/checkpoint.pt \
+#   --resume-sha c59a3d7d70405d10d0de6f284a8866bd0dd13c669948a7cc36d141132db806b2
+# Executed frozen OCR-head A/B (runs BOTH arms, not joint VAE):
+# modal run modal_objective_study.py --train --arm ctc --steps 1000 \
+#   --resume-checkpoint /data/checkpoints/iam_lbfgs_geometry/20261005-113159/pen_refit/checkpoint.pt \
+#   --resume-sha 700f84eda8b523917f0c7f337bc21f75cc6d4075a101edc979fa5432212cd4f8
+```

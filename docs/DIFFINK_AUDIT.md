@@ -291,3 +291,32 @@ Engineering and paper-informed control configs are separate; latter is not exact
 English reproduction because normalization/EOC/data-contract remain unresolved.
 Details, commands, refit provenance and limitations are in ENGLISH_IAM.md.
 Volume report: `checkpoints/iam_eightline/20261005-102304/index.html`.
+
+## Authorized continuation beyond the old 200-update cap
+
+User explicitly authorized exploratory T4 spend. Controlled pair: same old
+step200 model, sampled latents, MSE100/pen1, GMM0 vs1 only, fresh identical Adam
+LR5e-5→1e-5, 1,000 updates each; then pinned model+Adam+RNG continuations2,000
+at1e-5→1e-6. Final direct X/Y .01191/.01822, penF1=1/allEOS8/no falseEOS;
+GMM X/Y .03150/.02060, F1 .93783/allEOS8/falseEOS3. Gradient/variance diagnostics
+preserved; GMM sigmas tighter, active rho not singular. Training samples only.
+
+Mean-latent geometry-only L-BFGS from direct3k: 50 outer/593 closures, no clipping,
+no GMM/pen/auxiliary objective, improves X/Y .00525/.01003. This is a multi-knob
+non-paper capacity diagnostic. Frozen pen rows lose accuracy as features move;
+CPU refit only those rows restores F1=1/allEOS8/no falseEOS on all8 means AND
+all20 sampled-z pen predictions per line. Sampled median X/Y mean .00602/.01011.
+All non-pen state/GMM rows unchanged, no forced ending. No exact pixel identity
+or generalization claim. Legacy inactive config fields explicitly annotated.
+
+Then CTC blank-bias−5/0 A/B trains ONLY the OCR head on cached frozen means,
+through VAE.get_ocr_loss, after finite CPU backward. Both reach CER0/8 exact
+training transcripts (−5 by500, zero by250); 5 repeat-bearing/3 no-repeat lines.
+Full geometry/pen/style invariant checked. Not joint VAE/CTC or English OCR
+recognition/generalization; trainable bias makes initial−5 nonfatal here.
+65 root/fork tests pass. No KL/style/InkDiT/full-IAM training promoted.
+
+Details/commands/limitations/provenance in ENGLISH_IAM. Volume reports:
+`iam_objective_study/comparison-3000`, `iam_lbfgs_geometry/20261005-113159`,
+`iam_ctc_head_ab/20261005-114305` under `checkpoints/`. Two initial remote-bootstrap
+import failures (zero updates) were explicitly stopped and fixed; history retained.
