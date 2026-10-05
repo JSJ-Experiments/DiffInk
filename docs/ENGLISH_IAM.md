@@ -2,8 +2,9 @@
 
 This workspace implements IAM parsing, experimental preprocessing, HDF5 export,
 and bounded T4 reconstruction/OCR mechanics experiments. **Full IAM/InkDiT
-training has not run; visual curve fidelity remains unresolved.** The final
-curve-audit section supersedes earlier recommendations to promote joint training.
+training has not run.** The later [curve fidelity investigation](CURVE_FIDELITY.md)
+passes the eight-memorized-line geometry gate for bounded joint integration,
+not a generalization/full-training gate; it supersedes earlier curve-audit status.
 
 Fork: https://github.com/JSJ-Experiments/DiffInk/tree/english-iam
 
@@ -944,7 +945,7 @@ python -m iam_tools.report_research
 #   --resume-sha 700f84eda8b523917f0c7f337bc21f75cc6d4075a101edc979fa5432212cd4f8
 ```
 
-### User-identified curve distortion: visual gate not passed
+### Initial user-identified curve distortion (before the follow-up)
 
 CPU-only audit of all eight saved posterior-mean/mixture-expectation trajectories,
 with focused marker-free common-scale crops of `p08-936z-05` (c in chocolate)
@@ -972,3 +973,19 @@ difference anchor, within real strokes only (not generic smoothing to straightne
 Report: `checkpoints/iam_objective_study/research-summary/curve-audit/index.html`.
 Run `python -m iam_tools.curve_audit` or rebuild `iam_tools.report_research`;
 both are CPU-only and perform zero optimizer steps. No new GPU credit spent.
+
+### Completed curve fidelity follow-up
+
+See [the detailed investigation](CURVE_FIDELITY.md). Continued position-MSE was
+the largest improvement; calibrated target first-difference matching improves
+the remaining local errors without rounding away real target corners. Best
+mean X/Y RMSE0.000538/0.001437, tangent/turn p90 3.22°/5.17°, genuine pen F1=1
+on all eight means and all160 sampled-z reconstructions. No architecture change,
+RDP change, smoothing, or OCR/KL/style objective was needed.
+
+Overview: `checkpoints/iam_curve_study/research-summary/index.html`.
+Final raw/target/before/after/all-eight/sample gallery:
+`checkpoints/iam_curve_study/comparison-180/report/index.html`.
+Selected checkpoint: `checkpoints/iam_curve_study/20261005-124900/delta50/checkpoint.pt`.
+These are memorized training lines, not full English generation/paper reproduction.
+Joint auxiliary/regularized latent behavior remains a separate bounded test.

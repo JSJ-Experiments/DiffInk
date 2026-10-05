@@ -6,13 +6,14 @@ import numpy as np
 import torch
 from test_vae_ctc import VAE,small_config,REPO
 from model.gmm import get_mixture_coef,get_mixture_coef_max,sample_from_params
-from model.losses import bounded_pen,mixture_expectation,calibrate_anchor
+from model.losses import bounded_pen,mixture_expectation,calibrate_anchor,loss_terms,weighted_loss,target_difference_loss
 from trainer.vae_trainer import train_vae_one_epoch
 from dataset.transform import Transform
 from iam_tools.pen_refit import refit_loss,refit_states
 from iam_tools.eightline import check_config
 from iam_tools.objective_study import arm_config,gradient_diagnostics
 from iam_tools.lbfgs_geometry import geometry_loss
+from iam_tools.curve_study import calibration as curve_calibration
 import yaml
 
 
@@ -107,6 +108,21 @@ class EnglishContractTests(unittest.TestCase):
         self.assertTrue(all(np.isfinite(r['loss']) for r in rows))
         self.assertTrue(all(p.grad is None for p in model.parameters()))
 
+    def test_target_difference_anchor_is_opt_in_on_actual_training_loss_path(self):
+        model,cfg=self.model();self.training_cfg(cfg)
+        data,mask,*_=self.batch();target=model.to_model_space(data.transpose(1,2))
+        output=torch.randn(1,123,data.shape[1],requires_grad=True);zero=output.sum()*0
+        default=loss_terms(output,target,mask,cfg,zero,zero,zero)
+        self.assertNotIn('target_delta',default)
+        cfg.target_delta_weight=.1
+        enabled=loss_terms(output,target,mask,cfg,zero,zero,zero)
+        expected=target_difference_loss(mixture_expectation(output),target[:,:2].transpose(1,2),target[:,2:].argmax(1),mask)
+        torch.testing.assert_close(enabled['target_delta'],expected)
+        torch.testing.assert_close(weighted_loss(enabled,cfg),weighted_loss(default,cfg)+expected*.1)
+        optimizer=torch.optim.SGD(model.parameters(),lr=1e-6)
+        rows=train_vae_one_epoch(model,cfg,[self.batch()],optimizer,None,0,1,'cpu')
+        self.assertTrue(np.isfinite(rows[0]['loss']))
+
     def test_accumulated_metrics_are_effective_batch_means_not_last_sample(self):
         model,cfg=self.model();self.training_cfg(cfg);optimizer=torch.optim.SGD(model.parameters(),lr=0)
         values=iter([1.,3.,5.])
@@ -157,6 +173,18 @@ class EnglishContractTests(unittest.TestCase):
             after=float(geometry_loss(model,raw,mask).detach())
         self.assertLess(after,before)
         self.assertTrue(all(p.grad is None for p in model.conv_logvar.parameters()))
+
+    def test_curve_gradient_calibration_is_matched_mean_latent_and_no_update(self):
+        model,cfg=self.model();model.eval();raw,mask,*_=self.batch();raw=raw.transpose(1,2)
+        before=deepcopy(model.state_dict())
+        with patch.object(model,'reparameterize',side_effect=AssertionError('mean-only study')):
+            a=curve_calibration(model,[(raw,mask)],.2)
+            b=curve_calibration(model,[(raw,mask)],.5)
+        self.assertAlmostEqual(b['delta_weight']/a['delta_weight'],2.5)
+        self.assertAlmostEqual(a['delta_weight']*a['aggregate_decoder_norms']['delta']/a['aggregate_decoder_norms']['point'],.2)
+        self.assertTrue(all(p.grad is None for p in model.parameters()))
+        self.assertTrue(all(torch.equal(v,model.state_dict()[k]) for k,v in before.items()))
+        with self.assertRaises(ValueError):curve_calibration(model,[(raw,mask)],0)
 
     def test_cached_ctc_head_training_does_not_call_encoder_or_decoder(self):
         model,cfg=self.model();model.requires_grad_(False);model.ocr_model.requires_grad_(True)

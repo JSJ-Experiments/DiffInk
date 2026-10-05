@@ -36,6 +36,7 @@ def report(data_root='data'):
     ax.set_xlabel('OCR-head optimizer updates');ax.set_ylabel('Training CER');ax.legend();fig.tight_layout();fig.savefig(output/'ctc-curves.png');plt.close(fig)
     page=['<!doctype html><meta charset="utf-8"><title>English DiffInk research results</title>',
           '<h1>Eight-line reconstruction and frozen CTC-head mechanics</h1>',
+          '<p><strong>Later follow-up:</strong> <a href="../../iam_curve_study/research-summary/index.html">Curve investigation and improved checkpoints</a>. The geometry/status below pertains to the older checkpoint, not the improved follow-up.</p>',
           f'<p>Final posterior-mean X/Y RMSE {summary["mean_x_rmse"]:.5f}/{summary["mean_y_rmse"]:.5f}; genuine pen-up F1 1.000 on all eight lines, correct final EOC, no false internal EOCs. Twenty sampled-z pen predictions per line also all F1=1.0.</p>',
           f'<p>Mean per-line sampled median X/Y error {summary["sampled_median_x_mean"]:.5f}/{summary["sampled_median_y_mean"]:.5f}. No forced stopping or smoothing loss. Still some letter-shape error; not pixel identity.</p>',
           '<p><strong>Visual curve fidelity is NOT passed.</strong> Perfect pen/OCR metrics do not establish smooth, faithful geometry. The panels labeled input show the RDP target, not raw IAM. <a href="curve-audit/index.html">Raw IAM / RDP / marker-free reconstruction audit, including the two user-identified regions</a>.</p>',

@@ -10,6 +10,58 @@ def mixture_expectation(output):
     return torch.stack([(pi*output[:,23:43]).sum(1),(pi*output[:,43:63]).sum(1)],-1)
 
 
+def target_difference_loss(prediction, target, states, mask, order=1):
+    """Match target index differences INSIDE strokes, never smooth toward zero.
+
+    RDP points are unevenly spaced: these are not time derivatives or geometric
+    curvature. Select complete valid windows before arithmetic so NaN padding
+    cannot contaminate values or gradients. Average coordinates and windows.
+    """
+    if (prediction.shape != target.shape or prediction.shape != (*mask.shape, 2)
+            or states.shape != mask.shape or mask.dtype != torch.bool or order not in (1, 2)):
+        raise ValueError('matching B x T x 2 coordinates, states, boolean mask; order 1/2 required')
+    if not mask.any():
+        raise ValueError('nonempty real-point mask required')
+    if prediction.shape[1] <= order:
+        return prediction[mask].sum()*0
+    valid = mask[:, :-order].clone()
+    for offset in range(1, order+1):
+        valid &= mask[:, offset:mask.shape[1]-order+offset]
+    for offset in range(order):
+        valid &= states[:, offset:mask.shape[1]-order+offset] == 0
+    if not valid.any():
+        return prediction[mask].sum()*0
+    residual = []
+    for offset in range(order+1):
+        sl = slice(offset, prediction.shape[1]-order+offset)
+        residual.append(prediction[:, sl][valid]-target[:, sl][valid])
+    difference = residual[1]-residual[0] if order == 1 else residual[2]-2*residual[1]+residual[0]
+    return difference.square().mean()
+
+
+def target_tangent_loss(prediction, target, states, mask):
+    """Target segment-direction matching, not smoothing; short edges count equally.
+
+    Half squared unit-vector distance equals 1-cos(angle) for nondegenerate
+    segments. Exclude zero-length target segments. Clamp predicted length to
+    1% of that target segment's length to keep collapsed-edge gradients finite.
+    This deliberate short-edge sensitivity is experimental, not a default loss.
+    """
+    if (prediction.shape != target.shape or prediction.shape != (*mask.shape, 2)
+            or states.shape != mask.shape or mask.dtype != torch.bool):
+        raise ValueError('matching coordinates, states and boolean mask required')
+    valid = mask[:, :-1] & mask[:, 1:] & (states[:, :-1] == 0)
+    if not valid.any(): return prediction[mask].sum()*0
+    dp = prediction[:, 1:][valid]-prediction[:, :-1][valid]
+    dt = target[:, 1:][valid]-target[:, :-1][valid]
+    length = torch.linalg.vector_norm(dt, dim=-1)
+    nonzero = length > 1e-8
+    if not nonzero.any(): return prediction[mask].sum()*0
+    dp, dt, length = dp[nonzero], dt[nonzero], length[nonzero]
+    predicted_length = torch.linalg.vector_norm(dp, dim=-1).clamp_min(length*.01)
+    return .5*(dp/predicted_length[:, None]-dt/length[:, None]).square().sum(-1).mean()
+
+
 def stable_nll(pi,mx,my,sx,sy,rho,x,y):
     rho=rho.clamp(-1+1e-5,1-1e-5);one=(1-rho.square()).clamp_min(1e-8)
     dx=(x-mx)/sx;dy=(y-my)/sy
@@ -49,8 +101,11 @@ def loss_terms(output,target_model_space,mask,config,ctc,kl,style):
                              getattr(config,'pen_focal_gamma',2),getattr(config,'pen_weight_cap',8),policy)
     xy=mixture_expectation(output);target=channel[:,:2].transpose(1,2)
     mse=(xy[mask.bool()]-target[mask.bool()]).square().mean()
-    return {'gmm':element[mask.bool()].mean(),'pen':pen_loss,'expected_xy':mse,
-            'ctc':ctc.mean(),'kl':kl.mean(),'style':style.mean()}
+    terms = {'gmm':element[mask.bool()].mean(),'pen':pen_loss,'expected_xy':mse,
+             'ctc':ctc.mean(),'kl':kl.mean(),'style':style.mean()}
+    if getattr(config, 'target_delta_weight', 0):
+        terms['target_delta'] = target_difference_loss(xy, target, channel[:, 2:].argmax(1), mask.bool())
+    return terms
 
 
 def weighted_loss(terms,config):

@@ -320,3 +320,29 @@ Details/commands/limitations/provenance in ENGLISH_IAM. Volume reports:
 `iam_objective_study/comparison-3000`, `iam_lbfgs_geometry/20261005-113159`,
 `iam_ctc_head_ab/20261005-114305` under `checkpoints/`. Two initial remote-bootstrap
 import failures (zero updates) were explicitly stopped and fixed; history retained.
+
+## Curve fidelity follow-up (2026-10-05)
+
+The raw/RDP/marker-free audit exposed genuine local curve errors despite low
+aggregate RMSE. This was chiefly under-converged geometry: continued direct
+point-MSE improves substantially without any architecture change. A matched
+target first-difference anchor adds a consistent benefit on all eight lines;
+unit-tangent matching was tested as a short-edge alternative but was not the
+best overall choice. No generic smoothing, RDP change, KL/OCR/style objective,
+normalization replacement or upsampler change was applied.
+
+Final mean X/Y RMSE0.000538/0.001437, tangent p90 3.22°, turn p90 5.17° (mean of
+per-line percentiles), with genuine pen F1=1 on all8 means/all160 sampled-z outputs.
+Target corner turn p90 improves too. Geometry is good enough for bounded joint
+integration on these memorized lines, not full-IAM/generalization readiness.
+Old OCR-head CER0 must be revalidated against the changed encoder, not assumed.
+
+Global mod8 residual bias was below the permutation null; this is not universal
+proof against all decoder artifacts. High-mixture-entropy points had no larger
+errors, and a frozen-feature affine alternative was much worse. Sampled latents
+retain a precision gap; production Adam/GMM and regularized latent behavior
+remain unvalidated. Configurations, canceled/preempted attempts, source hashes,
+CPU reload checks and marker-free galleries: [CURVE_FIDELITY.md](CURVE_FIDELITY.md).
+
+Volume overview: `checkpoints/iam_curve_study/research-summary/index.html`.
+Selected: `checkpoints/iam_curve_study/20261005-124900/delta50/checkpoint.pt`.
