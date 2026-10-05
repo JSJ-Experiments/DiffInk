@@ -12,13 +12,15 @@ image=(modal.Image.debian_slim(python_version='3.12')
        .add_local_dir(str(repo/'dataset'),'/app/dataset')
        .add_local_dir(str(repo/'utils'),'/app/utils')
        .add_local_dir('iam_tools','/app/iam_tools')
-       .add_local_file(str(repo/'configs/vae_iam_autopsy_geometry.yaml'),'/app/configs/vae_iam_autopsy_geometry.yaml'))
+       .add_local_file(str(repo/'configs/vae_iam_autopsy_geometry.yaml'),'/app/configs/vae_iam_autopsy_geometry.yaml')
+       .add_local_file(str(repo/'configs/vae_iam_autopsy_resume.yaml'),'/app/configs/vae_iam_autopsy_resume.yaml'))
 
 @app.function(image=image,volumes={'/data':volume},gpu='T4',cpu=4,memory=16384,timeout=900,retries=0,max_containers=1)
-def run_geometry():
+def run_geometry(resume:bool=False):
     from iam_tools.autopsy import train_geometry
     try:
-        return train_geometry('/app/configs/vae_iam_autopsy_geometry.yaml','/app',allow_experimental=True)
+        config='/app/configs/vae_iam_autopsy_resume.yaml' if resume else '/app/configs/vae_iam_autopsy_geometry.yaml'
+        return train_geometry(config,'/app',allow_experimental=True)
     finally:volume.commit()
 
 def require_opt_in(train, allow_experimental):
@@ -28,7 +30,7 @@ def require_opt_in(train, allow_experimental):
     return True
 
 @app.local_entrypoint()
-def main(train:bool=False,allow_experimental:bool=False):
+def main(train:bool=False,allow_experimental:bool=False,resume:bool=False):
     if not require_opt_in(train,allow_experimental):
         print('Not launched. Geometry only: one T4, one line, at most 1000 steps / 600 loop seconds.');return
-    print(run_geometry.remote())
+    print(run_geometry.remote(resume))

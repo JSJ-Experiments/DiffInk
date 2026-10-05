@@ -324,3 +324,39 @@ Local:  data/checkpoints/iam_autopsy/geometry/20261005-075059/
 original run directory as `trajectory_diagnostics.json` and `autopsy-index.html`.
 The IAM normalization and internal EOC policy remain experimental; this is not
 an author-result reproduction.
+
+### Approved low-LR continuation
+
+The next run resumes the exact step-1,000 model **and** AdamW state from
+`20261005-075059`, pinned by SHA256
+`383bbdeb21cbda0b1713150f079a7843daf77ed7ac35824bd9abed3dcbfbcf7e`.
+Its only changed training setting is LR 1.5e-4 → 1e-5. The continuation config
+is compared against the checkpoint and rejects other setting/sample changes.
+All 200 Adam state entries restore at step 1,000; the LR override occurs after
+`load_state_dict`. `max_steps: 1000` means **additional** updates, ending at
+global step 2,000. Every 100 updates record per-axis RMSE/correlation, selected
+sigma medians, NLL, most recent raw gradient norm/clipping flag, and last-100/
+cumulative clipping fractions. The old clip of 10 stays unchanged.
+
+```sh
+python -m iam_tools.autopsy --config third_party/DiffInk/configs/vae_iam_autopsy_resume.yaml --data-root data/diffink/iam_overfit --resume-checkpoint data/checkpoints/iam_autopsy/geometry/20261005-075059/checkpoint.pt
+# Persist autopsy_resume_preflight.json, then the approved launch:
+modal run modal_autopsy.py --train --allow-experimental --resume
+```
+
+No auxiliary losses, MSE, normalization, sampler, dropout, architecture, GMM
+math, betas, weight decay or clipping changes. One T4, at most 1,000 additional
+updates / 600 loop seconds / 900 container seconds; no automatic function-input
+retries or GPU fallback. The new run writes a separate directory and never
+replaces the source checkpoint.
+
+**Reproducibility limitation:** the old checkpoint did not store RNG states.
+Model and Adam moments are fully restored, but the stochastic stream must
+restart at seed 42 rather than continue bitwise. This is recorded in provenance;
+new checkpoints save both CPU and CUDA RNG states for future resumes. Fixed
+comparisons retain the same evaluation seed 1042.
+
+The strict geometry gate remains mean-error/visual, not just NLL: ideally
+Y correlation >0.97, materially lower X/Y RMSE, recognizable smooth letters
+using true pen boundaries, and no apparent variance tightening without location
+improvement. Pen A/B remains conditional, and MSE is not included in this run.
