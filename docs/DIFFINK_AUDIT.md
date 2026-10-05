@@ -176,3 +176,19 @@ greedy OCR (CER 1.0) and wrong fixed writer predictions at the final step.
 These results warrant a smaller memorization test, not full-scale training
 or a claim of reproducing the authors' English experiment. No further GPU job
 was started after this result. See `ENGLISH_IAM.md` for metrics and paths.
+
+## Single-line geometry isolation (2026-10-05)
+
+A 1,000-update T4 coordinate-only autopsy of `c08-434z-05` completed, with all
+other objectives off and verified absent auxiliary/pen loss gradients. It
+improved fixed Y correlation to 0.898, but true-pen render inspection still
+shows jagged/distorted shapes. The geometry gate remains partial, not perfectly
+memorized, and no pen/CTC/style or larger-data stage was launched. CPU-only
+latent-mean and component-selection controls do not eliminate residual error.
+See `ENGLISH_IAM.md` for metrics, startup packaging correction and artifacts.
+
+The pen-loss audit also found that inverse class weights are computed before
+padding is masked. For the fixed 581-point line padded to 584, this reduces the
+real-point-only EOC factor 581 to an effective fixed-batch 146 while retaining
+approximately 16x pen-up weighting. Training-batch composition can change the
+EOC factor. A controlled pen-policy A/B is still needed to establish causality.

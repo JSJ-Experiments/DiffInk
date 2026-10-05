@@ -1,4 +1,6 @@
 from copy import deepcopy
+import ast
+import importlib.util
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -15,6 +17,18 @@ REPO=ROOT/'third_party/DiffInk' if (ROOT/'third_party/DiffInk').exists() else RO
 class AutopsyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):torch.set_num_threads(2)
+
+    def test_modal_entrypoint_self_contained_and_guarded(self):
+        path=ROOT/'modal_autopsy.py'
+        tree=ast.parse(path.read_text())
+        imports=[node for node in tree.body if isinstance(node,(ast.Import,ast.ImportFrom))]
+        modules={node.module if isinstance(node,ast.ImportFrom) else alias.name for node in imports for alias in (node.names if isinstance(node,ast.Import) else [None])}
+        self.assertEqual(modules,{'modal','pathlib'})
+        spec=importlib.util.spec_from_file_location('modal_geometry_guard',path)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        self.assertFalse(module.require_opt_in(False,False))
+        with self.assertRaises(ValueError):module.require_opt_in(True,False)
+        self.assertTrue(module.require_opt_in(True,True))
 
     def test_geometry_caps_and_objective_guard(self):
         cfg=yaml.safe_load((REPO/'configs/vae_iam_autopsy_geometry.yaml').read_text());check_geometry_config(cfg)

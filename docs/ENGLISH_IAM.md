@@ -259,3 +259,68 @@ Later stages are conditional, not automatic: geometry first; then compare
 original inverse-frequency focal with a bounded English pen policy; then CTC
 with style still off; then one writer's eight lines; then multiple writers and
 style. No InkDiT, full IAM training or normalization changes in this autopsy.
+
+### One-line geometry result — 2026-10-05
+
+Run `20261005-075059` completed exactly 1,000 updates on a Tesla T4 in 55.9
+reported loop/evaluation/checkpoint seconds (not total billed time). The same
+581-point line was repeated at every update. All logged losses and gradient
+norms stayed finite. OCR/style state was unchanged; auxiliary gradients were
+absent and pen-output loss gradients zero on all 1,000 updates. The old
+200-step cap was not loosened, and no later stage was launched.
+
+An initial Modal launch failed before the training function could start because
+a neighboring entrypoint module was not included remotely. That app was
+explicitly stopped, and `modal_autopsy.py` was made self-contained. Note that
+`retries=0` disables function-input retries, not all platform attempts to start
+a failing container. A regression test now checks the entrypoint's top-level
+imports and opt-in guards. The successful run had no training retries.
+
+| Fixed geometry diagnostic | Step 0 | Step 1,000 |
+|---|---:|---:|
+| GMM NLL | 19.051 | -2.399 |
+| X RMSE (model units) | 7.077 | 0.102 |
+| Y RMSE (model units) | 0.530 | 0.064 |
+| X correlation | 0.090 | 0.9998 |
+| Y correlation | -0.004 | 0.898 |
+| Selected sigma X median | 0.732 | 0.100 |
+| Selected sigma Y median | 0.721 | 0.064 |
+
+First/last 50-update mean training GMM NLL: 3.270 → -2.178. Negative NLL is
+possible for a continuous density in these model units; it is not a success
+criterion by itself.
+
+**Geometry gate: partial, not perfect memorization.** True-pen renders now show
+letter shapes and much better Y structure, but remain jagged/distorted and are
+not reliable handwriting reconstruction. This is substantial progress over
+flattened traces, not a reason to switch on the other objectives yet. Predicted
+pen states are deliberately untrained in this run and are not scored as a
+pen-learning failure.
+
+CPU-only checkpoint controls (`iam_tools.autopsy_checkpoint_diagnostics`) verify
+strict loading and finite state. Four latent-noise seeds plus a latent-mean
+inference control show that sampling noise is not the whole residual error.
+At seed 1042 on CPU, highest-weight selection gives Y RMSE 0.064/correlation
+0.897; using latent mean gives 0.061/0.909. A target-posterior oracle improves to
+about 0.053/0.932 but still leaves distorted shapes and is **not** a usable
+inference/generation method. No updates occur during these controls.
+
+Next proposed experiment remains **geometry only**: a separately bounded,
+lower-learning-rate continuation to tighten the per-point fit before pen A/B.
+That continuation would need explicit resume/config support; the current
+command intentionally starts fresh and stops at 1,000. No continuation, pen,
+CTC, style, larger dataset or normalization experiment has been launched.
+
+Artifacts (checkpoint, raw predictions, same-frame comparisons, true/predicted
+pen renders/histograms, all metrics, CPU controls, curves and HTML gallery):
+
+```text
+Volume: /data/checkpoints/iam_autopsy/geometry/20261005-075059/
+Shell:  /mnt/diffink-data/checkpoints/iam_autopsy/geometry/20261005-075059/
+Local:  data/checkpoints/iam_autopsy/geometry/20261005-075059/
+```
+
+`index.html` is the consolidated gallery. Old-run CPU diagnostics are in its
+original run directory as `trajectory_diagnostics.json` and `autopsy-index.html`.
+The IAM normalization and internal EOC policy remain experimental; this is not
+an author-result reproduction.
