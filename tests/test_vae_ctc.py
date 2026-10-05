@@ -10,6 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 REPO=ROOT/'third_party/DiffInk' if (ROOT/'third_party/DiffInk').exists() else ROOT
 sys.path.insert(0,str(REPO))
 from model.vae import VAE
+from iam_tools.inkvae import auxiliary_hooks,fixed_evaluation
 
 
 def small_config():
@@ -53,6 +54,19 @@ class VAETrainingPathCTCTests(unittest.TestCase):
         valid=self.forward_loss(torch.tensor([[0,0]]),24)
         self.assertEqual(float(invalid),0)
         self.assertGreater(float(valid),0)
+
+    def test_fixed_metrics_capture_real_auxiliary_outputs(self):
+        captured={};hooks=auxiliary_hooks(self.model,captured)
+        try:
+            with fixed_evaluation(self.model,1042,'cpu'):
+                self.model(torch.randn(1,5,24),torch.ones(1,3,dtype=torch.bool),
+                           torch.tensor([[0,1,2]]),torch.tensor([0]))
+        finally:
+            for hook in hooks:hook.remove()
+        self.assertEqual(captured['ocr'].shape,(3,1,4))
+        self.assertEqual(captured['style'].shape,(1,2))
+        self.assertTrue(torch.isfinite(captured['ocr']).all())
+        self.assertTrue(torch.isfinite(captured['style']).all())
 
     def test_vae_and_ocr_helper_share_loss(self):
         features=torch.randn(1,8,3);labels=torch.tensor([[0,1,2]])

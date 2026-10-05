@@ -100,6 +100,12 @@ def edit_distance(a,b):
     return previous[-1]
 
 
+def auxiliary_hooks(model,captured):
+    # OCR.get_ocr_loss calls self.forward directly; hook its invoked output_fc.
+    return [model.ocr_model.output_fc.register_forward_hook(lambda m,a,o:captured.update(ocr=o.transpose(0,1))),
+            model.style_classifier.register_forward_hook(lambda m,a,o:captured.update(style=o))]
+
+
 def module_grad_norm(module):
     norms=[p.grad.detach().norm() for p in module.parameters() if p.grad is not None]
     return float(torch.stack(norms).norm()) if norms else 0.0
@@ -156,8 +162,7 @@ def train_opt_in(config_path,repo,data_root=None,allow_experimental=False):
         # Both metrics and reconstructions share exactly the same forward/noise.
         for name,dataset in [('train',train),('val',val)]:
             captured={}
-            hooks=[model.ocr_model.register_forward_hook(lambda m,a,o:captured.update(ocr=o)),
-                   model.style_classifier.register_forward_hook(lambda m,a,o:captured.update(style=o))]
+            hooks=auxiliary_hooks(model,captured)
             sample=dataset[0]
             writer,points,text,_=sample
             batch=dataset.collate_fn([sample])
