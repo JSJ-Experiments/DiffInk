@@ -215,3 +215,47 @@ To regenerate the CPU-only report:
 ```sh
 python -m iam_tools.report_inkvae data/checkpoints/iam_overfit/20261005-072316
 ```
+
+### Staged single-line autopsy
+
+The next approved experiment is stage 1 only: exactly `c08-434z-05` on every
+update, fresh initialization (seed 42), coordinate GMM NLL only. Pen, CTC, style
+and KL objectives are off; OCR/style forward calls are suppressed and their
+parameters frozen/excluded from the optimizer. Tests verify no auxiliary
+gradients and zero loss gradient on the three pen-output rows. No extra MSE,
+normalization, RDP, architecture, dropout or latent-sampling change is introduced.
+The coordinate NLL has weight 1 because it is the sole objective. Existing
+192/32 files are sources; no other line can enter the repeated pre-collated batch.
+
+`configs/vae_iam_autopsy_geometry.yaml` and `modal_autopsy.py` specify one T4,
+maximum 1,000 updates / 600 loop seconds / 900 container seconds, no retries,
+no GPU fallback. The previous 200-step runner's cap remains unchanged. Its CPU
+preflight checks config, manifest and selected sample hashes before training.
+
+```sh
+python -m iam_tools.trajectory_diagnostics data/checkpoints/iam_overfit/20261005-072316
+python -m iam_tools.autopsy --data-root data/diffink/iam_overfit  # CPU only
+# Upload autopsy_preflight.json to /diffink/iam_overfit/ before the approved run.
+modal run modal_autopsy.py --train --allow-experimental
+```
+
+CPU old-run diagnostics reproduce the final train/val pen histograms exactly.
+Train Y correlation is only 0.100 (X 0.986); val Y correlation 0.446 (X 0.994).
+Using true pen states reconnects the traces but does not recover letter shapes.
+Inverse weights from real points alone are 1.068/16.139/581 on the train line.
+However upstream computes weights *before padding is masked*: the fixed single
+sample is padded to 584, making actual class weights 1.074/16.222/146. Padding
+therefore also changes EOC weighting with batch composition. This is a plausible
+failure mechanism, not a proven causal result without a controlled pen A/B.
+
+The new diagnostics exclude padding, save separate X/Y RMSE/correlation,
+true/predicted state counts, confusion matrix and per-class recall. Geometry
+snapshots show input, predicted XY with true pen states, and predicted XY with
+predicted states in the same coordinate frame; histograms and unmodified NPYs
+are saved too. Predicted pen accuracy is diagnostic only while its loss is off.
+Low NLL or high global X correlation alone does not pass the letter-shape gate.
+
+Later stages are conditional, not automatic: geometry first; then compare
+original inverse-frequency focal with a bounded English pen policy; then CTC
+with style still off; then one writer's eight lines; then multiple writers and
+style. No InkDiT, full IAM training or normalization changes in this autopsy.

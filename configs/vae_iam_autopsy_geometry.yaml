@@ -1,0 +1,52 @@
+# Stage 1: exactly one line, GMM coordinate reconstruction only.
+# No normalization, RDP, architecture, dropout or latent-sampling changes.
+data_root: /data/diffink/iam_overfit
+train_file: tiny_train.h5
+val_file: tiny_val.h5
+text_file: chars.json
+writer_file: writers.json
+output_base: /data/checkpoints/iam_autopsy/geometry
+in_channels: 5
+latent_dim: 384
+hidden_dims:
+- 128
+- 256
+- 384
+decoder_dims:
+- 384
+- 256
+- 128
+decoder_output_dim: 123
+trans_hidden_dim: 256
+trans_num_heads: 4
+trans_num_layers: 3
+ocr_hidden_dim: 384
+ocr_num_heads: 4
+ocr_num_layers: 3
+style_classifier_dim: 384
+train_batch_size: 1
+num_workers: 0
+aug_prob: 0.0
+seed: 42
+max_steps: 1000
+max_wall_seconds: 600
+save_every: 100
+base_lr: 0.00015
+betas:
+- 0.9
+- 0.99
+weight_decay: 0.0001
+grad_clip: 10.0
+kl_weight: 0.0
+gmm_weight: 1.0
+pen_weight: 0.0
+ctc_weight: 0.0
+style_weight: 0.0
+gmm_logspace: true
+model_input_scale: 0.01
+experimental_normalization: true
+experimental_character_ends: true
+stage: geometry-only
+sample_id: c08-434z-05
+initialization: fresh-seed-42
+pen_policy: 'off'
