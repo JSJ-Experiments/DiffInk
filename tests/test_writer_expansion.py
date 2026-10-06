@@ -156,3 +156,12 @@ class ResumeAuditTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class ReferenceRetentionTests(unittest.TestCase):
+    def test_comparisons_require_finite_index_aligned_trajectories(self):
+        import numpy as np
+        from iam_tools.reference_retention import validate_sequences
+        a=np.zeros((8,5));self.assertEqual(len(validate_sequences([a,a,a])),3)
+        for arrays in [[a,a], [a,a,a[:-1]], [a,a,a+np.nan], [a[:,:2]]*3, [a[:0]]*3]:
+            with self.assertRaises(ValueError):validate_sequences(arrays)

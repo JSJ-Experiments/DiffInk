@@ -390,3 +390,8 @@ after saved200, then resumed with model+optimizer+RNG and sample order intact.
 Details: [WRITER_EXPANSION.md](WRITER_EXPANSION.md). Keep this investigation
 separate from the passed eight-line capacity/posterior/OCR gates. Do not advance
 to full IAM or InkDiT on the basis of these aggregate position improvements.
+
+Completed balanced result: train mean X/Y .009704/.013157, pen F1 .9883; held-out
+.149929/.060841, F1 .7372. Original-reference curve retention and held-out visual
+fidelity still fail.103 root/fork tests pass; all jobs completed/stopped. Latest
+report includes immutable-reference comparisons with source-array hashes.

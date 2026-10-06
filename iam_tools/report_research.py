@@ -37,6 +37,7 @@ def report(data_root='data'):
     page=['<!doctype html><meta charset="utf-8"><title>English DiffInk research results</title>',
           '<h1>Eight-line reconstruction and frozen CTC-head mechanics</h1>',
             '<p><strong>Later integration:</strong> <a href="../../iam_latent_integration/latest/index.html">Sampled latent / tiny KL / joint OCR report</a>. Results below remain historical.</p>',
+          '<p><strong>Seen-writer expansion:</strong> <a href="../../iam_writer_expansion/latest/index.html">24 train / four untouched lines and balanced joint continuation</a> | <a href="../../iam_writer_polish/latest/index.html">Full-set optimizer diagnostic</a>. Eight-line fidelity did not generalize; expanded curve/held-out gates remain unresolved.</p>',
           '<p><strong>Later follow-up:</strong> <a href="../../iam_curve_study/research-summary/index.html">Curve investigation and improved checkpoints</a>. The geometry/status below pertains to the older checkpoint, not the improved follow-up.</p>',
           f'<p>Final posterior-mean X/Y RMSE {summary["mean_x_rmse"]:.5f}/{summary["mean_y_rmse"]:.5f}; genuine pen-up F1 1.000 on all eight lines, correct final EOC, no false internal EOCs. Twenty sampled-z pen predictions per line also all F1=1.0.</p>',
           f'<p>Mean per-line sampled median X/Y error {summary["sampled_median_x_mean"]:.5f}/{summary["sampled_median_y_mean"]:.5f}. No forced stopping or smoothing loss. Still some letter-shape error; not pixel identity.</p>',

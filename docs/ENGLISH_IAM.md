@@ -1031,3 +1031,10 @@ This is seen-writer/line-disjoint (forms overlap), not an IAM benchmark.
 Volume reports: `checkpoints/iam_writer_expansion/latest/index.html` and
 `checkpoints/iam_writer_polish/latest/index.html`. No original checkpoint is
 replaced; no production/full-IAM/InkDiT readiness claim is made.
+
+The balanced continuation finished at1200: train mean X/Y RMSE .009704/.013157,
+pen F1 .9883; held-out .149929/.060841 and F1 .7372. Training renders are mostly
+readable, but local curves regress relative to the immutable eight-line reference
+and held-out lines remain visibly jagged. No expanded fidelity pass. The latest
+report includes marker-free target/reference/expanded comparisons.103 tests pass;
+all bounded jobs finished.

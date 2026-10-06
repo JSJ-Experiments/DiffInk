@@ -202,3 +202,66 @@ relative error changes.5693→.5638 and turn p90100.56°→100.34°; held-out tu
 141.41°→141.69° (worse). Tiny effect, not a practical fix. This rules against a
 single shared phase-bias correction, **not** context-dependent deconvolution/
 aliasing effects. Saved `phase-bias-probe/summary.json` and corrected arrays.
+
+### Balanced continuation completed (2026-10-06)
+
+Exactly the remaining1000 updates completed, ending at1200. Independent CPU
+verification compares the new `checkpoint-initial.pt` against the saved step200:
+model tensors, Adam state, CPU RNG and CUDA RNG are **all bitwise equal**. The
+same sample-order suffix is reconstruction-tested. This is a real continuation,
+not a fresh optimizer/model run. Last-quarter LR reduction still occurs at900.
+
+| Group | Mean X/Y RMSE | Δ / Δ² relative | Turn p90 | Mean / sampled macro pen F1 |
+|---|---|---|---:|---|
+| Original8 | .008828 / .011167 | .243 / .439 | 50.75° | .9915 / .9914 |
+| New16 | .010142 / .014151 | .283 / .484 | 57.09° | .9867 / .9851 |
+| Train24 | .009704 / .013157 | .270 / .469 | 54.98° | .9883 / .9872 |
+| Held-out4 | .149929 / .060841 | 1.058 / 1.768 | 138.12° | .7372 / .7384 |
+
+All24 training means and all480 sampled draws preserve final EOC and have zero
+false internal EOCs. Worst mean/sampled train penF1 is.95349, not1. The four
+held-out lines have21 false internal EOCs across their means +80 draws. Sampled
+train X/Y RMSE.010158/.013267; held-out.149971/.060865. Mean CER from the frozen
+original-eight OCR head is3.636%/77.905%/77.778% on old/new/held-out respectively;
+OCR was never trained in this expansion.
+
+Balanced training repaired much of the boundary degradation and modestly improved
+geometry, but **the visual/local-curve gate still fails**. The original8's
+3.63° turn-p90/.000270/.001162 reference is substantially better. Do not replace
+that reference with this expanded checkpoint or call it visually lossless.
+Neither ordinary-view renders nor the named curve crops establish a passing
+held-out reconstruction result. This is meaningful progress/evidence, not a
+successful paper reproduction or a general handwriting generator.
+
+Final run: `checkpoints/iam_writer_expansion/20261006-022925/`.
+Report: `.../report/index.html`, stable `checkpoints/iam_writer_expansion/latest/index.html`.
+Checkpoint: `.../checkpoint-best.pt`, selected at1200 using training-only score.
+SHA256: `8d591cfe41b5fa73f16877c34d7b3e62bcf3349d109b114aece0e9c681c4ebee`.
+Original source and interrupted step200 remain unchanged. Resume loop/evaluation
+520.42s, excluding startup/loading/initial evaluation. CPU reload is finite,
+source unchanged, OCR/style/sigma-rho rows unchanged; all28 mean arrays agree
+with GPU (max absolute difference1.43e-5), pen argmax identical.
+
+**Established:** exact eight-line reconstruction did not generalize; expanding
+training changes previously good local geometry; joint pen supervision is needed
+to preserve boundary-readable decoder features under the tested optimizer. The
+target Δ loss already has a substantial gradient, a fixed mod8 bias does little,
+and a frozen-feature linear readout is worse. No evidence supports a blanket
+smoothing/large-curvature penalty. Exact causal separation of optimization,
+feature conditioning and data diversity remains unresolved; the full-set polish
+is deliberately not a single-factor ablation.
+
+**Next research direction:** expand the reconstruction investigation with explicit
+length/coordinate-conditioning controls and sufficient optimization on a more
+diverse training-only set while keeping validation untouched. Test hypotheses
+against all-line marker-free renders, not a selected glyph or lower global RMSE.
+Do not incidentally enable KL/CTC/style or move to InkDiT.103 root/fork tests pass;
+all bounded T4/CPU jobs have finished. GPU checkpoint/NPY/metrics and as-run code
+stay in the Volume; no IAM/checkpoint artifacts are committed to Git.
+
+The final report additionally contains `original-reference-retention.png` (all
+eight old lines) and `original-reference-user-regions.png` (the named c/h crops):
+target / immutable eight-line reconstruction / expanded reconstruction. Targets
+use true pens; both reconstructions use predicted pens. No smoothing or markers.
+Reference NPY hashes are recorded in `summary.json`; the CPU report renderer
+regenerates these comparisons when reference arrays are available.

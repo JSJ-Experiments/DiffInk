@@ -49,6 +49,8 @@ def render_report(report_rel: str):
         info['selected_checkpoint_sha256']=sha
         info['source_code_sha256']={str(p.relative_to(directory/'source-code')):file_sha(p) for p in (directory/'source-code').rglob('*.py')}
         (directory/'report/summary.json').write_text(json.dumps(info,indent=2)+'\n')
+        from iam_tools.reference_retention import report as reference_report
+        reference_report(directory,'/data')
         latest=directory.parent/'latest'
         if latest.exists():shutil.rmtree(latest)
         shutil.copytree(directory/'report',latest)
