@@ -1079,3 +1079,20 @@ wired into the guarded English geometry research runner; no larger physical
 batches or changed precision.136 tests pass. Exact performance/fidelity evidence
 is in CONDITIONING_STUDY.md. The192-line follow-up remains rough; the separate
 near-identity control is explicitly untrained and not a production promotion.
+
+### Initialized transport follow-up (engineering, not generative promotion)
+
+A controlled T4 study found that the near-lossless initializer is extremely
+sensitive to ordinary Adam updates. Freezing its high-gain Transformer/readout,
+using body LR1e-7 and posterior LR1e-3 preserves faithful geometry after200 actual
+updates: train192 mean X/Y5.40e-6/4.39e-6, held-out32 5.14e-6/4.33e-6. Posterior
+errors improve from~.002 to~.00061; all224 means+4480 draws have perfect pen states.
+Named c/h crops and all original8 are visually faithful to the processed target.
+This is an explicitly reinitialized transport codec, NOT paper reproduction or
+proof of semantic/generative latents; frozen OCR still has~78–79% CER, KL is OFF.
+No production model promotion, no InkDiT/full-IAM launch. See [CONDITIONING_STUDY.md](CONDITIONING_STUDY.md).
+
+Volume overview: `checkpoints/iam_initialization_study/research-summary/index.html`.
+All-line report: `checkpoints/iam_initialization_study/20261006-170142/report/index.html`.
+Selected checkpoint: `.../protected_noise/checkpoint-best.pt` (SHA5ba90c38…).
+Guarded launcher `modal_initialization_study.py`;139 regression tests pass.

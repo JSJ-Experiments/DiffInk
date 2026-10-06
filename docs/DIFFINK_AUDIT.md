@@ -436,3 +436,14 @@ trained follow-up is still visually rough and not promoted. An explicitly
 UNTRAINED, opt-in polyphase initialization control reconstructs all224 observed
 lines nearly exactly; it is a capacity/conditioning diagnostic, not a learned
 semantic/generative model or automatic OCR/KL readiness.
+
+## Initialized transport optimizer audit, 2026-10-06
+
+139 tests pass. Controlled initializer arms expose extreme high-gain update
+sensitivity; uniform/scaled-readout arms stop on a TRAIN-only failure gate.
+Freezing the readout and using body LR1e-7/posterior LR1e-3 preserves near-lossless
+224-line geometry after200 real updates, with improved sampled reconstruction and
+perfect pen boundaries. CPU reload/source/frozen-head checks pass. Explicitly
+reinitialized engineering codec, NOT original learned-VAE/paper reproduction or
+semantic/generative readiness. Original input RDP corners are retained, no smoothing.
+Full configs, limitations, SHA and report links: [CONDITIONING_STUDY.md](CONDITIONING_STUDY.md).

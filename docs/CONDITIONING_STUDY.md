@@ -517,3 +517,129 @@ information-loss explanation, NOT learned upsampling artifacts or poor training
 conditioning. It motivates a carefully controlled initialization/protected-geometry
 experiment next; it does NOT justify claiming paper reproduction, a trained
 English semantic VAE, stochastic GMM generation or automatically enabling OCR/KL.
+
+## Initialized transport: controlled optimizer stability (2026-10-06)
+
+The prior CPU control was untrained. It is NOT sufficient to promote a generative
+VAE. This follow-up explicitly tests whether its fidelity survives updates, and
+whether meaningful posterior reconstruction can improve. Reinitialize geometry
+of the pinned faithful24 checkpoint89ec459… with the SAME analytic polyphase
+route, scale512 and active posterior std **.002** (100× the CPU probe's preset).
+Dormant residual/attention weights and frozen OCR/style are reused from that source;
+this is **not** continuation of its learned geometry. Initial means copy processed
+trajectories; therefore excellent held-out copying is not evidence of statistically
+learned style/text generalization. No new target points, smoothing or input skip.
+
+All arms:192 train/32 held-out, manifest6d1fafea…, dropout/augmentation0, scale.01,
+physical1/accum8, seed4042, same shuffled schedule and fresh posterior noise,
+fresh AdamW betas.9/.99/decay0/clip5, Gpoint+.204718×target raw first-difference
+matching + .1 sampled geometry + .02099049935353879 bounded focal pen. GMM,
+KL, CTC/style OFF. Pen scalar is fixed from the preceding192-line experiment,
+NOT claimed recalibrated for near-zero initialized pen loss. Sigma/rho readout
+rows and OCR/style weights are protected. No held-out gradients or selection.
+CUDA replay/minimal padding and three exact CPU metric workers remain enabled.
+
+A CPU first-update parameter-block intervention corroborates the high-gain issue:
+readout-only updated weights produce X/Y~32.33/31.96; body-only~.0663/.0651.
+Feedforward-output-only updates produce~20.49/20.27, attention-output-only~11.00/
+10.88, final-FC-only~.0123/.00935. These are interventions against identical
+initialized weights, NOT an additive attribution (nonlinear blocks interact).
+`uniform/first-update-attribution.json` preserves every measured intervention.
+
+Controlled arms `checkpoints/iam_initialization_study/20261006-165824/`:
+
+| Arm | Body LR | Transformer/readout | Posterior LR | Final updates / outcome |
+|---|---:|---|---:|---|
+| uniform |5e-5|train, LR5e-5|5e-5|10, training-failure gate|
+| scaled_readout |5e-5|train, LR5e-5/512|5e-5|10, training-failure gate|
+| frozen_readout |5e-5|bitwise fixed|5e-5|100, completed|
+
+The failure gate uses TRAINING losses only: after update10, shuffled mean-geometry
+loss >1e-3 stops the arm. Both failures are retained, not silently replaced by
+best=0. Ordinary Adam turns near-zero initialized mean error into ~32/32 model
+units after ONE update; scaling just the readout LR by512 still yields~.112/.098.
+Frozen readout first-update error is~.063/.061, recovering by100. This exposes a
+severe optimizer/parameterization sensitivity of THIS handcrafted high-gain
+initialization. It is not evidence that Adam is universally broken, nor a complete
+causal diagnosis of the older trained model's jaggedness. Scalar gradient scaling
+is not an Adam LR fix; the experiment uses real per-group learning rates.
+
+Follow-up `checkpoints/iam_initialization_study/20261006-170142/protected_noise/`:
+Transformer/readout BITWISE fixed, encoder/decoder/mu LR **1e-7**, posterior head
+LR **1e-3**, same initial weights/objective/data/RNG,200 updates. Two knobs differ
+from frozen_readout, so later benefits cannot be assigned solely to either one.
+First-update mean error is ~.000117/.000122 rather than .063/.061: posterior-head
+updates do not affect mean decoding at that update, supporting the body-LR
+explanation for this early stability improvement. Optional same-line21 posterior
+batching was enabled only AFTER serial/batched parity on8×21 trajectories:
+max XY difference0, zero pen/OCR changes. Evaluation preserves training RNG.
+
+| Final arm / group | Mean X/Y RMSE | Mean per-line turn p90 | Mean pen F1 | Sampled X/Y RMSE |
+|---|---:|---:|---:|---:|
+| uniform10 / train192 |9.048628/2.029811|158.89°|.14003|failed|
+| scaled10 / train192 |.073366/.050367|165.22°|1|failed|
+| frozen100 / train192 |.000310/.000336|1.95°|1|see saved evaluation|
+| protected200 / train192 |.000005405/.000004392|.0304°|1|.000608/.000609|
+| protected200 / held-out32 |.000005142/.000004325|.0302°|1|.000612/.000614|
+| protected200 / original8 |.000005913/.000004487|.0290°|1|.000521/.000523|
+
+Protected initial sampled errors are ~.002/.002; final errors improve~69.5%,
+not merely mean decoding with preset negligible noise. No updates hit clipping
+(0/200); raw gradient norms range .000139–.005817. Worst per-line final mean
+X/Y RMSE across224 =1.53e-5/6.09e-6; worst per-line turn p90 .0455°. Final mean
+first-/second-difference relative errors train192 =.000113/.000212; genuine target
+corner turn p90 .0468°. These are nonuniform INDEX differences, not physical
+velocity/curvature. Final ALL224 means +4480 sampled trajectories have perfect
+pen boundaries/final EOC and zero false internal EOC. No generic smoothing loss.
+
+Visually inspected named c/h crops, all original8, both32-line held-out pages,
+and named median/worst-posterior renders: added spikes/distortions are absent at
+report scale; processed target polygonality is intentionally retained. This is
+near-lossless reconstruction of IAM/RDP, NOT the original raw pen trace. The old
+learned192 model is included as an UNMATCHED engineering comparison, not a causal
+ablation: its train mean .028448/.027623 and turn99.30° remain unpromoted.
+
+Selected protected200 file SHA
+`5ba90c388946e7a19693b8cb578c0218686ddb0637eebcecb36c5705d68ae948`;
+last file SHA `4ea12aed19f48f23e5be98ebb6c0c13608ad56ef52f84ed63f06cd1b0844dca4`.
+Independent CPU reload: max XY difference9.54e-6, zero pen changes. On all original8,
+extra32/128 EOC padding shifts means by at most X2.10e-6/Y7.16e-7, zero pen changes:
+padding sensitivity is tiny in THIS protected transport path, not a general fix
+for GroupNorm in the original model. Across224 lines, mean per-line median XY
+posterior std .000348; pen-field std stays .002, unused std~.99959/unused mu RMS
+~1.69e-7, mean corrected KL diagnostic1.121 (not trained). The scalar bias median
+alone stays .002 and would misleadingly hide learned XY uncertainty. Fixed readout/
+sigma/rho/OCR/style/source checks pass. Initial dated configs inherit nonoperative
+YAML source/output labels: guarded loader constants and provenance.source_rel/SHA
+are authoritative; `resolved-source-contract.json` clarifies this. Future runs
+explicitly override those stale labels. As-run helper/model source is preserved.
+
+**Readiness:** faithful transport after learning is now demonstrated across the
+prepared dataset, including held-out copying. Semantic/generative readiness is
+NOT established: frozen OCR CER remains~78–79%, latent means deliberately encode
+raw polyphase fields, active noise is tiny and KL is OFF; GMM uncertainty remains
+unfitted. Do not claim paper reproduction or launch InkDiT/full IAM on this basis.
+The next justified test is a deliberate latent-prior/semantic-supervision trade-off
+with geometry retention gates, not another smoothing penalty. The initialized
+codec must be compared separately from the original learned-VAE baseline.
+
+Reports: `checkpoints/iam_initialization_study/research-summary/index.html` and
+`.../20261006-170142/report/index.html`; failed/control arms
+`.../20261006-165824/report/index.html`. All224 paired means and each line's median/
+worst posterior render, all20-draw metrics/trajectories, configs/checkpoints and
+source provenance are retained. `modal_initialization_study.py --train --steps 100`
+runs the three original arms; `--train --steps 200 --arm protected_noise` runs the
+follow-up. Import/no flags allocates no GPU. CLI flags have spaces, e.g.
+`--steps 200`. CPU-only `--report-rel ...` and `--overview` do not train.
+
+Opt-in helpers never alter the standard production trainer or automatically
+install this initializer. Tests cover complete/non-overlapping/frozen optimizer
+parameter groups, actual per-group Adam displacement (not gradient scaling), and
+invalid-input rejection. Root/fork **139 tests pass**.
+
+The first CPU control-gallery client ended with SIGTERM before publishing its
+HTML; GPU training was already complete and saved. Cause is not established.
+Recovered with cached checkpoint-SHA-matched CPU checks and all-line MEAN
+galleries; failed/control arms retain all20 posterior metrics/trajectory files,
+without needlessly rendering hundreds of broken posterior images. The protected
+report includes every line's median/worst posterior images. No GPU retraining.
