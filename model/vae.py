@@ -39,12 +39,14 @@ class VAE(nn.Module):
             num_writers=config.num_writer
         )
         
-    def apply_checkpoint_contract(self, checkpoint):
+    def apply_checkpoint_contract(self, checkpoint, allow_research_conditioning=False):
         saved = checkpoint.get('config')
         if saved is None:
             if getattr(self.config, 'language', None) == 'en':
                 raise ValueError('English VAE checkpoint missing scale/config contract')
             return
+        if saved.get('conditioning_mode', 'control') != 'control' and not allow_research_conditioning:
+            raise ValueError('research conditioning checkpoint requires its dedicated loader and inverse transform')
         for key in ('model_input_scale', 'trans_dropout', 'use_decoder_padding_mask', 'pen_policy'):
             if key in saved: setattr(self.config, key, saved[key])
         dropout = float(getattr(self.config, 'trans_dropout', .1))

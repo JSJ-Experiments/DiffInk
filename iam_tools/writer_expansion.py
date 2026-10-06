@@ -29,21 +29,45 @@ def partition(train_ids, val_ids, old_ids):
     return dict(old=old_ids, new=[i for i in train_ids if i not in old_ids], train=train_ids, held_out=val_ids)
 
 
-def load(config, repo, root, source_rel=SOURCE_REL, source_sha=SOURCE_SHA):
+def resolve_writer_scope(parent, writer_id='checkpoint'):
+    """Explicit None selects all prepared writers; old checkpoints stay single-writer."""
+    value=parent.get('config',{}).get('research_writer_id','10174') if writer_id=='checkpoint' else writer_id
+    if value is not None and (not isinstance(value,str) or not value.isdecimal()):
+        raise ValueError('numeric writer ID, explicit None, or checkpoint scope required')
+    return value
+
+
+def retention_groups(parent, train_ids, val_writers):
+    """Keep the original retained reference stable across selected reloads/resumes."""
+    parent_splits=parent.get('provenance',{}).get('splits',{})
+    source_ids=parent_splits.get('source_trained',parent_splits.get('train',parent['sample_ids']))
+    if not source_ids or len(source_ids)!=len(set(source_ids)) or not set(source_ids)<=set(train_ids) or set(train_ids)&val_writers.keys():
+        raise ValueError('disjoint prepared splits and retained training-only reference required')
+    groups=dict(source_trained=list(source_ids),added=[i for i in train_ids if i not in source_ids],
+                same_writer_held_out=[i for i,w in val_writers.items() if w=='10174'],
+                other_writers_held_out=[i for i,w in val_writers.items() if w!='10174'])
+    return {k:v for k,v in groups.items() if v}
+
+
+def load(config, repo, root, source_rel=SOURCE_REL, source_sha=SOURCE_SHA, allow_research_conditioning=False, writer_id='checkpoint'):
     root = Path(root); source = root/source_rel
     if file_sha(source) != source_sha: raise ValueError('source SHA mismatch')
     if file_sha(root/'diffink/iam_overfit/manifest.json') != MANIFEST_SHA: raise ValueError('manifest SHA mismatch')
     model, train, val, cfg, data_root = setup(config, repo, root/'diffink/iam_overfit')
     try:
         parent = torch.load(source, map_location='cpu', weights_only=True)
-        old = parent.get('provenance', {}).get('splits', {}).get('old', parent['sample_ids']); writer = '10174'
-        ids = {name: sorted(i for i in ds.keys if ds.hf[i]['writer_id'][()].decode() == writer)
+        old = parent.get('provenance', {}).get('splits', {}).get('old', parent['sample_ids']); writer = resolve_writer_scope(parent,writer_id)
+        ids = {name: sorted(i for i in ds.keys if writer is None or ds.hf[i]['writer_id'][()].decode() == writer)
                for name, ds in [('train', train), ('val', val)]}
         splits = partition(ids['train'], ids['val'], old)
+        if writer is None:
+            splits.update(retention_groups(parent,ids['train'],{i:val.hf[i]['writer_id'][()].decode() for i in ids['val']}))
         samples = {i: selected_sample(train if i in ids['train'] else val, i) for i in ids['train']+ids['val']}
         batches = {i: (train if i in ids['train'] else val).collate_fn([s]) for i,s in samples.items()}
-        model.load_state_dict(parent['model_state_dict'], strict=True); model.apply_checkpoint_contract(parent); model.eval()
-        cfg.update(sample_ids=ids['train'], model_input_scale=.01, trans_dropout=0)
+        model.load_state_dict(parent['model_state_dict'], strict=True); model.apply_checkpoint_contract(parent, allow_research_conditioning=allow_research_conditioning); model.eval()
+        cfg.update(sample_ids=ids['train'], model_input_scale=.01, trans_dropout=0,
+                   research_writer_id=writer,
+                   conditioning_mode=parent.get('config',{}).get('conditioning_mode','control'))
         vocab = list(json.loads((data_root/'chars.json').read_text()))
         provenance = dict(source_rel=source_rel, source_sha256=source_sha, manifest_sha256=MANIFEST_SHA,
                           samples={i: dict(sha256=sample_sha(s), writer=str(s[0]), text=s[2], points=len(s[1]),
@@ -57,7 +81,7 @@ def device_batches(batches, device):
     return {i: (b[0].to(device).transpose(1,2), b[1].to(device), b[2].to(device)) for i,b in batches.items()}
 
 
-def evaluate(model, samples, batches, splits, vocab, folder, step, draws=20):
+def evaluate(model, samples, batches, splits, vocab, folder, step, draws=20, xy_offsets=None):
     """Fixed paired noise on CPU or GPU; evaluation never advances training RNG."""
     folder = Path(folder); rows=[]
     device = next(model.parameters()).device
@@ -68,11 +92,11 @@ def evaluate(model, samples, batches, splits, vocab, folder, step, draws=20):
             torch.manual_seed(1042+j*100); variants=[]
             destination=folder/f'step-{step}'/sid; destination.mkdir(parents=True, exist_ok=True)
             truth, mu, lv, lm = encoded(model, raw, mask)
-            n=int(mask.sum()); target=truth[0,:n].cpu().numpy(); states=raw[0,2:,:n].argmax(0).cpu().numpy()
+            n=int(mask.sum()); target=truth[0,:n].cpu().numpy(); offset=np.zeros(2) if xy_offsets is None else xy_offsets[sid].detach().cpu().numpy(); target=target+offset; states=raw[0,2:,:n].argmax(0).cpu().numpy()
             from model.losses import mixture_expectation
             for k in range(-1, draws):
                 z=mu if k<0 else mu+torch.randn_like(mu)*(.5*lv).exp()
-                output=model.decode(z,padding_mask=~mask); xy=mixture_expectation(output)[0,:n].cpu().numpy()
+                output=model.decode(z,padding_mask=~mask); xy=mixture_expectation(output)[0,:n].cpu().numpy()+offset
                 predicted=output[0,:3,:n].argmax(0).cpu().numpy(); kind='mu' if k<0 else f'z-{k}'
                 np.save(destination/f'{kind}.npy', np.column_stack([xy,np.eye(3)[predicted]]))
                 decoded=greedy_ctc(model.ocr_model(z)[:int(lm.sum()),0].argmax(-1).tolist(),vocab)

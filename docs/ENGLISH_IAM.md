@@ -1038,3 +1038,37 @@ readable, but local curves regress relative to the immutable eight-line referenc
 and held-out lines remain visibly jagged. No expanded fidelity pass. The latest
 report includes marker-free target/reference/expanded comparisons.103 tests pass;
 all bounded jobs finished.
+
+### Expanded-curve conditioning and optimizer investigation (2026-10-06)
+
+See [CONDITIONING_STUDY.md](CONDITIONING_STUDY.md) for the new controlled T4/CPU
+investigation, source hashes, exact objectives and failure accounting. The
+higher-LR Adam control barely improves local curves. Channel-only normalization
+removes most measured global padding drift but initially damages learned
+reconstruction; it is opt-in research, not a default architecture change.
+Centering the pretrained inputs produces extreme posterior variance and the
+sampled Adam arm aborts before an update; it is not silently retried.
+
+Full-set joint mean geometry **and pen** L-BFGS makes substantially more progress
+than the expanded Adam endpoint without adding a smoother, changing RDP, or
+turning on OCR/KL/style. A matched target-relative segment ablation weights short
+true-stroke errors moderately (20% initial decoder gradient), with a target q25
+length floor. It improves angle error modestly, not held-out fidelity. All4
+held-out lines stay strictly evaluation-only. Compare shared outer steps; a
+fresh-optimizer weight continuation is explicitly separate from matched A/B.
+
+Volume overview: `checkpoints/iam_fullset_joint/research-summary/index.html`.
+Reports include every old/new/held-out line, the c/h crops, immutable faithful
+8-line reference, mean and20-draw metrics, corner/turn/Δ errors, and independent
+CPU reload checks. Full configurations/as-run code are preserved per experiment.
+Default architecture/data contract remains unchanged; standard paths fail closed
+on unsupported research normalization/objectives. Distinct Modal app names and
+atomic pointers to immutable dated reports avoid ambiguous concurrent jobs or
+mixed latest galleries.127 root/fork tests pass. No paper-reproduction or full-IAM/
+InkDiT readiness claim.
+
+The completed geometry polish reaches train X/Y .000760/.001425 and turn p90
+6.00°, with pen F1=1 for all24 means/all480 sampled draws; unseen4 still fail.
+The next bounded geometry-only pilot uses the existing192/32,8-writer data and
+keeps every prior validation line excluded. No OCR/KL/style enablement. See
+CONDITIONING_STUDY.md for the explicit source, objective, calibration and limits.

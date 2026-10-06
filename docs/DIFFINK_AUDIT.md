@@ -395,3 +395,31 @@ Completed balanced result: train mean X/Y .009704/.013157, pen F1 .9883; held-ou
 .149929/.060841, F1 .7372. Original-reference curve retention and held-out visual
 fidelity still fail.103 root/fork tests pass; all jobs completed/stopped. Latest
 report includes immutable-reference comparisons with source-array hashes.
+
+## Conditioning/optimizer follow-up (2026-10-06)
+
+CPU perturbations demonstrate global padding sensitivity from temporal GroupNorm;
+channel-only norm strongly reduces it but changing a pretrained layer is not a
+free geometry fix. The centered sampled arm fails before its first update with
+an extreme posterior distribution shift. Higher-LR Adam only marginally improves
+control curves. Source and failed artifacts remain immutable; no broken retries.
+
+Joint full24 geometry+pen L-BFGS substantially improves the actual c/h renders.
+A shared-source target-relative vector loss has a modest angular benefit, with
+slightly worse point error at shared200. It matches genuine target derivatives,
+not zero curvature/smoothness. A fresh-optimizer weight continuation and a
+channel-source continuation are separate followups, not conflated with A/B.
+Held-out reconstruction remains the limiting generalization gate, not solved by
+training memorization. No incidental KL/CTC/style. Normalization changes remain
+research-only and dedicated reload/inverse transforms are mandatory.
+
+Details: [CONDITIONING_STUDY.md](CONDITIONING_STUDY.md). Volume overview
+`checkpoints/iam_fullset_joint/research-summary/index.html`; all mean/20-draw
+metrics and marker-free galleries are preserved, with source/protected-parameter
+checks.127 root/fork tests pass. New report publication uses atomic dated links.
+
+The completed geometry polish reaches train X/Y .000760/.001425 and turn p90
+6.00°, with pen F1=1 for all24 means/all480 sampled draws; unseen4 still fail.
+The next bounded geometry-only pilot uses the existing192/32,8-writer data and
+keeps every prior validation line excluded. No OCR/KL/style enablement. See
+CONDITIONING_STUDY.md for the explicit source, objective, calibration and limits.

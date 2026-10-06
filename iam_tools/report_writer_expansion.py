@@ -6,6 +6,11 @@ from pathlib import Path
 import numpy as np
 
 
+def paginate_ids(ids,limit=16):
+    if limit<1 or len(ids)!=len(set(ids)):raise ValueError('positive page limit and unique IDs required')
+    return [ids[i:i+limit] for i in range(0,len(ids),limit)]
+
+
 def report(directory,data_root='data'):
     import matplotlib
     matplotlib.use('Agg')
@@ -28,16 +33,17 @@ def report(directory,data_root='data'):
                 a=hf[sid]['point_seq'][:].copy();a[:,:2]*=.01;target[sid]=a
     images=[]
     for group in ('old','new','held_out'):
-        ids=splits[group];fig,axes=plt.subplots(len(ids),1+len(stages),figsize=(18,2*len(ids)),squeeze=False)
-        for j,sid in enumerate(ids):
-            truth=target[sid];states=truth[:,2:].argmax(1)
-            arrays={'target':truth};arrays.update({f'step {step}':np.load(directory/f'step-{step}/{sid}/mu.npy') for step in stages})
-            allxy=np.concatenate([a[:,:2] for a in arrays.values()]);lo=allxy.min(0);hi=allxy.max(0)
-            for ax,(label,a) in zip(axes[j],arrays.items()):
-                draw(ax,split_xy(a[:,:2],a[:,2:].argmax(1)))
-                ax.set_xlim(lo[0]-.02,hi[0]+.02);ax.set_ylim(lo[1]-.05,hi[1]+.05)
-                ax.set_title(f'{sid} — {label}',fontsize=9)
-        fig.tight_layout();name=f'{group}-means.png';fig.savefig(out/name,dpi=150);plt.close(fig);images.append((group,name))
+        for page,ids in enumerate(paginate_ids(splits[group]),1):
+            fig,axes=plt.subplots(len(ids),1+len(stages),figsize=(18,2*len(ids)),squeeze=False)
+            for j,sid in enumerate(ids):
+                arrays={'target':target[sid]};arrays.update({f'step {step}':np.load(directory/f'step-{step}/{sid}/mu.npy') for step in stages})
+                allxy=np.concatenate([a[:,:2] for a in arrays.values()]);lo=allxy.min(0);hi=allxy.max(0)
+                for ax,(label,a) in zip(axes[j],arrays.items()):
+                    draw(ax,split_xy(a[:,:2],a[:,2:].argmax(1)))
+                    ax.set_xlim(lo[0]-.02,hi[0]+.02);ax.set_ylim(lo[1]-.05,hi[1]+.05)
+                    ax.set_title(f'{sid} — {label}',fontsize=9)
+            fig.tight_layout();name=f'{group}-means'+('' if page==1 else f'-{page}')+'.png'
+            fig.savefig(out/name,dpi=150);plt.close(fig);images.append((f'{group}, page {page}',name))
     # Each line: input / final mean / median draw / worst draw, no cherry picking.
     final=stages[selected]
     for line in final['lines']:
@@ -62,13 +68,13 @@ def report(directory,data_root='data'):
     summary=dict(completed=result is not None,provenance=provenance,selected_step=selected,selection='training-only; no held-out model selection',
                  baseline=stages[initial_step]['groups'],final=final['groups'],result=result)
     (out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
-    page=['<meta charset="utf-8"><title>Seen-writer reconstruction expansion</title><h1>24-line seen-writer expansion</h1>',
-          '<p>Eight original + sixteen new training lines; four evaluation-only lines. Forms overlap: this is NOT a writer/form-independent benchmark. No held-out gradients, calibration, OCR warmup or checkpoint selection. Marker-free polylines use predicted pens. Target is IAM/RDP, not raw pen points. Coordinate scale .01, dropout0, microbatch1/minimal padding. OCR frozen/off; CER is a transfer diagnostic, not OCR training performance.</p>',
+    page=[f'<meta charset="utf-8"><title>Seen-writer reconstruction expansion</title><h1>{len(splits["train"])}-line seen-writer expansion</h1>',
+          f'<p>{len(splits["old"])} original-reference + {len(splits["new"])} further-training lines; {len(splits["held_out"])} evaluation-only lines. Forms overlap: this is NOT a writer/form-independent benchmark. No held-out gradients, calibration, OCR warmup or checkpoint selection. Marker-free polylines use predicted pens. Target is IAM/RDP, not raw pen points. Coordinate scale .01, dropout0, microbatch1/minimal padding. OCR frozen/off; CER is a transfer diagnostic, not OCR training performance.</p>',
           '<p>Differences are nonuniform point-index differences, NOT physical velocity/curvature. Angle errors are spatial tangent/turn differences. All sampled draws count in metrics; gallery shows median/worst by X+Y RMSE.</p>',
           '<p><a href="summary.json">Metrics/config/provenance</a> | <a href="provenance.json">Exact sample hashes/splits</a></p>',
           '<table border="1"><tr><th>Group / step</th><th>Mean X/Y RMSE</th><th>Δ/Δ² relative</th><th>Turn p90</th><th>Pen F1</th><th>Sampled X/Y RMSE</th><th>Frozen OCR CER</th></tr>']
     for step,row in stages.items():
-        for group in ('old','new','held_out'):
+        for group in (g for g in ('old','new','held_out','source_trained','added','same_writer_held_out','other_writers_held_out') if g in row['groups']):
             stats=row['groups'][group];g=stats['mu'];z=stats['sampled']
             page.append(f'<tr><td>{group}/{step}</td><td>{g["mean_per_line_x_rmse"]:.5f}/{g["mean_per_line_y_rmse"]:.5f}</td><td>{g["mean_per_line_first_difference_relative"]:.3f}/{g["mean_per_line_second_difference_relative"]:.3f}</td><td>{g["turn_angle_error_degrees"]["p90"]:.2f}°</td><td>{stats["mu_macro_pen_f1"]:.4f}</td><td>{z["mean_per_line_x_rmse"]:.5f}/{z["mean_per_line_y_rmse"]:.5f}</td><td>{stats["mu_cer"]:.2%}</td></tr>')
     page.append('</table>')

@@ -40,6 +40,8 @@ def verify(directory,repo,root='/data'):
     state=model.state_dict();finite=all(torch.isfinite(v).all().item() for v in state.values() if v.is_floating_point())
     frozen=all(torch.equal(v,parent['model_state_dict'][k]) for k,v in state.items() if k.startswith(('style_classifier.','ocr_model.')))
     sigma=all(torch.equal(state[k][63:],parent['model_state_dict'][k][63:]) for k in ('transformer_decoder.fc.weight','transformer_decoder.fc.bias'))
+    logvar_frozen='LBFGS' in json.loads((directory/'config.json').read_text()).get('optimizer','')
+    logvar_equal=all(torch.equal(v,parent['model_state_dict'][k]) for k,v in state.items() if k.startswith('conv_logvar.'))
     rows=[]
     with torch.no_grad():
         for sid,(raw,mask,_) in device_batches(raw_batches,'cpu').items():
@@ -50,9 +52,11 @@ def verify(directory,repo,root='/data'):
                              pen_argmax_mismatches=int((pens!=saved[:,2:].argmax(1)).sum())))
     report=dict(selected_sha256=sha,selected_step=step,finite_model=finite,ocr_style_parameters_unchanged=frozen,
                 sigma_rho_rows_unchanged=sigma,source_checkpoint_unchanged=file_sha(root/original['source_rel'])==original['source_sha256'],
+                logvar_head_required_frozen=logvar_frozen,logvar_head_unchanged=logvar_equal,
                 max_cpu_gpu_xy_difference=max(r['max_absolute_xy_difference'] for r in rows),
                 pen_argmax_mismatches=sum(r['pen_argmax_mismatches'] for r in rows),lines=rows)
-    if not finite or not frozen or not sigma or not report['source_checkpoint_unchanged'] or report['max_cpu_gpu_xy_difference']>1e-4:raise AssertionError(report)
+    if not finite or not frozen or not sigma or not report['source_checkpoint_unchanged'] or report['max_cpu_gpu_xy_difference']>1e-4 or report['pen_argmax_mismatches']:raise AssertionError(report)
+    if logvar_frozen and not logvar_equal:raise AssertionError('frozen LBFGS logvar head changed')
     if result and result.get('resumed_model_optimizer_rng'):
         initial=torch.load(directory/'checkpoint-initial.pt',map_location='cpu',weights_only=True)
         report['resume_state_bitwise_equal']={k:equal_nested(initial[k],parent[k]) for k in ('model_state_dict','optimizer_state_dict','rng_state_cpu','rng_state_cuda')}

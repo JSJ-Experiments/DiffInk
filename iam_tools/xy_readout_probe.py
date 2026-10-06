@@ -31,11 +31,16 @@ def fit(features,targets,states,weight=DELTA_WEIGHT):
                      effective_condition_number=float(singular[0]/singular[rank-1]),rcond=1e-6)
 
 
-def run(config,repo,root,source_rel,source_sha,output):
+def run(config,repo,root,source_rel,source_sha,output,feature_stage="post_transformer"):
+    if feature_stage not in ('post_transformer','pre_transformer'):raise ValueError('known feature stage required')
     torch.set_num_threads(4)
     model,samples,raw,cfg,vocab,provenance=load(config,repo,root,source_rel,source_sha)
     before={k:v.clone() for k,v in model.state_dict().items()};cache={};captured=[]
-    hook=model.transformer_decoder.fc.register_forward_pre_hook(lambda m,a:captured.append(a[0].detach()))
+    if feature_stage=='post_transformer':
+        hook=model.transformer_decoder.fc.register_forward_pre_hook(lambda m,a:captured.append(a[0].detach()))
+    elif feature_stage=='pre_transformer':
+        hook=model.decoder.register_forward_hook(lambda m,a,o:captured.append(o.detach().transpose(1,2)))
+    else:raise ValueError('known feature stage required')
     try:
         with torch.no_grad():
             for sid,(raw,mask,_) in device_batches(raw,'cpu').items():
@@ -50,7 +55,7 @@ def run(config,repo,root,source_rel,source_sha,output):
         np.save(output/f'{sid}.npy',np.column_stack([xy,np.eye(3)[e['pens']]]))
         rows.append(dict(sample_id=sid,baseline=dict(geometry=geometry_metrics(e['xy'],e['target'],e['states'])),
                          probe=dict(geometry=geometry_metrics(xy,e['target'],e['states']))))
-    report=dict(source_sha256=source_sha,provenance=provenance,diagnostics=diag,model_bitwise_unchanged=all(torch.equal(before[k],v) for k,v in model.state_dict().items()),groups={},lines=rows)
+    report=dict(feature_stage=feature_stage,source_sha256=source_sha,provenance=provenance,diagnostics=diag,model_bitwise_unchanged=all(torch.equal(before[k],v) for k,v in model.state_dict().items()),groups={},lines=rows)
     for group,ids in provenance['splits'].items():
         report['groups'][group]={kind:aggregate([r[kind] for r in rows if r['sample_id'] in ids]) for kind in ('baseline','probe')}
     (output/'summary.json').write_text(json.dumps(report,indent=2)+'\n');return report

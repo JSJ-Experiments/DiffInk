@@ -1,0 +1,403 @@
+# English reconstruction conditioning investigation (2026-10-06)
+
+## Question
+
+The eight-line reference is faithful but expanded24-line reconstructions add
+unnatural corners. The four line-disjoint, same-writer validation lines are poor.
+This study does not redefine those artifacts as acceptable or smooth them away.
+It tests optimization and conditioning before larger architecture changes.
+
+## Evidence before training
+
+Source: `checkpoints/iam_writer_expansion/20261006-022925/checkpoint-best.pt`,
+SHA256 `8d591cfe41b5fa73f16877c34d7b3e62bcf3349d109b114aece0e9c681c4ebee`.
+Split/manifest and original eight-line reference stay pinned as documented in
+[WRITER_EXPANSION.md](WRITER_EXPANSION.md).24 train lines,4 evaluation-only lines;
+writer10174, forms overlap, not an IAM benchmark. No validation gradients,
+calibration, caches, optimizer moments or checkpoint choice.
+
+A no-training CPU perturbation appends64 masked EOC positions without changing a
+single real coordinate. On the two named training lines, the **early** valid XY
+RMS drift (excluding the final100 points) is .128/.138 with GroupNorm, compared
+with .00055/.00089 after changing only residual normalization to per-point
+channel LayerNorm with copied affine parameters. Held-out examples .160/.203
+versus .00184/.00243. This demonstrates a real global padding sensitivity, NOT
+proof that normalization caused all current curves or that a layer swap alone
+repairs learned weights. Changing normalization initially worsens reconstruction.
+
+GroupNorm(1,C) aggregates channels AND time for B,C,T. Channel-only normalization
+aggregates C at each point. It does not make the full encoder/decoder invariant
+to convolution boundaries, attention or padding; no such claim is made.
+
+Centering reduces the padding drift somewhat but creates a large initial
+coordinate distribution shift. Replicating the final valid XY in padding does
+not consistently fix drift. Neither is silently adopted as production policy.
+
+CPU artifact: `checkpoints/iam_conditioning_study/cpu-preflight/padding-sensitivity.json`.
+
+## Controlled T4 experiment
+
+Three arms start from identical expanded source weights, data, seed4042 and
+complete-epoch shuffled train order seed42. Physical batch1, accumulation8:
+
+- `control`: original XY + original residual GroupNorm.
+- `center`: subtract valid input bounding-box center from real XY, preserve
+  aspect/spacing, leave padded XY sentinel-zero, inverse-transform outputs.
+- `channel`: original XY; replace48 residual GroupNorm layers with per-point
+  channel LayerNorm, preserving affine state-dict keys/values.
+
+All arms use fresh AdamW betas(.9,.99), decay0, clip5,1000 optimizer updates.
+LR5e-5 cosine-decays to3e-6. Pen FC rows receive10x proposed Adam displacement
+(not gradient scaling), matching the previously tested split-parameter policy.
+Same objective:
+
+```
+G(mu) + .1 G(sampled_z) + .0016613753687545062 * .5[pen(mu)+pen(z)]
+G = valid-point XY MSE + .20471838744633777 * target within-stroke first-difference MSE
+```
+
+Pen bounded square-root inverse frequency / cap8 / focal gamma2 / real points.
+Dropout, rotation, augmentation, GMM NLL, KL, CTC/style supervision OFF. Frozen OCR
+CER is diagnostic only. Coordinates remain absolute XY with .01 scale; center arm
+adds only an explicit reversible translation. No spline/resampling/curve smoothing.
+
+This compares conditioning arms **at a shared higher-LR schedule**. Comparing the
+control against the previous run also changes optimizer freshness, schedule and
+additional update count; that is not a pure LR-only causal ablation.
+
+Evaluate all28 lines at0/250/500/750/1000 with latent mean +20 fixed sampled z per
+line; save every checkpoint/evaluation and as-run source. Select only by original
+train_score, never validation. Independently reload selected checkpoints on CPU
+with their recorded research conditioning and inverse transform, compare saved
+GPU means/pens, check protected parameters and source hashes. Research checkpoint
+must use the conditioning loader, not the standard production trainer/inference.
+
+Reports include all lines, named c/h crops, true target versus predicted pens,
+mean/median/worst sampled draws and immutable eight-line reference. Index Δ/Δ² are
+not physical velocity/curvature because RDP point spacing is nonuniform. Tangent
+and signed-turn errors are spatial angle differences; authentic corners count.
+
+## Implementation/tests
+
+`iam_tools/conditioning.py`: reversible microbatch translations, edge-padding
+probe, channel normalization/replacement. `conditioning_study.py`: bounded matched
+training and independent CPU reload. `report_conditioning.py`: all-arm/all-line
+marker-free comparison. `modal_conditioning_study.py`: explicit opt-in T4 runner
+and separate CPU rendering, no automatic GPU on import.
+
+127 tests pass in root and fork (full-suite rerun after the final patch). Tests cover normalization's independence from
+extra points, LayerNorm equivalence, unchanged affine state keys, gradients,
+center roundtrip/differences/pens/padding, invalid inputs and edge-padding scope.
+The original model architecture defaults and source checkpoint are untouched.
+
+```
+venv/bin/modal run modal_conditioning_study.py --train --steps 1000 --modes control,channel
+# CPU only, after completion:
+venv/bin/modal run modal_conditioning_study.py --report-rel checkpoints/iam_conditioning_study/<run>
+```
+
+The completed control/channel arms and failed centered arm are documented below. No generalization/paper-reproduction promotion.
+
+## Additional optimizer diagnostic: full-set joint polish
+
+CPU measurement at the common source, using mean geometry + the same bounded pen
+objective, gives expected eight-of24 train-batch gradient noise RMS **.574x** the
+full-set gradient RMS (exact finite-population correction, fixed source, no latent
+noise). This is nontrivial, not evidence that noise is the sole cause. Saved
+`cpu-preflight/gradient-noise.json`; only train lines enter the measurement.
+
+A separate matched-source T4 job tests a deterministic full24 mean-geometry +
+mean-pen objective with fresh L-BFGS: LR1,240 outer updates,max_iter10,max_eval15,
+history20,strong-Wolfe,tolerance_grad1e-9,tolerance_change1e-13,no clipping,2400s
+wall cap. Same delta/pen weights, physical batch1/full-set accumulation. Freeze
+OCR/style/logvar head and sigma/rho rows; pen/pi/XY/body train jointly. This is
+not the previous geometry-only+head-refit experiment. Evaluate every40 outer
+updates, all28 means+20 sampled z; select train-only. Samples are evaluated, not
+optimized in this deterministic diagnostic. Optimizer and latent objective differ
+from the Adam arms, so this is not an optimizer-only causal ablation.
+
+Volume family `checkpoints/iam_fullset_joint/`, launcher `modal_fullset_joint.py`.
+Intermediate/best snapshots keep model weights; final snapshot also keeps the
+large L-BFGS optimizer state for provenance/possible continuation. All source and
+protected rows remain immutable. Standard trainer fails closed on explicit
+research contracts, rather than silently sampling a mean-only research objective.
+
+
+## Completed conditioning evidence and failure accounting
+
+Control: `checkpoints/iam_conditioning_study/20261006-132430/control/`.
+Channel: `checkpoints/iam_conditioning_study/20261006-133613/channel/`.
+Channel ran separately after the centered arm aborted the first multi-arm app;
+its source/RNG/data/order/settings are matched to control, not an accidental retry.
+
+| Adam1000, mean reconstruction | Train X/Y RMSE | Train turn p90 | Train pen F1 | Held-out X/Y RMSE | Held-out turn p90 |
+|---|---|---|---|---|---|
+| Expanded source | .009704/.013157 | 54.98° | .9883 | .149929/.060841 | 138.12° |
+| Control | .009267/.012505 | 51.64° | .9975 | .147020/.060918 | 135.95° |
+| Channel-only norm | .028662/.026813 | 96.19° | .9764 | .056388/.043711 | 123.90° |
+
+Statistics are **macro averages of per-line statistics/quantiles**, not pooled
+point/angle quantiles. New normalization improves held-out positions but does
+not pass train/held-out curve fidelity; changing normalization invalidates much
+of the learned source behavior. It is not adopted in the default architecture.
+
+The centered arm saved its baseline but **failed before its first optimizer
+update** with a nonfinite aggregate FP32 gradient norm. Do not interpret that
+message as proof of elementwise nonfinite gradients (the as-run code did not
+record them). CPU replay measures posterior logvar up to47.87 / std2.485e10 after
+centering: a major input/feature distribution shift. We stopped it rather than
+turning off error checks. Current reusable code saves `failure.json`, including
+elementwise gradient finiteness, before aborting. No centered reconstruction
+improvement is claimed. Its baseline/initial weights remain for provenance.
+The first launcher also failed on a missing remote Python import before research;
+the self-contained launcher fixes that packaging error.
+
+CPU frozen pre-Transformer linear readout is worse: train X/Y .32658/.08890,
+turn165.98°, held-out .34852/.10102 and166.64°. All weights bitwise unchanged;
+only train equations enter the float64 least-squares fit. This rejects that
+specific linear shortcut, not all learned readouts/upsampler architectures.
+
+Artifacts, including as-run CPU scripts:
+`checkpoints/iam_conditioning_study/cpu-preflight/{padding-sensitivity.json,gradient-noise.json,posterior-distribution-shift.json,pre-transformer-linear-probe/}`.
+
+## Target-relative segment ablation and operational provenance
+
+Short target segments amplify angular errors. At the expanded source, mean
+per-line tangent p90 is80.39° in the shortest within-line length quartile versus
+12.23° in the longest. B adds the following **target matching**, not smoothing:
+
+```
+R = mean connected-real-edge [ (Δpred - Δtarget) / max(|Δtarget|, target nonzero-edge q25) ]²
+joint objective = point MSE + .20471838744633777 * raw target-Δ MSE
+                + .0016613753687545062 * bounded pen
+                + .00016742507143101805 * R   # B only
+```
+
+Nonzero true-stroke edges only; post-stroke jumps/padding excluded before arithmetic.
+The floor is per-line q25, so tiny segments cannot get unbounded weights. Both
+length and direction match the target, including real corners/hooks. No penalty
+on target curvature, no spline or point redistribution. Fixed λ is calibrated
+on aggregate **train-only decoder gradients**, R at20% of existing geometry:
+geometry norm .01452058, R norm17.345764, gradient cosine .93450. No held-out
+search or gradients.
+
+A `20261006-133107` and B `20261006-134641` share source/RNG/data/optimizer;
+only B has R. Compare shared saved outer counts, not unmatched final budgets.
+A was manually dashboard-stopped after saved200. Its selected weight SHA256 is
+`dfa285b5ee8c412efaa2cc7f0b12d135128f14e4ddb8e169a9745e12deaadef1`.
+An explicit bounded120-update **fresh-LBFGS weight continuation** starts there;
+it is not an exact optimizer resume and not the same-source A/B endpoint.
+
+C `20261006-135755` is a160-update full-set continuation from channel Adam1000,
+SHA256 `15b9d46b3cb4db6eb4cc337d282eea990436241d6ec257bf911ab4bc7216214b`.
+It inherits/reinstalls the channel norm. This tests further convergence, not a
+same-source normalization A/B. All3 initial T4 jobs were intentionally parallel;
+no crash-loop retries (`retries=0`). The failed/orphan app was stopped, not restarted.
+
+At shared200: A train X/Y .001607/.002722, turn12.67°; B .001643/.002917,
+turn11.79°. Both mean pen F1=1. The auxiliary has a modest angular benefit with
+slightly worse point error; optimizer progress is a much larger effect. Held-out
+geometry remains bad (X≈.15, Y≈.061); do not promote on training memorization.
+
+A200 mean phase vector RMSE ranges .002854–.003334 (max/min1.168).
+This descriptive point-index-mod8 check shows no dramatic common phase error;
+it is **not** a statistical/causal exclusion of convolutional upsampling artifacts.
+
+Distinct names for future runs are supported without changing research semantics:
+
+```sh
+DIFFINK_EXPERIMENT_NAME=diffink-english-A-polish-from200 venv/bin/modal run modal_fullset_joint.py \
+  --train --steps 120 \
+  --source-rel checkpoints/iam_fullset_joint/20261006-133107/checkpoint-best.pt \
+  --source-sha dfa285b5ee8c412efaa2cc7f0b12d135128f14e4ddb8e169a9745e12deaadef1
+```
+
+All selected checkpoints get independent CPU mean/pen reload checks, original
+source/protected OCR/style/sigma row comparisons, and frozen logvar-head checks
+for L-BFGS. Mean-only training does not train sampled-z robustness;20 fixed draws
+are evaluated separately. No KL/CTC/style enablement here. Latest report links
+now atomically point to a dated directory rather than concurrently replacing
+whole galleries. Latest publication is not a best-model designation.
+
+
+## Completed joint geometry results
+
+A weight continuation: `checkpoints/iam_fullset_joint/20261006-140945/`, selected120
+(fresh optimizer, after the interrupted A200 source). All24 means and all480
+sampled draws have pen F1=1, correct final EOC and zero internal false EOC.
+No hand-set pens in reconstruction. All24 training-line renders were inspected,
+including the named c/h crops; the added shelf/spiky bend is substantially
+repaired. Tiny local differences remain at magnified scale; no raw-IAM/pixel-exact
+or held-out fidelity claim. RDP's authentic polygonality/corners are retained.
+
+| Stage | Train X/Y RMSE | Mean Δ / Δ² relative | Train turn p90 | Held-out X/Y | Held-out turn p90 |
+|---|---|---|---|---|---|
+| Expanded source | .009704/.013157 | see source eval | 54.98° | .149929/.060841 | 138.12° |
+| A saved200, interrupted | .001607/.002722 | .05219/.09685 | 12.67° | .150619/.061168 | 143.57° |
+| B completed240 | .001177/.002246 | .03962/.07223 | 8.29° | .150444/.061179 | 142.62° |
+| A200 + fresh120 | **.000760/.001425** | **.02562/.04707** | **6.00°** | .150853/.061445 | 142.99° |
+| Channel1000 + full-set160 | .008159/.010356 | .24212/.45688 | 50.17° | .038972/.031951 | 117.56° |
+
+Final A mean turn median/p90/p99 =1.52/6.00/15.88°; true-corner p90=10.50°,
+shallow-turn p90=3.71°. Source→polish position RMSE improves92.2% X /89.2% Y.
+All-statistics macros are means of per-line statistics, not pooled quantiles.
+Sampled-z X/Y train .002970/.002359 (mean-only optimization, not a robustness
+training test). Original8 sampled Y .002256 and turn p90 9.93° still exceed the
+original integration reference .001776/7.89°, so **the strict original sampled
+retention gate is not claimed passed**. Mean geometry and pen fidelity improved;
+latent distribution/prior quality remains a separate question.
+
+Budget accounting: B240/2784 closures/2186s; channel160/1854/1668s;
+A continuation120/1407/1031s. All3 completed their bounded budgets. Original A
+was user-stopped from the dashboard; selected200 and partial status are preserved.
+A/B's causal comparison is the shared200 table above, not these unmatched ends.
+
+Selected model SHA256:
+- A200: `dfa285b5ee8c412efaa2cc7f0b12d135128f14e4ddb8e169a9745e12deaadef1`.
+- B240: `ec15f7ffcfe34bcd7f3abaa461c9313ed7aa9e4276e424857ba2654217ad8b57`.
+- Channel160: `5e621ac7b41f0364dd8f10090a7d60e515aa0522c0b2c4d03faaea0719b15d12`.
+- A continuation120: `89ec459de6496275a3712c08629daea10d8f4f03311712c77f49e652bca915a3`.
+
+Independent CPU reload maxima: A/B/continuation8.58e-6 XY; channel1.14e-5;
+zero pen argmax mismatches. Protected OCR/style/logvar heads, sigma/rho rows and
+original source files remain bitwise unchanged for each L-BFGS run. These checks
+compare against the actual run input, not against the selected checkpoint itself.
+
+Overview: `checkpoints/iam_fullset_joint/research-summary/index.html`, with all6
+stages/all28 lines, immutable8-line reference and named crop comparisons.
+Dated `report/index.html` pages include every line's median/worst sampled draw;
+all20 draws enter numerical metrics. Reports/checkpoints/as-run code stay on the
+Volume, never GitHub. Useful tests and reusable research code are in the fork.
+
+### What this establishes / does not establish
+
+- Current architecture can reproduce24 processed lines faithfully enough that
+  the conspicuous expanded c/h artifacts are largely optimization artifacts,
+  not a demonstrated capacity limit. Noise measurement and full-set joint
+  improvement support optimization as a contributor; multiple knobs differ
+  from Adam, so do not assign all improvement causally to batch noise alone.
+- Low point RMSE and raw-Δ MSE under-emphasize short-edge directions. Relative
+  target matching gives a modest controlled angular benefit, not a magic cure.
+- Pen errors, random GMM component choice, latent draws and rendering smoothing
+  are not required for the remaining mean-curve distortions. No smoother was used.
+- Global padding sensitivity is real; channel normalization reduces it and
+  improves held-out positions. But a transplanted norm does not immediately
+  restore fidelity, and its separate continuation still looks rough.
+- Descriptive mod8 data do not expose a dramatic common phase error. They do not
+  statistically rule out local ConvTranspose/phase artifacts.
+- Held-out4 lines are **visibly bad**, despite near-faithful train24. No geometry
+  generalization pass, joint OCR/KL advancement, full IAM/InkDiT or paper reproduction.
+
+## Next bounded geometry-diversity pilot
+
+The next experiment deliberately broadens reconstruction examples, rather than
+adding smoothing or incidentally enabling auxiliary objectives. It uses the
+**existing** pinned IAM-overfit HDF5:192 train lines /8 writers,32 line-disjoint
+held-out lines /same8 writers. All prior4 held-out lines stay held out. No test
+writers/raw-data rebuild/full-IAM training. The original source24 and added168
+are reported separately; also original8 and same-writer4 versus other28 validation.
+
+Source is the A continuation120 checkpoint/hash above. Default GroupNorm remains.
+Fresh AdamW,1000 updates maximum (1200s wall cap after initial evaluation), LR5e-5
+cosine→3e-6, clip5, microbatch1/accum8, seed4042/order42, pen-row displacement10x.
+`G(mu)+.1G(z)+lambda_pen*.5[pen(mu)+pen(z)]`, same point/target-Δ objective,
+GMM/KL/CTC/style/augmentation/dropout OFF. Pen lambda is freshly calibrated from
+aggregate192-train encoder gradients to20% geometry norm, capped1; validation never
+enters it. Every250 updates evaluate all224 means +20 fixed z draws. Sampled
+reconstruction training is explicit; tiny KL is not enabled. Variance narrowing
+alone must not be confused with robust latent reconstruction.
+
+This is an **exploratory pilot**, not a pure data-size causal ablation: source,
+optimizer and mean/sample objective differ from the completed L-BFGS runs. The
+question is whether additional observed stroke diversity materially improves
+held-out geometry while retaining the source24. If it does not, inspect the
+encoder/normalization/upsampling more deeply rather than declare training RMSE
+sufficient. Family `checkpoints/iam_geometry_diversity/`, guarded launcher:
+
+```sh
+venv/bin/modal run modal_geometry_diversity.py --train --steps 1000
+```
+
+Research scope is serialized and auto-restored only by research data loaders;
+old checkpoints still select writer10174. Retained reference groups survive
+checkpoint reloads rather than silently becoming all192. Galleries paginate16
+lines and include every line/draw metric, not a hand-picked selection. GPU job
+runs once with no retries; the launcher then performs CPU verification/rendering
+and publishes an atomic dated report pointer. No additional GPU is needed to render.
+### Completed192-line pilot (not promoted)
+
+Run `checkpoints/iam_geometry_diversity/20261006-144049/control/`, selected1000;
+checkpoint SHA256 `ce4512fd4d17c643d29ac903a092452f36810db3bea852d0eeff2a658ea7b00b`.
+Fresh calibrated pen coefficient0.02099049935353879 (encoder geometry norm
+0.911551714, pen norm8.685374260; target fraction20%). All1000 updates completed.
+
+| Group | Mean X/Y RMSE | Turn-error p90 | Mean pen F1 |
+|---|---:|---:|---:|
+| train192 | .047796 / .033723 |112.66°|.99152|
+| retained24 | .037432 / .024426 |91.74°|.99487|
+| added168 | .049277 / .035051 |115.65°|.99105|
+| held-out32 | .049607 / .036604 |111.67°|.97434|
+
+The larger observed dataset improves held-out position error versus initialization
+(.154776/.060373), but does **not** establish faithful curve reconstruction.
+Retained24 geometry regresses severely from .000760/.001425 and6.00° turn p90.
+Marker-free c/h crops show new sharp distortions; these were visually inspected,
+not accepted on aggregate RMSE. No promotion or OCR/KL advancement. This bounded
+Adam schedule is not evidence that all192-line training will fail, only that this
+pilot does not meet the fidelity/retention gate. Default normalization, optimization
+and dataset/latent adaptation remain unresolved contributors.
+
+Independent CPU reload: max XY difference1.1444e-5, zero pen argmax mismatches;
+OCR/style heads and sigma/rho rows unchanged, source unchanged. Logvar was explicitly
+trainable in this sampled-z pilot. Variance robustness was not inferred from mean
+metrics. Report `.../control/report/index.html` includes all224 lines, sampled draws,
+retained groups and provenance. The earlier faithful24 checkpoint remains protected.
+
+
+## Utilization check (2026-10-06, no weight updates)
+
+The original pilot had already finished when utilization was queried. A separate
+bounded T4 benchmark used its exact immutable input checkpoint, four allocated
+CPU cores, one-line physical batches, eight-microbatch gradient accumulation,
+and the same mean/sample/pen computation. No optimizer was constructed or stepped;
+all parameters/source hashes were verified unchanged. It uses the earlier pen
+scalar .001661375 rather than the192-line pilot calibration .020990499; scalar
+weighting differs, though the forward/backward operations are the same. It profiles
+eight fixed training lines, not every length or an exact replay of the live run.
+
+| Phase | Wall time | CPU core-equivalents | Sampled GPU busy % |
+|---|---:|---:|---:|
+| training32 effective batches |13.03s|.985|37.83|
+| repeat training32 |12.87s|.987|37.16|
+| defer scalar reads to effective-batch end |12.84s|.994|38.22|
+| repeat deferred reads |12.76s|.984|37.72|
+| inference168 trajectories, no geometry/file I/O |1.21s|1.013|40.20|
+| serial geometry metrics336 trajectories |2.58s|.981|4.40|
+| full production evaluation168 trajectories |3.32s|.971|29.93|
+
+Thus GPU underutilization with approximately one busy CPU core is measurable,
+not merely inferred from a dashboard. Deferred logging yields only roughly1%
+training improvement in this check; scalar logging is **not** the main proven
+bottleneck. Small physical batches and serial host dispatch/work are plausible
+contributors, but nvidia-smi alone cannot distinguish launch overhead from kernel
+inefficiency or measure SM occupancy. More assigned cores do not automatically
+parallelize Python. Serial NumPy geometry evaluation intentionally leaves the GPU
+mostly idle. No data-loader I/O occurs in the measured training loop: batches are
+already resident on the GPU.
+
+Next performance work should separately benchmark CPU metric offload/parallelism
+and faster kernel dispatch, keeping physical padding and fidelity unchanged. Do
+not simply increase physical batch size: this changes GroupNorm statistics and
+is not a correctness-neutral throughput optimization. Faster hardware alone also
+does not solve serial CPU work. The current benchmark has not yet demonstrated a
+safe speedup beyond deferred logging; no throughput fix is represented as proven.
+
+Artifact `checkpoints/iam_performance_profile/20261006-150908/profile.json`, with
+all timestamped nvidia-smi samples and stage timings. Coarse sampling (.2s poll,
+with driver sampling windows) and sampler overhead limit precision; evaluation
+inference has only5 samples, so its percentage is especially approximate. CPU
+core-equivalents are process CPU seconds / wall seconds, not allocation percent.
+The guarded `modal_inkvae_profile.py --run` requests one T4 for no-update profiling;
+without `--run` it allocates no GPU. A first packaging attempt failed on an omitted
+launcher import before profiling; the final launcher is self-contained and that
+failed app was stopped rather than left crash-looping.
