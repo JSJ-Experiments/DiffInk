@@ -75,7 +75,7 @@ def encoded(model, raw, mask):
     return target[:, :2].transpose(1, 2), mu, logvar, downsample_mask(mask, 8).bool()
 
 
-def terms(model, batch, use_ocr=False, epsilon=None):
+def terms(model, batch, use_ocr=False, epsilon=None, pen_on_mean=False):
     from model.losses import mixture_expectation, target_difference_loss
     raw, mask, labels = batch
     truth, mu, logvar, lm = encoded(model, raw, mask)
@@ -86,8 +86,11 @@ def terms(model, batch, use_ocr=False, epsilon=None):
     def geo(output):
         xy = mixture_expectation(output)
         return (xy[mask]-truth[mask]).square().mean()+DELTA_WEIGHT*target_difference_loss(xy, truth, states, mask)
+    pen=refit_loss(out[:, :3].transpose(1, 2)[mask], states[mask], 'bounded_three_state')
+    if pen_on_mean:
+        pen=(pen+refit_loss(mean_out[:, :3].transpose(1, 2)[mask], states[mask], 'bounded_three_state'))/2
     return dict(sampled_geometry=geo(out), mean_geometry=geo(mean_out),
-                pen=refit_loss(out[:, :3].transpose(1, 2)[mask], states[mask], 'bounded_three_state'),
+                pen=pen,
                 kl=model.kl_divergence_new(mu, logvar, lm),
                 ctc=model.get_ocr_loss(z, labels, lm) if use_ocr else mu.sum()*0)
 

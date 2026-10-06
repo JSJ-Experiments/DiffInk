@@ -75,7 +75,10 @@ class IntegrationForwardTests(unittest.TestCase):
         mask=torch.ones(1,16,dtype=torch.bool)
         self.assertEqual(encoded(m,raw,mask)[-1].dtype,torch.bool)
         t=terms(m,(raw,mask,torch.tensor([[0,1]])),use_ocr=True,epsilon=torch.full((1,4,2),.01))
-        loss=100*(t['sampled_geometry']+t['mean_geometry'])+t['pen']+1e-6*t['kl']+.01*t['ctc']
+        t_mu=terms(m,(raw,mask,torch.tensor([[0,1]])),use_ocr=True,epsilon=torch.zeros((1,4,2)))
+        t_both=terms(m,(raw,mask,torch.tensor([[0,1]])),use_ocr=True,epsilon=torch.full((1,4,2),.01),pen_on_mean=True)
+        torch.testing.assert_close(t_both['pen'],.5*(t['pen']+t_mu['pen']))
+        loss=100*(t_both['sampled_geometry']+t_both['mean_geometry'])+t_both['pen']+1e-6*t_both['kl']+.01*t_both['ctc']
         loss.backward();self.assertTrue(torch.isfinite(loss))
         for p in m.parameters():self.assertIsNotNone(p.grad);self.assertTrue(torch.isfinite(p.grad).all())
         self.assertGreater(float(m.conv_logvar.weight.grad.abs().sum()),0)

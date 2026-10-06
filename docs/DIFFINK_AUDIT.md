@@ -370,3 +370,23 @@ SHA256 `fffe1405db10f8f6c2ce6ec1e030706b7947c93d83fa4eaeffec3b6a8c5b08f9`.
 89 tests pass; standard trainer fails closed on mean-anchor configs it cannot
 implement. Next gate is more/held-out lines, then multi-writer/style, not full
 IAM/InkDiT or paper reproduction. No source architecture/preprocessing change.
+
+## Same-writer expansion follow-up (2026-10-05/06)
+
+24 train lines (eight old + sixteen new), four held-out lines, writer10174. Forms
+are shared across splits; this is not form/writer-independent evaluation. All
+validation lines remain outside optimizer/calibration/head caches/selection.
+The original faithful eight-line checkpoint is immutable.
+
+The original source reconstructs new/held-out lines poorly. A1200-update sampled/
+mean Adam expansion improves held-out XY error but degrades original local
+curves; full-set deterministic L-BFGS further improves positions while weakening
+pen-head compatibility. Neither meets the visual fidelity gate. Direct linear probes
+on frozen decoder features are worse. Target Δ gradient is already substantial
+(61.5% point-gradient norm at Adam endpoint), so blindly increasing smoothing is
+not supported. A calibrated joint geometry/pen follow-up was dashboard-stopped
+after saved200, then resumed with model+optimizer+RNG and sample order intact.
+
+Details: [WRITER_EXPANSION.md](WRITER_EXPANSION.md). Keep this investigation
+separate from the passed eight-line capacity/posterior/OCR gates. Do not advance
+to full IAM or InkDiT on the basis of these aggregate position improvements.

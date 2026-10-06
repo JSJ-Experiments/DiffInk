@@ -1011,3 +1011,23 @@ unvalidated. The standard trainer now rejects unsupported mean-anchor configs.
 Volume report: `checkpoints/iam_latent_integration/latest/index.html`.
 Final: `checkpoints/iam_latent_integration/20261005-133620/ocr/checkpoint-best.pt`.
 89 root/fork tests pass. All T4 jobs completed/stopped.
+
+### Same-writer expansion and held-out reconstruction
+
+The faithful eight-line source is preserved. Expanding to24 training lines with
+four untouched, line-disjoint samples exposes a real generalization gap. A1200
+update Adam run and80-outer-step full-set L-BFGS diagnostic improve positions but
+**do not pass visual/local-curve fidelity**. Geometry-only optimization also
+weakens the tested pen-head compatibility; head-only repair is insufficient on this expanded set.
+Frozen-feature linear XY probes are worse, so a simple readout swap is not a fix.
+
+See [WRITER_EXPANSION.md](WRITER_EXPANSION.md) for exact splits, gradients, metrics,
+configs, hashes, marker-free galleries and the bounded balanced-joint follow-up.
+The latter was dashboard-interrupted after saved step200, then explicitly resumed
+from model+Adam+RNG with the same sample-order suffix and remaining1000 updates.
+Validation never enters any gradients, caches, calibration or checkpoint choice.
+This is seen-writer/line-disjoint (forms overlap), not an IAM benchmark.
+
+Volume reports: `checkpoints/iam_writer_expansion/latest/index.html` and
+`checkpoints/iam_writer_polish/latest/index.html`. No original checkpoint is
+replaced; no production/full-IAM/InkDiT readiness claim is made.
