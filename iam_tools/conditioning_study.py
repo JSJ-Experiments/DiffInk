@@ -25,10 +25,11 @@ def apply_mode(model,batches,mode):
     return result,offsets,count
 
 
-def run(config,repo,root='/data',steps=1000,modes=('control','center','channel'),lr=5e-5,source_rel=SOURCE_REL,source_sha=SOURCE_SHA,writer_id='checkpoint',family='iam_conditioning_study'):
+def run(config,repo,root='/data',steps=1000,modes=('control','center','channel'),lr=5e-5,source_rel=SOURCE_REL,source_sha=SOURCE_SHA,writer_id='checkpoint',family='iam_conditioning_study',accelerated=False,metric_pool=None,draw_batch_size=1):
     if not 1<=steps<=2000 or not 0<lr<=1e-4 or not modes or len(modes)>3 or len(set(modes))!=len(modes) or any(m not in ('control','center','channel','edge_pad') for m in modes):
         raise ValueError('bounded unique conditioning arms required')
     if family not in ('iam_conditioning_study','iam_geometry_diversity'):raise ValueError('known research family required')
+    if accelerated and tuple(modes)!=('control',):raise ValueError('captured Adam currently supports validated control mode only')
     if not torch.cuda.is_available():raise RuntimeError('T4 required')
     torch.set_num_threads(4);torch.manual_seed(42)
     base,samples,raw,cfg,vocab,provenance=load(config,repo,root,source_rel,source_sha,writer_id=writer_id)
@@ -60,10 +61,11 @@ def run(config,repo,root='/data',steps=1000,modes=('control','center','channel')
                       kl_weight=0.,ctc_weight=0.,style_weight=0.,gmm_weight=0.,trans_dropout=0.,model_input_scale=.01,
                       sampled_z_evaluations=20,seed=4042,max_wall_seconds=1200,normalization_layers_replaced=count,
                       checkpoint_selection='train_score only; validation excluded',**runtime_metadata())
+        settings.update(cuda_graphs=accelerated,metric_workers=getattr(metric_pool,'_max_workers',0),eval_draw_batch_size=draw_batch_size)
         model.config.__dict__.update(settings)
         (arm/'config.json').write_text(json.dumps(settings,indent=2)+'\n')
         (arm/'provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
-        for name in ('conditioning_study.py','conditioning.py','writer_expansion.py','latent_integration.py','trajectory_geometry.py'):
+        for name in ('conditioning_study.py','conditioning.py','writer_expansion.py','latent_integration.py','trajectory_geometry.py','fast_geometry.py','metric_workers.py'):
             p=arm/'source-code/iam_tools'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(Path(__file__).with_name(name).read_bytes())
         for rel in ('model/vae.py','model/blocks.py','model/losses.py'):
             p=arm/'source-code'/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes((Path(repo)/rel).read_bytes())
@@ -73,7 +75,14 @@ def run(config,repo,root='/data',steps=1000,modes=('control','center','channel')
         for p in (model.transformer_decoder.fc.weight,model.transformer_decoder.fc.bias):
             active=torch.zeros_like(p);active[:63]=1;hooks.append(p.register_hook(lambda g,m=active:g*m))
         optimizer=torch.optim.AdamW([p for p in model.parameters() if p.requires_grad],lr=lr,betas=(.9,.99),weight_decay=0)
-        initial=evaluate(model,samples,batches,splits,vocab,arm,0,xy_offsets=offsets)
+        graphs=None
+        if accelerated:
+            from .fast_geometry import GeometryGraphs
+            graphs=GeometryGraphs(model,pen_weight,sampled_weight=.1)
+            capture_started=time.monotonic();graphs.prepare([batches[i] for i in splits['train']])
+            settings.update(graph_capture_seconds=time.monotonic()-capture_started,captured_lengths=list(graphs.cache),capture_memory_reserved_gb=torch.cuda.memory_reserved()/2**30)
+            (arm/'config.json').write_text(json.dumps(settings,indent=2)+'\n')
+        initial=evaluate(model,samples,batches,splits,vocab,arm,0,xy_offsets=offsets,metric_pool=metric_pool,draw_batch_size=draw_batch_size)
         best_score=train_score(initial);best_step=0;history=[];started=time.monotonic();torch.manual_seed(4042)
         def save(name,step):
             torch.save(dict(model_state_dict=model.state_dict(),optimizer_state_dict=optimizer.state_dict(),config=settings,
@@ -84,8 +93,12 @@ def run(config,repo,root='/data',steps=1000,modes=('control','center','channel')
             for step,ids in enumerate(training_schedule(splits['train'],steps),1):
                 current_lr=lr*(.06+.94*.5*(1+math.cos(math.pi*(step-1)/max(1,steps-1))))
                 for g in optimizer.param_groups:g['lr']=current_lr
-                optimizer.zero_grad(set_to_none=True);totals=dict(mean_geometry=0.,sampled_geometry=0.,pen=0.)
+                optimizer.zero_grad(set_to_none=graphs is None);totals=dict(mean_geometry=0.,sampled_geometry=0.,pen=0.)
+                captured_totals=torch.zeros(3,device='cuda') if graphs is not None else None
                 for sid in ids:
+                    if graphs is not None:
+                        captured_totals+=graphs.replay(batches[sid],divisor=8)/8
+                        continue
                     t=terms(model,batches[sid],pen_on_mean=True)
                     loss=(t['mean_geometry']+.1*t['sampled_geometry']+pen_weight*t['pen'])/8
                     if not torch.isfinite(loss):
@@ -93,6 +106,11 @@ def run(config,repo,root='/data',steps=1000,modes=('control','center','channel')
                         raise FloatingPointError('nonfinite conditioning loss')
                     loss.backward()
                     for k in totals:totals[k]+=float(t[k].detach())/8
+                if captured_totals is not None:
+                    if not torch.isfinite(captured_totals).all():
+                        (arm/'failure.json').write_text(json.dumps(dict(step=step,phase='captured_loss',sample_ids=ids,reason='nonfinite captured loss; no optimizer update applied'),indent=2)+'\n')
+                        raise FloatingPointError('nonfinite captured conditioning loss')
+                    totals=dict(zip(('mean_geometry','sampled_geometry','pen'),captured_totals.cpu().tolist()))
                 try:
                     norm=float(torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad],5,error_if_nonfinite=True))
                 except RuntimeError as exc:
@@ -105,7 +123,7 @@ def run(config,repo,root='/data',steps=1000,modes=('control','center','channel')
                 adam_step_with_pen_lr(optimizer,model.transformer_decoder.fc,10)
                 log.write(json.dumps(dict(step=step,**totals,raw_gradient_norm=norm,was_clipped=norm>5,lr=current_lr))+'\n');log.flush()
                 if step%250==0 or step==steps:
-                    row=evaluate(model,samples,batches,splits,vocab,arm,step,xy_offsets=offsets);score=train_score(row)
+                    row=evaluate(model,samples,batches,splits,vocab,arm,step,xy_offsets=offsets,metric_pool=metric_pool,draw_batch_size=draw_batch_size);score=train_score(row)
                     history.append(dict(step=step,score=score,groups=row['groups']));save(f'checkpoint-{step}.pt',step)
                     if score<best_score:best_score=score;best_step=step;save('checkpoint-best.pt',step)
                 if time.monotonic()-started>1200:stop='wall_limit';break

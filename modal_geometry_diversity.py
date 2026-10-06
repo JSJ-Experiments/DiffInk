@@ -20,9 +20,12 @@ SHA='89ec459de6496275a3712c08629daea10d8f4f03311712c77f49e652bca915a3'
 @app.function(image=image,volumes={'/data':volume},gpu='T4',cpu=4,memory=16384,timeout=1800,retries=0,max_containers=1)
 def research(steps:int):
     from iam_tools.conditioning_study import run
+    from iam_tools.metric_workers import metric_pool
     try:
-        return run('/app/configs/engineering_english.yaml','/app',steps=steps,modes=('control',),
-                   source_rel=SOURCE,source_sha=SHA,writer_id=None,family='iam_geometry_diversity')
+        with metric_pool(3) as pool:
+            return run('/app/configs/engineering_english.yaml','/app',steps=steps,modes=('control',),
+                       source_rel=SOURCE,source_sha=SHA,writer_id=None,family='iam_geometry_diversity',
+                       accelerated=True,metric_pool=pool)
     finally:volume.commit()
 
 @app.function(image=image,volumes={'/data':volume},cpu=4,memory=8192,timeout=1200,retries=0,max_containers=1)

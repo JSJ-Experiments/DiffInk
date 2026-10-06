@@ -26,7 +26,7 @@ Branch: `english-iam`. Initial audit was CPU-only; the approved first T4 run and
   normalization or an IAM raw-data converter. No released raw preprocessor or
   normalization formula was found in this pinned tree.
 
-## Small English patch (`patches/diffink-english.patch`)
+## Small English patch (`../../patches/diffink-english.patch`)
 
 1. Validation appends Chinese `、` only if it exists in the vocabulary. Pure
    English validation returns exactly the supplied line text.
@@ -342,7 +342,7 @@ proof against all decoder artifacts. High-mixture-entropy points had no larger
 errors, and a frozen-feature affine alternative was much worse. Sampled latents
 retain a precision gap; production Adam/GMM and regularized latent behavior
 remain unvalidated. Configurations, canceled/preempted attempts, source hashes,
-CPU reload checks and marker-free galleries: [CURVE_FIDELITY.md](CURVE_FIDELITY.md).
+CPU reload checks and marker-free galleries: [CURVE_FIDELITY.md](../CURVE_FIDELITY.md).
 
 Volume overview: `checkpoints/iam_curve_study/research-summary/index.html`.
 Selected: `checkpoints/iam_curve_study/20261005-124900/delta50/checkpoint.pt`.
@@ -361,7 +361,7 @@ uses mean anchor1000 versus sampled100 and LR5e-7. This changes two knobs and is
 not a one-factor ablation. Tiny KL/CTC have very weak gradients on memorized
 lines: compatibility only, not prior matching or strong regularization proof.
 Posterior std narrows, but CPU paired-noise reconstruction with original std
-also improves. Clipping remains frequent. See [LATENT_INTEGRATION.md](LATENT_INTEGRATION.md)
+also improves. Clipping remains frequent. See [LATENT_INTEGRATION.md](../LATENT_INTEGRATION.md)
 for all controls, source hashes, attempts and independently reloaded checkpoints.
 
 Volume report `checkpoints/iam_latent_integration/latest/index.html`; final
@@ -387,7 +387,7 @@ on frozen decoder features are worse. Target Δ gradient is already substantial
 not supported. A calibrated joint geometry/pen follow-up was dashboard-stopped
 after saved200, then resumed with model+optimizer+RNG and sample order intact.
 
-Details: [WRITER_EXPANSION.md](WRITER_EXPANSION.md). Keep this investigation
+Details: [WRITER_EXPANSION.md](../WRITER_EXPANSION.md). Keep this investigation
 separate from the passed eight-line capacity/posterior/OCR gates. Do not advance
 to full IAM or InkDiT on the basis of these aggregate position improvements.
 
@@ -413,7 +413,7 @@ Held-out reconstruction remains the limiting generalization gate, not solved by
 training memorization. No incidental KL/CTC/style. Normalization changes remain
 research-only and dedicated reload/inverse transforms are mandatory.
 
-Details: [CONDITIONING_STUDY.md](CONDITIONING_STUDY.md). Volume overview
+Details: [CONDITIONING_STUDY.md](../CONDITIONING_STUDY.md). Volume overview
 `checkpoints/iam_fullset_joint/research-summary/index.html`; all mean/20-draw
 metrics and marker-free galleries are preserved, with source/protected-parameter
 checks.127 root/fork tests pass. New report publication uses atomic dated links.
@@ -423,3 +423,16 @@ The completed geometry polish reaches train X/Y .000760/.001425 and turn p90
 The next bounded geometry-only pilot uses the existing192/32,8-writer data and
 keeps every prior validation line excluded. No OCR/KL/style enablement. See
 CONDITIONING_STUDY.md for the explicit source, objective, calibration and limits.
+
+### Validated GPU dispatch/evaluation acceleration
+
+CUDA replay now provides3.0–3.6× training throughput in paired no-update T4 checks,
+with GPU busy time rising from~37% to~95–97% and gradient-relative error<1.4e-7.
+Spawned CPU metric workers preserve exact results; optional same-line posterior
+batching further speeds evaluation without different-length padding. Guards,
+RNG checks and136 tests cover reusable changes. See CONDITIONING_STUDY.md for
+exact timings/provenance and the completed192-line full-gradient follow-up. That
+trained follow-up is still visually rough and not promoted. An explicitly
+UNTRAINED, opt-in polyphase initialization control reconstructs all224 observed
+lines nearly exactly; it is a capacity/conditioning diagnostic, not a learned
+semantic/generative model or automatic OCR/KL readiness.

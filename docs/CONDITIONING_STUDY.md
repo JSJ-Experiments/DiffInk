@@ -401,3 +401,119 @@ The guarded `modal_inkvae_profile.py --run` requests one T4 for no-update profil
 without `--run` it allocates no GPU. A first packaging attempt failed on an omitted
 launcher import before profiling; the final launcher is self-contained and that
 failed app was stopped rather than left crash-looping.
+
+## Implemented throughput fixes (validated, not a fidelity claim)
+
+`fast_geometry.py` evaluates the SAME mean/sample expected-XY, true-stroke raw-Δ,
+and bounded focal-pen losses using rectangular masked reductions. Masks/weights
+are dynamic graph inputs; no extra padding, mixed precision, batch-size change,
+augmentation or loss coefficients are introduced. Unused KL is not evaluated.
+A redundant Transformer nested-inference mask check synchronized CUDA BEFORE
+PyTorch checked that gradients disable that inference path. The research helper
+skips only that inapplicable optimization during gradient-bearing decoder calls,
+restoring the original inference setting afterward. Padding masks remain active.
+
+CUDA replay captures forward/backward by EXACT minimal padded length, independent
+memory pools, persistent parameter-gradient buffers and external fresh random
+noise. No set_to_none=True is allowed after capture. Effective-batch scaling is
+copied from immutable base weights (never cumulatively divided/multiplied). Warmup
+and capture do not change parameters or consume the caller's RNG stream. Three
+spawned CPU workers compute the unchanged spatial metrics while GPU inference
+continues; worker exceptions propagate before saving/scoring the evaluation.
+
+Two bounded, no-update T4 validations:
+`checkpoints/iam_throughput_validation/20261006-152125/benchmark.json` and
+`checkpoints/iam_throughput_validation/20261006-152759/benchmark.json`.
+Each uses the pinned faithful24 input checkpoint, eight fixed lines/32 effective
+batches, the192-line pilot's pen scalar .02099049935353879, and .1 sampled-geometry
+weight. No optimizer updates. Checks cover accumulated gradients, changed input
+coordinates and reading live parameters after a temporary restored mutation.
+Maximum loss difference7.45e-9, gradient relative L2≤1.36e-7; all model/source
+weights unchanged at completion.
+
+| Validation | Eager training | CUDA replay | Sampled GPU busy |
+|---|---:|---:|---:|
+| first |14.82 /14.72s|4.12 /4.10s|35.7–37.3% →94.9–96.7%|
+| repeat |12.10 /12.27s|4.11 /4.10s|37.3–38.8% →94.2–96.8%|
+
+Thus training is3.0–3.6x faster in these measurements, with the same operation's
+loss/gradients validated. Capture takes4.8–6.2s for7 lengths; second benchmark
+peak reserved memory1.18GiB. GPU busy percentages are coarse sampled estimates,
+NOT SM occupancy; eight-line speed is not a universal all-IAM throughput promise.
+An initial capture attempt exposed the redundant nested-mask synchronization and
+failed before updates; it was fixed, not left retrying.
+
+Evaluation24 lines ×(mean+20 draws): first serial12.64s →parallel10.07/9.87s.
+Repeat serial9.96s →parallel5.62/5.82s →same-line draw batching2.21s. Parallel
+metrics alone are EXACTLY equal. Same-line posterior batches preserve every
+sample's physical length/GroupNorm statistics and use repeated randn_like(mu) to
+preserve RNG draw order. They change FP32 kernel roundoff: max XY difference
+1.24e-5 across504 trajectories, zero pen argmax changes and identical OCR strings.
+This faster optional mode is NOT the default pending broader checkpoint coverage;
+CPU workers/CUDA training replay are wired into the guarded control/diversity
+runner. Do not batch differently sized lines for this optimization. KL/OCR/style
+are still not incidentally enabled. `modal_inkvae_throughput.py --run` reproduces
+the benchmark; `modal_geometry_diversity.py --train` uses captured control training.
+
+## Return to geometry: completed192-line full-gradient polish
+
+`checkpoints/iam_geometry_fullset/20261006-152500/`, selected40,468 L-BFGS closures,
+991.47s loop/evaluation time, budget completed. Input is the unpromoted192-line
+Adam pilot at step1000, SHA ce4512fd…; not the faithful24 geometry checkpoint.
+Same point/target-Δ/bounded-pen mean objective, pen scalar .02099049935353879.
+Fresh L-BFGS LR1/max_iter10/history20/strong_wolfe, no clipping, physical batch1,
+full192-line gradient accumulation, dropout/augmentation/GMM/KL/CTC/style OFF.
+Sampled latents are evaluated, not optimized. Held-out32 never enter calibration,
+gradients or checkpoint selection. CUDA training replay captures42 lengths in
+10.53s/2.97GiB; a live training check observed95–100% GPU busy and ~5GiB total GPU
+memory. All224 means and20 draws per line are evaluated at0/20/40; CPU workers3.
+This is a geometry experiment with a changed optimizer/full-gradient/mean-only
+objective, NOT a performance-only causal ablation against the previous Adam run.
+
+| Group | Input X/Y RMSE | Final X/Y RMSE | Input→final turn p90 | Final mean pen F1 |
+|---|---:|---:|---:|---:|
+| train192 |.047796/.033723|.028448/.027623|112.66°→99.30°|.99872|
+| held-out32 |.049607/.036604|.033393/.030021|111.67°→102.17°|.98329|
+| original8 |.035836/.023101|.025817/.023701|85.34°→87.39°|1.00000|
+
+Despite aggregate improvement, the named c/h crops and original-eight gallery
+still show added shape distortion. Visually inspected; **NOT promoted** and no
+OCR/KL readiness. Better utilization did not magically solve the geometry issue.
+Selected SHA bfb1378e5f39a06dd3ac5b361f61f39d66596569fc356c521e435e1eb1cd2b04.
+CPU reload max XY difference1.1444e-5, zero pen argmax mismatches; OCR/style/logvar
+heads, sigma/rho rows and source checkpoint unchanged. Report
+`.../report/index.html`; all224 lines/draw metrics and dated provenance retained.
+
+## CPU initialization/representation control (UNTRAINED)
+
+Rather than conclude the whole architecture cannot generalize geometry from the
+polish failure, an independent CPU control configures a near-identity route in the
+SAME VAE classes/widths: stride2 convolutions pack8×5 real fields into the first40
+latent channels; transposed convolutions unpack them; zero residual-output/
+attention/feedforward-output projections leave that route intact. A balanced
+constant-feature carrier makes the existing Transformer LayerNorm/readout nearly
+linear. All20 GMM means use the same XY readout; pen logits come from the encoded
+pen fields. There is no target oracle, sample-ID rule, raw-input skip or smoothing.
+This is handcrafted initialization, not evidence of learned geometry or semantic
+latents. Preset active posterior std2e-5/unused std1 is NOT learned uncertainty;
+GMM uncertainty is unfitted. Subsequent optimization/DiT usefulness are untested.
+
+CPU control `checkpoints/iam_identity_preflight/20261006-cpu/`,224 lines, zero
+updates. Mean X/Y RMSE train192 =9.54e-6/5.09e-7; held-out32 =8.95e-6/4.82e-7.
+Worst per-line X/Y RMSE across224 =5.11e-5/1.58e-6. Worst per-line turn p90 .00534°;
+zero real-point pen mismatches. Named c/h marker-free crops and all224 paired
+means are in `report/index.html`; visually indistinguishable at the report scale.
+Invalid masked padding is not an EOC-supervision claim. Unit tests verify all8
+packing phases, real-state reconstruction, unused-latent-noise independence and
+extra-padding invariance. Source script/config/manifest SHA and all sample IDs
+are preserved with the report. Reusable opt-in `identity_geometry_probe.py` is
+never automatically installed into a trained model or the normal training path.
+
+This establishes that the architecture can carry all these observed trajectories
+(and synthetic curves) near-losslessly, not merely memorize one line. In scalar
+count it is not an information bottleneck:384 channels/8 positions =48 scalars
+per original point versus5 input fields. It rules out an unavoidable8x/ConvTranspose
+information-loss explanation, NOT learned upsampling artifacts or poor training
+conditioning. It motivates a carefully controlled initialization/protected-geometry
+experiment next; it does NOT justify claiming paper reproduction, a trained
+English semantic VAE, stochastic GMM generation or automatically enabling OCR/KL.

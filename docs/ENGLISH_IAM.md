@@ -1072,3 +1072,10 @@ The completed geometry polish reaches train X/Y .000760/.001425 and turn p90
 The next bounded geometry-only pilot uses the existing192/32,8-writer data and
 keeps every prior validation line excluded. No OCR/KL/style enablement. See
 CONDITIONING_STUDY.md for the explicit source, objective, calibration and limits.
+
+
+CUDA graph training acceleration and CPU metric workers are now validated and
+wired into the guarded English geometry research runner; no larger physical
+batches or changed precision.136 tests pass. Exact performance/fidelity evidence
+is in CONDITIONING_STUDY.md. The192-line follow-up remains rough; the separate
+near-identity control is explicitly untrained and not a production promotion.

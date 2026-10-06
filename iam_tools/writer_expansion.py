@@ -81,7 +81,28 @@ def device_batches(batches, device):
     return {i: (b[0].to(device).transpose(1,2), b[1].to(device), b[2].to(device)) for i,b in batches.items()}
 
 
-def evaluate(model, samples, batches, splits, vocab, folder, step, draws=20, xy_offsets=None):
+@torch.no_grad()
+def posterior_outputs(model,mu,lv,mask,n,lm_length,draws=20,draw_batch_size=1):
+    """Batch ONLY same-line posterior draws: physical length/padding unchanged.
+
+    Generate noise as repeated randn_like(mu), never one differently shaped RNG
+    call. GroupNorm is independent across batch elements. Larger batches can
+    change FP32 kernel roundoff; require output/argmax validation before enabling.
+    """
+    if not 1<=draw_batch_size<=21 or draws<0 or model.training:
+        raise ValueError('eval mode, nonnegative draws, batch size1–21 required')
+    from model.losses import mixture_expectation
+    latents=[mu]+[mu+torch.randn_like(mu)*(.5*lv).exp() for _ in range(draws)]
+    for start in range(0,len(latents),draw_batch_size):
+        z=torch.cat(latents[start:start+draw_batch_size],dim=0)
+        output=model.decode(z,padding_mask=(~mask).expand(z.shape[0],-1))
+        xy=mixture_expectation(output)[:,:n].cpu().numpy()
+        predicted=output[:,:3,:n].argmax(1).cpu().numpy()
+        ocr=model.ocr_model(z)[:lm_length].argmax(-1).transpose(0,1).tolist()
+        for j in range(len(z)):yield start+j-1,xy[j],predicted[j],ocr[j]
+
+
+def evaluate(model, samples, batches, splits, vocab, folder, step, draws=20, xy_offsets=None, metric_pool=None,draw_batch_size=1):
     """Fixed paired noise on CPU or GPU; evaluation never advances training RNG."""
     folder = Path(folder); rows=[]
     device = next(model.parameters()).device
@@ -93,16 +114,24 @@ def evaluate(model, samples, batches, splits, vocab, folder, step, draws=20, xy_
             destination=folder/f'step-{step}'/sid; destination.mkdir(parents=True, exist_ok=True)
             truth, mu, lv, lm = encoded(model, raw, mask)
             n=int(mask.sum()); target=truth[0,:n].cpu().numpy(); offset=np.zeros(2) if xy_offsets is None else xy_offsets[sid].detach().cpu().numpy(); target=target+offset; states=raw[0,2:,:n].argmax(0).cpu().numpy()
-            from model.losses import mixture_expectation
-            for k in range(-1, draws):
-                z=mu if k<0 else mu+torch.randn_like(mu)*(.5*lv).exp()
-                output=model.decode(z,padding_mask=~mask); xy=mixture_expectation(output)[0,:n].cpu().numpy()+offset
-                predicted=output[0,:3,:n].argmax(0).cpu().numpy(); kind='mu' if k<0 else f'z-{k}'
+            for k,xy,predicted,ocr_ids in posterior_outputs(model,mu,lv,mask,n,int(lm.sum()),draws,draw_batch_size):
+                xy=xy+offset;kind='mu' if k<0 else f'z-{k}'
                 np.save(destination/f'{kind}.npy', np.column_stack([xy,np.eye(3)[predicted]]))
-                decoded=greedy_ctc(model.ocr_model(z)[:int(lm.sum()),0].argmax(-1).tolist(),vocab)
-                variants.append(dict(kind=kind,geometry=geometry_metrics(xy,target,states),pen=boundary_metrics(predicted,states),
+                decoded=greedy_ctc(ocr_ids,vocab)
+                if metric_pool is None:
+                    geometry=geometry_metrics(xy,target,states)
+                else:
+                    from .metric_workers import geometry_job
+                    geometry=metric_pool.submit(geometry_job,xy,target,states)
+                variants.append(dict(kind=kind,geometry=geometry,pen=boundary_metrics(predicted,states),
                                      decoded=decoded,ocr_errors=edit_distance(sample[2],decoded),text_characters=len(sample[2])))
             rows.append(dict(sample_id=sid,text=sample[2],mu=variants[0],sampled=variants[1:]))
+    if metric_pool is not None:
+        # Submission order, RNG, trajectory files and metric definitions unchanged.
+        # Worker exceptions propagate before scoring/saving any evaluation result.
+        for row in rows:
+            for variant in [row['mu']]+row['sampled']:
+                variant['geometry']=variant['geometry'].result()
     result=dict(step=step,lines=rows,groups={})
     for name, ids in splits.items():
         subset=[r for r in rows if r['sample_id'] in ids]
