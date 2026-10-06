@@ -8,9 +8,9 @@ under subsequent optimization are NOT established. Never installed by default.
 """
 import math
 import torch
-from model.blocks import Residual
 
 def initialize_identity_geometry(model,S=512.,std=2e-5):
+ from model.blocks import Residual
  if not math.isfinite(S) or S<128 or not 0<std<=.01:raise ValueError("bounded feature scale and active posterior noise required")
  if model.encoder.conv_1.in_channels!=5 or model.conv_mu.out_channels<40 or model.transformer_decoder.fc.out_features!=123:raise ValueError("five input fields, at least40 latent channels, and20 mixtures required")
  if model.transformer_decoder.input_proj.out_features<=10 or model.transformer_decoder.input_proj.out_features%2:raise ValueError("even Transformer width with anchor channels required")
