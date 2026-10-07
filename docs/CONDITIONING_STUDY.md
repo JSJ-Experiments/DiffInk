@@ -945,3 +945,87 @@ larger TRAIN-only OCR supervision with frozen faithful geometry; report held-out
 reading without selecting on it. Do not infer semantic/generative readiness,
 paper reproduction, or successful joint OCR/KL training from a transport codec
 plus a memorizing OCR head. Keep readout/geometry gates protected.
+
+## Frozen OCR context/coordinate controls (2026-10-07)
+
+Completed `iam_ocr_context_study/20261007-031059`: **four sequential T4 arms**,
+1000 updates each, ~36–38s actual training/evaluation per arm. One GPU app;
+no retries/crash loop. Frozen codec source9c53f68 (same pinned SHA as above),
+192 training/32 held-out lines, unchanged manifest. Every original codec tensor,
+**including its old OCR**, remains bitwise source-identical. New heads are
+standalone research artifacts; no geometry, pen, posterior, KL/style/readout
+updates, and no new reconstruction-array comparison is claimed in this study.
+The previously established marker-free geometry fidelity remains unchanged.
+
+Fresh identical OCR weights/blankbias0, same seed42 bucketed batch16 schedule,
+AdamW5e-4→1e-4 at750, betas.9/.99, decay1e-4, clip5, dropout.1. Cached latents
+are encoded physically one minimally padded line at a time. TRAIN-only XY
+moments, no held-out calibration. Checkpoints selected only by TRAIN mean CER,
+then CTC. Same random initialization tensors and sample/LR logs verified;
+different attention kernels need not generate identical dropout masks.
+
+| OCR input/context | Train mean CER (exact/192) | Train sampled CER | Held-out mean/sample CER |
+|---|---:|---:|---:|
+| Absolute XY, global attention | .1421% (185) | .1437% | 83.0645% /83.0494% |
+| Train-axis standardized XY, global | 0% (192) | 0% | 80.2419% /80.2167% |
+| Relative-X standardized, global | 0% (192) | 0% | **71.8750% /71.8196%** |
+| Relative-X standardized, radius4 | 0% (192) | 0% | 72.9839% /72.9940% |
+
+All selected checkpoints are update1000. Sampled metrics use20 fixed GPU draws
+per line (3840 train/640 held-out). Every arm reads **0/32** held-out lines exactly.
+Translation-invariant conditioning helps11.19 percentage points against the
+matched raw baseline, but does **not solve generalization**. Restricting attention
+does not improve further. One seed/small exploratory pool, forms overlap and
+writers seen; not an IAM writer/form-independent benchmark. This does not prove
+absolute X is the sole cause: representation/conditioning also changes.
+
+Adapter contract is specific to the initialized polyphase40 codec: verify all224
+packed payloads against raw XY/pen states first; preserve the first line-final
+EOC and exclude synthetic tail phases; zero344 unused channels ONLY at OCR input
+in every arm. Relative-X retains within-block phase offsets and between-block
+first-X displacement (invertible up to horizontal origin), not physical velocity.
+Y remains absolute before standardization. Three radius4 layers see±12 feature
+blocks; X features additionally reference the preceding block. Padded queries
+have a finite dummy key; valid queries never get a global key0 escape. Minimal
+core patch exposes optional `attention_mask`; default behavior/weights unchanged.
+
+No-training OOD ablations of the prior memorized head8738dc9:
+train CER native0%, no-Y18.1459%, no-pen33.9861%, block-centroid XY37.6184%,
+synthetic width/length-only77.3531%, local-radius4 attention78.0322%.
+These establish dependence, **not sole causality**. Width alone does not preserve
+reading, but whole-line context dependence is large. Held-out remains poor in all.
+Missing training labels are not the explanation: only one held-out character
+(`F`) out of992 is unseen; no held-out transcript exactly matches training.
+There are only6332 train character occurrences. Next strong test: a larger
+TRAIN-only OCR pool with protected geometry and explicit split/form provenance,
+not another memorization continuation or unrestricted joint VAE optimization.
+
+CPU reload of actual saved heads/features: all224 mean transcripts agree with GPU
+in every arm; posterior CPU/CUDA RNGs are not paired. Random initializer tensors
+match when saved nonrandom buffers are restored. Host/build-generated sinusoidal
+positional buffers differ by max3.05171e-5 on the remote CPU reload
+(local CPU build max6.10352e-5, over1000 positions), so regenerate-and-
+hash assertions are not portable. Reload uses saved tables exactly; discrepancies
+are recorded, not silently ignored. All four state/source checks pass.
+
+Volume report: `checkpoints/iam_ocr_context_study/20261007-031059/report/index.html`
+(local `data/` mirror). Report includes learning curves, all224 selected
+transcripts, all32 marker-free held-out handwriting/prediction panels, CPU reload,
+training text coverage, exact configs/source snapshots, initialization/schedule
+pairing and checkpoint hashes. Standalone `head-best.pt` / `head-last.pt` in each
+arm; never load these into VAE without their research feature contract.
+Selected SHA256:
+- global_raw: `e9f0cf036ba765d8acb2fa717073790942f37168133ce24230337915db661351`
+- global_scaled: `9aafd35d79c59065353fe977cdb8464d44e9977bbf3946c3846f91dc0f16cadd`
+- relative_scaled: `32892410a78a3f7d417dcb945d7308ade4f9dd78686d63ac32c31b8a321e0da7`
+- relative_local4: `2655078211bbba6c4b5e9d8019839ee2e007ee9f8707243b586c1bc489aef8ba`
+
+`modal run modal_ocr_context_study.py --train --steps 1000` explicitly opts into
+T4; noflag allocates no GPU. Four bounded sequential arms,450s maximum per arm,
+2400s app timeout, maxcontainers1/retries0. `--report-rel <dated-directory>` is
+CPU-only, `--annotate-only` updates interpretation without reloading/evaluating.
+170 root/fork unit tests pass:10 new checks cover transport mapping, translation
+invariance, tail/unused NaN isolation, train-only statistics, finite local masks
+and backward/padding parity, restricted receptive field, seed/RNG preservation,
+legacy default attention parity and text coverage. Geometry gate stays protected;
+no research head promoted and no InkDiT or joint OCR/KL/style launched.

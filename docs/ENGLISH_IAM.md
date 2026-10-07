@@ -1144,3 +1144,26 @@ Raw lines remain minimally padded microbatches; only cached OCR inputs batch16.
 160 root/fork tests pass. Geometry remains faithful; next investigate unseen-text
 recognition while protecting it, rather than more curve polishing or blindly
 unfreezing the VAE/adding style.
+
+### Frozen OCR context controls — 2026-10-07
+
+`modal_ocr_context_study.py` completed four sequential1000-update T4 head-only
+controls from the unchanged9c53f68 codec. Fresh identical seeds/weights,
+train-only feature calibration, identical sample/LR schedules, batch16 cached
+means, AdamW5e-4→1e-4/dropout.1; no geometry/KL/style/readout updates. Selected
+TRAIN-only checkpoints. Held-out mean CER: absolute raw83.0645%, standardized
+absolute80.2419%, standardized relative-X**71.8750%**, relative-X local-radius4
+72.9839%. Three arms train CER0/192 exact/3840 exact posterior draws, but **none
+reads any of the32 unseen lines exactly**. Curve fidelity remains protected;
+no head promoted and no joint training/InkDiT launch.
+
+Report: `checkpoints/iam_ocr_context_study/20261007-031059/report/index.html`
+on `diffink-data`; local mirror under `data/`. All224 transcript comparisons,
+all32 marker-free held-out target panels, learning curves, pinned checkpoints,
+CPU reload/config/schedule/source audits. Every mean transcript matches CPU/GPU.
+170 tests pass. See `docs/CONDITIONING_STUDY.md` for exact results/hashes and
+research-only polyphase feature contract. The optional core OCR attention mask
+preserves default behavior. A larger TRAIN-only pool is the next generalization
+test; missing labels explain only1/992 held-out characters. Global context
+ablation demonstrates dependence, not a sole-cause diagnosis. No paper-English,
+writer/form-independent benchmark or semantic-generative readiness claim.

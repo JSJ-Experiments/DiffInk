@@ -50,9 +50,11 @@ class ChineseHandwritingOCR(nn.Module):
             self.output_fc.bias.data.zero_()
             self.output_fc.bias[0].copy_(-5.0)
 
-    def forward(self, x, padding_mask=None):
+    def forward(self, x, padding_mask=None, attention_mask=None):
         """
         x: Tensor [B, C, T] — from frozen VAE encoder
+        attention_mask: optional Transformer/MHA mask; Boolean True blocks
+            attention. Default None preserves released full-context behavior.
         returns: [T, B, num_classes] — for CTCLoss
         """
         if padding_mask is not None:
@@ -67,7 +69,7 @@ class ChineseHandwritingOCR(nn.Module):
         x = self.input_proj(x)          # [B, T, H]
         # x = self.input_norm(x)          # 输入 LayerNorm
         x = self.pos_encoder(x)         # [B, T, H]
-        x = self.transformer(x, src_key_padding_mask=padding_mask)  # [B, T, H]
+        x = self.transformer(x, mask=attention_mask, src_key_padding_mask=padding_mask)  # [B, T, H]
         # x = self.output_norm(x)         # 输出 LayerNorm
         x = self.output_fc(x)           # [B, T, num_classes]
         return x.permute(1, 0, 2)       # [T, B, num_classes]
