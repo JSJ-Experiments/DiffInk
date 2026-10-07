@@ -90,7 +90,7 @@ def ctc_per_line(head,logits,labels,mask):
 
 
 @torch.no_grad()
-def evaluate(head,cache,texts,splits,vocab,out,step,posterior_ids=(),draws=20):
+def evaluate(head,cache,texts,splits,vocab,out,step,posterior_ids=(),draws=20,posterior_sampler=None):
     """Batched masked means; only predeclared reporting lines get posterior draws."""
     was=head.training;head.eval();rows=[];device=next(head.parameters()).device
     with torch.random.fork_rng(devices=[device.index or 0] if device.type=='cuda' else []):
@@ -105,7 +105,9 @@ def evaluate(head,cache,texts,splits,vocab,out,step,posterior_ids=(),draws=20):
                 rows.append(dict(sample_id=sid,text=texts[sid],mu=value,sampled=[],ctc_loss=float(losses[j]),adjacent_repeats=any(a==b for a,b in zip(texts[sid],texts[sid][1:]))))
         by_id={r['sample_id']:r for r in rows}
         for j,sid in enumerate(sorted(posterior_ids)):
-            c=cache[sid];torch.manual_seed(8042+j*100);z=torch.cat([c['mu']+torch.randn_like(c['mu'])*(.5*c['lv']).exp() for _ in range(draws)])
+            c=cache[sid];torch.manual_seed(8042+j*100)
+            z=posterior_sampler(sid,draws) if posterior_sampler is not None else torch.cat([c['mu']+torch.randn_like(c['mu'])*(.5*c['lv']).exp() for _ in range(draws)])
+            if z.shape!=(draws,c['mu'].shape[1],c['mu'].shape[2]):raise ValueError('posterior sampler must match framed cache shape')
             logits=head(z,padding_mask=(~c['mask']).expand(draws,-1));n=int(c['mask'].sum())
             for frames in logits[:n].argmax(-1).T.tolist():
                 decoded=greedy_ctc(frames,vocab);by_id[sid]['sampled'].append(dict(decoded=decoded,errors=edit_distance(texts[sid],decoded),characters=len(texts[sid]),blank_frame_fraction=frames.count(0)/len(frames)))

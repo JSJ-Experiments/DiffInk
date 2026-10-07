@@ -6,26 +6,28 @@ change. Head-only checkpoints deliberately cannot be loaded as standard VAEs.
 import torch
 
 
-def unpack(x, mask):
-    if x.ndim!=3 or x.shape[1]<40 or mask.shape!=(x.shape[0],x.shape[2]) or mask.dtype!=torch.bool:
+def unpack(x, mask, points_per_frame=8):
+    if points_per_frame not in (4,8):raise ValueError('transport reader supports4 or8 points/frame')
+    channels=5*points_per_frame
+    if x.ndim!=3 or x.shape[1]<channels or mask.shape!=(x.shape[0],x.shape[2]) or mask.dtype!=torch.bool:
         raise ValueError('polyphase40 features and Boolean latent valid mask required')
     if not mask.any(1).all():raise ValueError('nonempty line required')
     clean=x.masked_fill(~mask[:,None],0.)
-    fields=clean[:,:40].reshape(x.shape[0],8,5,x.shape[2])
+    fields=clean[:,:channels].reshape(x.shape[0],points_per_frame,5,x.shape[2])
     states=fields[:,:,2:].argmax(2).permute(0,2,1).reshape(x.shape[0],-1)
-    temporal=mask.repeat_interleave(8,dim=1)
+    temporal=mask.repeat_interleave(points_per_frame,dim=1)
     eos=(states==2)&temporal
     if not eos.any(1).all():raise ValueError('transport requires line-final EOC, not opaque learned latents')
     real=temporal&((eos.cumsum(1)-eos.long())==0)
-    real=real.reshape(x.shape[0],x.shape[2],8).permute(0,2,1)
+    real=real.reshape(x.shape[0],x.shape[2],points_per_frame).permute(0,2,1)
     return fields,real
 
 
 def relative_x(fields):
-    """Invertible up to horizontal translation; all eight-point X shape preserved.
+    """Invertible up to horizontal translation; all within-frame X shape preserved.
 
-    Phase0 is current block's firstX minus previous block's firstX (first=0).
-    Phases1..7 are offsets from current firstX. These are index displacements,
+    Phase0 is current4/8-point block's firstX minus previous block's firstX (first=0).
+    Remaining phases are offsets from current firstX. These are index displacements,
     NOT velocity. Includes pen jumps; separate pen fields tell the head about them.
     """
     anchor=fields[:,0,0];first=torch.cat((torch.zeros_like(anchor[:,:1]),anchor[:,1:]-anchor[:,:-1]),dim=1)
@@ -33,9 +35,9 @@ def relative_x(fields):
     return torch.cat((first[:,None],rest),dim=1)
 
 
-def transform(x,mask,mode='global_raw',stats=None):
+def transform(x,mask,mode='global_raw',stats=None,points_per_frame=8):
     if mode not in ('global_raw','global_scaled','relative_scaled'):raise ValueError('unknown transport OCR mode')
-    fields,real=unpack(x,mask)
+    fields,real=unpack(x,mask,points_per_frame)
     xy=fields[:,:,:2].clone()
     if mode=='relative_scaled':xy[:,:,0]=relative_x(fields)
     if mode!='global_raw' and stats is not None:
@@ -44,15 +46,15 @@ def transform(x,mask,mode='global_raw',stats=None):
     # Synthetic post-EOC phases are excluded, not turned into large -lineWidth
     # displacements by local centering. No unused posterior noise enters OCR.
     packed=torch.cat((xy,fields[:,:,2:]),dim=2).masked_fill(~real[:,:,None],0.)
-    return torch.cat((packed.reshape(x.shape[0],40,x.shape[2]),torch.zeros_like(x[:,40:])),dim=1)
+    return torch.cat((packed.reshape(x.shape[0],5*points_per_frame,x.shape[2]),torch.zeros_like(x[:,5*points_per_frame:])),dim=1)
 
 
 @torch.no_grad()
-def fit_stats(cache,train_ids,mode):
+def fit_stats(cache,train_ids,mode,points_per_frame=8):
     if not train_ids or len(train_ids)!=len(set(train_ids)):raise ValueError('unique nonempty TRAIN IDs required')
     values=[]
     for sid in train_ids:
-        c=cache[sid];f,real=unpack(c['mu'],c['mask']);xy=f[:,:,:2].clone()
+        c=cache[sid];f,real=unpack(c['mu'],c['mask'],points_per_frame);xy=f[:,:,:2].clone()
         if mode=='relative_scaled':xy[:,:,0]=relative_x(f)
         values.append(xy.permute(0,1,3,2)[real].double())
     values=torch.cat(values);mean=values.mean(0);std=values.std(0,unbiased=False).clamp_min(.01)
@@ -78,12 +80,12 @@ def local_attention_mask(valid,heads,radius):
     return blocked[:,None].expand(-1,heads,-1,-1).reshape(b*heads,t,t)
 
 
-def make_head(cfg,num_classes,mode='global_raw',stats=None,radius=None,seed=42):
+def make_head(cfg,num_classes,mode='global_raw',stats=None,radius=None,seed=42,points_per_frame=8):
     from model.ocr import ChineseHandwritingOCR
     class TransportOCR(ChineseHandwritingOCR):
         def forward(self,x,padding_mask=None,attention_mask=None):
             valid=torch.ones(x.shape[0],x.shape[2],dtype=torch.bool,device=x.device) if padding_mask is None else ~padding_mask
-            features=transform(x,valid,mode,stats)
+            features=transform(x,valid,mode,stats,points_per_frame)
             if radius is not None:attention_mask=local_attention_mask(valid,cfg['ocr_num_heads'],radius)
             return super().forward(features,padding_mask,attention_mask)
     with torch.random.fork_rng(devices=[]):

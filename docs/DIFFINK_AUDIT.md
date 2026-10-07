@@ -588,3 +588,23 @@ Report `checkpoints/iam_ocr_convergence/20261007-044341/report/index.html`,
 interpretation `report/conclusion.html`, local `data/` mirror on Volume
 `diffink-data`. Exact configs/hashes/caveats and negative results in
 `docs/CONDITIONING_STUDY.md`.203 root/fork tests pass; all Modal apps stopped.
+
+
+### OCR-only4 versus8-point frames — 2026-10-07
+
+Controlled fresh readers: same weights/parameter count, TRAIN8192/calibration192
+IDs,8000 updates/batch IDs/LR schedule; four-point grouping preserves every
+chronological XY/pen field without resampling. DEV CER15.30→11.43%, report32
+12.40→10.18%.20-draw posterior DEV15.27→11.51%. CPU reload192 lines gives zero
+mean transcript differences. DEV84 improved/22 tied/22 worse; report exact2→1
+although total errors fall. No claim every line improves or CTC length alone
+causes gain: input grouping/calibration/position indices differ; dropout unpaired.
+
+All8352 observed mean trajectories/pen gates pass and entire codec stays bitwise
+frozen. Gallery shows SHARED handwriting, compare OCR captions only. This is an
+initialized polyphase transport research reader, not semantic-VAE reproduction
+or reliable joint-training oracle. Keep geometry locked; next replicate finer
+frame benefit or test2-vs4 OCR frames, not blindly enable joint VAE/CTC/KL/DiT.
+Report `checkpoints/iam_ocr_frame_study/20261007-052514/report/index.html` and
+`report/conclusion.html` on `diffink-data`, local `data/` mirror. Exact config/
+hashes/limitations in `docs/CONDITIONING_STUDY.md`.213 tests pass; all jobs finished.

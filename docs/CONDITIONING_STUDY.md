@@ -1453,3 +1453,167 @@ Immutable as-run source/checkpoints/summary are not rewritten; post-run review
 preserves this clarification and CPU analysis source separately. Three extra
 backward-jump tests bring this turn to14 new tests /203 root and fork tests passing.
 All GPU/CPU Modal apps finished; no runaway continuation remains.
+
+## OCR-only frame granularity: fresh4/8-point readers (2026-10-07)
+
+Predeclared next test, following the negative fixed8192 LR continuations.
+Same immutable pool SHA
+`d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9`;
+8192 TRAIN /128 DEV /32 report,186 TRAIN writers,25 test writers excluded.
+Same research initialized polyphase40 codec/source SHA
+`9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625`,
+all codec params/buffers frozen, physical encoder batch1/minimal8-pad.
+All8352 means/point fingerprints/geometry/pen gated BEFORE any OCR update.
+
+Control8-point frames retains existing feature path bitwise. Alternative splits
+chronological8×[XY,pen3] first40 fields into two4×[XY,pen3] first20 fields,
+then zeros unused input channels. No interpolation, smoothing, RDP/data change,
+new trajectories or additional labels. Valid length is ceil(real points/4),
+including real final EOC but excluding an entirely synthetic final half-block.
+Exact packed chronology/pen states/logvar mapping checked by tests. It is a
+research transport adapter, NOT a generic learned-latent upsampler.
+
+Both heads FRESH seed42, same384 input/hidden widths,3 layers/4 heads/parameter
+count/initial weight digest. Original step12000 head is NOT transplanted into a
+new input convention. Shared batch IDs are precomputed from original8-frame
+cache, seed43 buckets, batch16,8000 updates. AdamW5e-4 for6000 updates then1e-4,
+betas.9/.99,decay1e-4,clip5,dropout.1,blankbias0,global attention, mean training.
+Same calibration TRAIN192 IDs/real points, but moments fitted separately for4/8
+because local anchor-difference distributions change. Sequence position indices
+also change. This tests frame/input granularity as a package, NOT isolated CTC
+length alone. Dropout streams unpaired because shapes differ; no such claim.
+Same labels/exposure/optimizer budgets/LR;4-frame attention costs more FLOPs.
+
+Evaluate every1000 updates: means on all8352;20 posterior draws on DEV128,
+report32,common TRAIN32. Noise is drawn in ORIGINAL384×T8 space then split into
+4-point grouping, so valid-field noise is paired on SAME device without doubling
+unused-channel sampling. CPU/CUDA draws differ; CPU report independently reloads
+192 eval/probe lines only, not8192 TRAIN. DEV mean CER then CTC selects; report32
+NEVER selects. Compare both readers within SAME reference8-frame slack bins,
+not different populations. CTC frame slack is nonuniform index margin, not time.
+Same cumulative five-DEV-writer/reuse and codec prior192/report prompt-overlap
+caveats: not a fully independent IAM benchmark, semantic VAE or paper reproduction.
+
+Launch: `venv/bin/modal run modal_ocr_frames.py --train --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9 --steps 8000`.
+Guarded/import-only allocates no GPU. One T4,cpu4,16GB, sequential arms;
+per-arm1800s and whole function4800s, retries0/maxcontainers1. No architecture,
+geometry loss, joint CTC/KL/style or InkDiT changes. If a wall cap prevents equal
+updates, reporter must reject paired-completion interpretation, not hide it.
+Eight new tests cover remainder/end masking, chronology/gradient mapping,
+unused/padded NaN exclusion, backwards-compatible8 path, translation/calibration,
+paired original-space noise, identical head weights/finite backward/mask parity,
+posterior callback/RNG and launcher isolation. Results appended AFTER completion.
+
+CPU pool-only diagnostic before results: fixed TRAIN8192 processed points range
+200–813;8-point max102 frames versus4-point204, well below OCR's1000-position
+encoding buffer. Median normalized TRAIN slack .480→1.958; tight≤.25 cases
+1299→0. DEV128 max points579, median slack .515→2.016, tight18→0. This is NOT
+an accuracy result. Every item was already8-frame CTC feasible; this test does
+NOT evaluate excluded short/infeasible IAM lines. Feature granularity, not data
+selection, changes. Additional report tests check same-reference bin assignment
+and ID-based paired errors; total10 new tests /213 root/fork tests expected.
+CTC shape/length semantics verified against official PyTorch2.14 docs
+(https://docs.pytorch.org/docs/2.14/generated/torch.nn.CTCLoss.html); Context7
+mask docs available, specific CTC query absent, hence official-document fallback.
+
+Guard smoke verified: invoking `modal_ocr_frames.py` without flags creates no
+GPU call. Root/fork full suites now BOTH pass213 tests (not merely expected).
+A faulty unit fixture initially overwrote its own final EOC with pen-up at
+N=4; corrected fixture BEFORE GPU launch. No failed GPU run or model/data patch
+was needed for that test failure. Two later report-only tests added after launch;
+training helper/model source unchanged. CPU report snapshots its own as-run code.
+
+
+### Completed4/8-point study: finer OCR frames help, geometry stays locked
+
+Both8000-update arms finished, identical fresh weights (as-run tensor SHA
+`9e63e4fdbaf4d6f9922eaf494e5f4e7e3b1792577907c6cc8a991c74c88c0238`),
+per-update batch IDs, schedule hash, LR exposure and source codec. Eight-point
+selects step7000; four-point step8000 using DEV only. Comparing selected readers:
+
+| CER (%) |8-point fresh control|4-point fresh alternative|
+|---|---:|---:|
+| TRAIN8192 mean |7.3601|4.8016|
+| DEV128 mean |15.2987|11.4286|
+| DEV20-draw posterior |15.2662|11.5078|
+| report32 mean |12.3992|10.1815|
+| report20-draw posterior |12.4093|10.1058|
+| common TRAIN32 mean |10.2539|5.7617|
+
+DEV589→440 errors/3850 characters,25.30% relative fewer errors; exact7→12/128.
+Report123→101 errors/992 characters, but exact lines2→1/32; do not hide this.
+CPU independent selected192-line reload has ZERO mean transcript differences
+from GPU in both heads. Paired DEV84 lines improve,22 tie,22 worsen; report17
+improve,6 tie,9 worsen. Finer frames are NOT uniformly better on every line.
+4-point step7000 also beats8-point step7000 (11.7143 vs15.2987% DEV), so the
+result is not solely comparing selected7000 versus8000. At equal final8000:
+8-point TRAIN6.4668/DEV15.3247/report12.8024%;4-point4.8016/11.4286/10.1815%.
+8-point loop/eval221.69s;4-point293.35s (1.32×). These exclude startup/cache/
+preflight/CPU reporting; NOT total billed runtime. No nonfinite failure/wall cap.
+
+Same reference8-frame slack bins, DEV:
+- tight≤.25:18 lines,24.9216→18.4953% CER (159→118 errors/638 chars);
+- middle .25–.5:44 lines,15.8510→12.1987% (217→167/1369);
+- loose>.5:66 lines,11.5572→8.4102% (213→155/1843).
+
+Gain spans all bins, so tight CTC margins are not the ONLY contribution. Input
+phase grouping, relative anchor features/calibration and positional indices
+also changed. This establishes benefit of this complete4-point OCR adapter on
+this single-seed pool, NOT proof of pure CTC-length causation. Need replication
+before making robust generalization claims. All tests still excluded as before;
+five DEV writers/cumulative reuse and codec prior report prompt overlap persist.
+
+An additional useful observation: even the fresh8-point control improves the
+previous step12000 reader's19.2208% DEV to15.2987%, despite fewer absolute updates.
+That combines fresh full8192 exposure/reset and higher-initial-LR/drop schedule;
+it is NOT isolated evidence for reset alone, schedule alone or frame resolution.
+Don't attribute the entire19.22→11.43 gain to splitting frames.
+
+Frame-dependent calibration, same69204 TRAIN192 real points:
+8-point XY mean [.1182713,.5076760],std [.2144859,.1962347];
+4-point mean [.0657100,.5076760],std [.1689183,.1962347]. No DEV moments fit.
+DEV mean blank-frame fraction20.378→56.232%, while CER falls: with longer CTC
+sequences, more blanks is expected/useful and NOT evidence of blank collapse.
+
+All8352 frozen observed means remain unchanged: X/Y RMSE7.2531e-6/5.7049e-6;
+mean per-line geometric turnp90 .041012°; packed XY maximum8.29697e-5; every
+pen boundary/final EOC perfect and no internal falseEOC. No new stroke geometry,
+no smoothing/resampling, encoder/decoder/style/KL/old OCR updates. Posterior
+metrics here evaluate READING, not newly certify all8352 sampled-z geometries.
+
+Marker-free visual review this turn: learning plot, report page2 and DEV page6
+(16 varied lines), all160 panels generated/preserved. Target/reconstruction
+curves remain indistinguishable at gallery scale, authentic IAM/RDP hooks and
+corners unchanged. Captions show concrete corrections such as "narrow across
+the knuckles" and "reproduce the same form", but names/case/punctuation remain
+wrong on many lines; one a07-family line is worse in4-point. No claim of perfect
+reading or that every rendered handwriting line was newly visually reviewed.
+
+Extra local initialization integrity check: CPU-only versus CUDA Torch2.14.1
+wheels regenerate sinusoidal PE with maximum6.1035e-5 differences (buffer, not
+learned weights). Direct whole-state local-init hash therefore differs. Copy
+ONLY the saved NONTRAINABLE PE buffer into a fresh local head: entire initial
+hash matches as-run in BOTH arms, proving learnable initialization identical.
+Selected checkpoints already load their full saved buffers; CPU reload has
+zero decode differences. This is not a model/data bug or a new architecture
+change; preserve `initialization-reload-diagnostic.json` rather than claiming
+raw cross-wheel fresh-state hashes match.
+
+Report: `checkpoints/iam_ocr_frame_study/20261007-052514/report/index.html`;
+interpretation `report/conclusion.html`, local ignored `data/` mirror, Volume
+`diffink-data`. Selected heads downloaded locally and SHA verified; final heads
+remain saved in Volume. Exact hashes:
+- `points8/head-best.pt`: `cfda1aac570f582bca58024e7b14a45a66ad34e1ecd8c8723a6be08ba42d524d`
+- `points8/head-last.pt`: `712ab09574bd9cb8ca761d554a2fd566792d65d0f828db7bce79a04cd5a7c355`
+- `points4/head-best.pt`: `6b94ac8ab6897ff384b7a9b9c78fb0e67d0c60d925797cfe8eebb4cc25a75fee`
+- `points4/head-last.pt`: `9957719ae8e400e636be46e0a71bde9ab712791cdd906f418db702ad7b26f2fa`
+
+213 root/fork tests pass,10 new frame/report tests. GPU app
+`ap-DH9XEht7yWV3IJ0ELLRLka`, CPU report `ap-EpTFPIrJ3vchbU7w0iCaGP` completed;
+no-flag guard app `ap-LE4jaMyFZ1QmtllDQsnkb3` allocated no GPU. All jobs finished.
+
+Next: replicate the4-vs8 gain, or a predeclared OCR-only2-vs4 resolution test;
+not launched here.11.43% unseen-writer CER is progress, NOT a dependable oracle
+for releasing faithful geometry. Keep codec/geometry protected; no unconditional
+joint VAE/CTC/KL/style/InkDiT promotion. This initialized transport adapter is
+not a generic semantic-VAE latent upsampler or authors' English reproduction.
