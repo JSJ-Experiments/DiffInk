@@ -3,6 +3,7 @@ import sys,unittest
 import torch
 ROOT=Path(__file__).resolve().parents[1];REPO=ROOT/'third_party/DiffInk' if (ROOT/'third_party/DiffInk').exists() else ROOT
 sys.path.insert(0,str(REPO))
+sys.path.insert(0,str(Path(__file__).resolve().parent))
 from iam_tools.ocr_frame_study import split_tensor,frame_cache,paired_posterior_sampler,validate_frame_pair
 from iam_tools.ocr_context_features import unpack,transform,fit_stats,make_head
 from iam_tools.frozen_ocr_study import collate_latents
