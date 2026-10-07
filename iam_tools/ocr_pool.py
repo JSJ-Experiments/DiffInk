@@ -63,7 +63,19 @@ def assert_splits(records,splits,test_writers,dev_writers):
         train_eval_normalized_transcripts_disjoint=True,small_large_same_writer_population=True,test_writers_excluded=True)
 
 
-def _build(raw,original,out,train_size=2048,small_size=192,dev_size=128):
+def assert_extension(parent,records,splits,vocab_sha):
+    """An expansion retains every parent payload, split/order and calibration ID."""
+    if parent['vocab_sha256']!=vocab_sha:raise ValueError('extension vocabulary changed')
+    if splits['large_train'][:len(parent['splits']['large_train'])]!=parent['splits']['large_train']:raise ValueError('extension must preserve parent training prefix')
+    for key in ('small_train','dev','held_out'):
+        if splits[key]!=parent['splits'][key]:raise ValueError('extension changed pinned split: '+key)
+    for sid,r in parent['records'].items():
+        if records.get(sid)!=r:raise ValueError('extension changed parent record: '+sid)
+    return dict(parent_training_prefix_preserved=True,parent_records_bitwise_fingerprints_preserved=True,
+                calibration_dev_report_ids_and_order_preserved=True,vocabulary_preserved=True)
+
+
+def _build(raw,original,out,train_size=2048,small_size=192,dev_size=128,parent_pool=None):
     raw=Path(raw);original=Path(original);out=Path(out)
     if file_sha(original/'manifest.json')!=MANIFEST_SHA:raise ValueError('pinned original manifest required')
     old=json.loads((original/'manifest.json').read_text());vocab=json.loads((original/'chars.json').read_text())
@@ -96,6 +108,11 @@ def _build(raw,original,out,train_size=2048,small_size=192,dev_size=128):
     families|={records[i]['prompt_family'] for i in dev};texts|={normalized_text(records[i]['text']) for i in dev}
     train_candidates=blocked(entries,test|dev_writers,families,texts);large=select(train_candidates,train_size)
     small=[e['id'] for e in round_robin([dict(id=i,writer_id=records[i]['writer_id']) for i in large])][:small_size]
+    parent=None
+    if parent_pool is not None:
+        parent_pool=Path(parent_pool);parent=json.loads((parent_pool/'manifest.json').read_text())
+        if file_sha(parent_pool/'lines.h5')!=parent['lines_h5_sha256']:raise ValueError('parent HDF5 integrity failure')
+        small=list(parent['splits']['small_train'])
     # Existing report lines are copied BITWISE from the original HDF5, never
     # reprocessed or relabeled. Verify pairing with the raw inventory.
     with h5py.File(original/'tiny_val.h5') as hf:
@@ -125,6 +142,9 @@ def _build(raw,original,out,train_size=2048,small_size=192,dev_size=128):
         held_out_policy='original32 seen-writer report lines, excluded prompt families and normalized texts from OCR TRAIN; no checkpoint selection on them',
         dev_policy='128 lines from previously reserved5 writers; writer/prompt-family/normalized-text-disjoint from OCR TRAIN; used for checkpoint selection',
         geometry_pretraining_caveat='frozen codec learned reconstruction on original192; that old geometry pool has prompt overlap with original32. This is OCR supervision isolation, NOT a fully independent pretrained-representation IAM benchmark')
+    if parent is not None:
+        manifest['extension_checks']=assert_extension(parent,records,splits,manifest['vocab_sha256'])
+        manifest['parent_manifest_sha256']=file_sha(Path(parent_pool)/'manifest.json')
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n');return manifest
 
 
@@ -132,7 +152,8 @@ def build(raw='data/raw/iam',original='data/diffink/iam_overfit',out='data/diffi
     quota={k:sizes.get(k,d) for k,d in [('train_size',2048),('small_size',192),('dev_size',128)]}
     if any(not isinstance(n,int) or n<1 for n in quota.values()) or quota['small_size']>quota['train_size']:raise ValueError('positive nested quotas required')
     out=Path(out).absolute();raw=Path(raw).resolve();original=Path(original).resolve();resolved=out.resolve()
-    if out.is_symlink() or resolved in (Path('/'),Path.home(),Path.cwd()) or any(resolved==p or resolved in p.parents or p in resolved.parents for p in (raw,original)):
+    protected=[raw,original]+([Path(sizes['parent_pool']).resolve()] if sizes.get('parent_pool') is not None else [])
+    if out.is_symlink() or resolved in (Path('/'),Path.home(),Path.cwd()) or any(resolved==p or resolved in p.parents or p in resolved.parents for p in protected):
         raise ValueError('generated output overlaps protected input/unsafe directory')
     out.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.iam-ocr-pool-',dir=out.parent) as temporary:

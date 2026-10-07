@@ -85,8 +85,10 @@ class OCRPoolTests(unittest.TestCase):
         mu=torch.zeros(1,48,4);mu[:,:40]=raw.transpose(1,2).reshape(1,4,40).transpose(1,2)
         cache={i:dict(mu=mu,lv=torch.full_like(mu,-12),mask=torch.ones(1,4,dtype=torch.bool),labels=labels) for i in 'abcd'}
         splits=dict(train=['a','b'],dev=['c'],held_out=['d'],common_train_probe=['a'])
+        rng=torch.get_rng_state().clone()
         with tempfile.TemporaryDirectory() as d:
             row=evaluate(head,cache,{i:'ab' for i in cache},splits,['a','b'],d,0,['a','c','d'],draws=2)
+        self.assertTrue(torch.equal(rng,torch.get_rng_state()))
         self.assertTrue(head.training)
         self.assertNotIn('sampled',row['groups']['train']);self.assertEqual(row['groups']['train']['posterior_lines'],1)
         self.assertEqual(row['groups']['common_train_probe']['sampled']['evaluations'],2)

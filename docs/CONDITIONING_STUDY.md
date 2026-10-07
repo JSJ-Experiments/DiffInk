@@ -1166,3 +1166,141 @@ reloads prefer this immutable copy, so enlarging the current alias cannot break
 old-study reproducibility. It was archived AFTER the completed experiment; as-run
 configs/source snapshots correctly retain the original unversioned pool path.
 CPU report `--annotate-only` refreshes interpretation without another model reload.
+
+## Paired trained-head continuation: 2048→8192 supervision (2026-10-07)
+
+The next control branches from selected `large2048/head-best.pt` at step6000,
+not freshly initialized heads. Source head:
+`checkpoints/iam_ocr_pool_study/20261007-033445/large2048/head-best.pt`,
+SHA `073705cc96ae29b3e991fee8820eecca291d20ae57f1b1d597f114c97de5f925`.
+The codec source/SHA and relative-scaled OCR feature contract stay unchanged.
+
+Expanded pool manifest SHA
+`d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9`;
+HDF5 SHA `7c33d8e56865e28947c10dc086f531903ff7c234ac27c5312f8d68e0d9c0fe86`.
+Immutable local/Volume archive:
+`diffink/iam_ocr_pool_versions/<manifest SHA>` (local prefix `data/`).
+8192 TRAIN lines from the same186 writers,128 unchanged DEV and32 unchanged
+report lines (8352 unique total). The parent2048 is an exact ordered TRAIN
+prefix. Every original parent record/source-point fingerprint, calibration192
+ID/order, DEV/report ID/order and81-char vocabulary is retained.698 candidate
+rejections include reserved DEV selection failures; filters remain200–2000
+points/exact CTC feasibility/strict timestamps/RDP0.5. No new normalization,
+pen semantics or representation change.
+
+Both arms restore exact head parameters/buffers, Adam moments/counters, CPU and
+CUDA RNG from the same checkpoint. Inherited LR1e-4 is held constant; AdamW
+betas.9/.99, decay1e-4, clip5, OCR dropout.1, blankbias0, global attention,
+cached means/masked batch16; encoder physical batch1. Feature moments are
+inherited verbatim and independently checked from the pinned calibration192,
+not refit on8192. Both bucket iterators restart seed43: this is NOT restoration
+of the parent's data-iterator position. Different samples/lengths imply
+unpaired dropout after the shared initial RNG. Both get6000 additional updates
+(max total12000), evaluate every1000; DEV CER then CTC selects checkpoints,
+original32 reporting-only. Per-arm900s wall guard, T4/cpu4, retries0,
+maxcontainers1, function2400s. Both arms run sequentially in one T4 container.
+
+Whole codec, including original OCR, is frozen. All8352 means are individually
+encoded/decoded and gated for transport/XY/geometric turns/pen boundaries before
+any OCR update.20 paired GPU posterior draws cover DEV128/report32/common32,
+not all8192 training lines. CPU reporter independently reloads all192 evaluation/
+probe lines; full TRAIN metrics are explicitly as-run GPU, not8192 CPU reloads.
+Gallery changes OCR captions only; target and frozen trajectory are unchanged.
+This remains a transport-codec OCR study, not a paper reproduction, novel-text
+handwriting generator, fully independent IAM benchmark or permission to deform
+faithful geometry for a partially generalized reader.
+
+CPU build (keeps original pool immutable):
+```python
+from iam_tools.ocr_pool import build
+build(out='data/diffink/iam_ocr_pool8192',train_size=8192,
+      parent_pool='data/diffink/iam_ocr_pool_versions/122a428ad0e549aeec9b9f4b67028f48ac6470123234505cd25ac191b041bd0e')
+```
+Launch after immutable Volume upload:
+`venv/bin/modal run modal_ocr_pool_expansion.py --train --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9 --steps 6000`. No train/hash allocates no GPU.
+A first launcher import failed before research/preflight because it imported a
+sibling Modal entrypoint that was not bundled into the container; that app was
+explicitly stopped and launcher made self-contained. It is not a training arm.
+
+Six new regression tests verify unchanged expansion prefix/calibration/eval/
+record/vocabulary contracts, restored moments/LR/RNG with matching next updates,
+parent checkpoint/calibration/LR guards, state fingerprints, and protected
+parent-output paths and self-contained Modal entrypoint imports. Existing evaluation regression now also verifies that
+posterior evaluation preserves training RNG.188 tests pass in root and fork.
+
+Completed paired continuation:
+`checkpoints/iam_ocr_pool_expansion/20261007-041949/report/index.html`;
+family latest `checkpoints/iam_ocr_pool_expansion/latest/index.html`.
+Local mirrors under `data/`. Each arm received6000 updates; total steps6000→12000.
+DEV selected control2048 at8000, expanded8192 at12000 (the final expanded step,
+not a convergence claim). Selected-head hashes:
+- control2048: `6ca0ccf2acd99b86bee4b47bd26508f62337dd8cf2b5a02fd475179cd41f817e`.
+- expanded8192: `5de8792405583c7651f83de12ac7300f398fa5b088c5d0570ad00bb9f22b75ed`.
+
+| DEV-selected arm | TRAIN mean CER/exact | DEV mean/posterior CER | report32 mean/posterior CER |
+|---|---|---|---|
+| parent2048/6000 |0.01925% /2036of2048|28.2857% /28.2545%|25.1008% /25.1563%|
+| control2048/8000 |0.00321% /2046of2048|27.7143% /27.7584%|23.3871% /23.5232%|
+| expanded8192/12000 |7.22379% /2606of8192|19.2208% /19.2740%|16.2298% /16.2954%|
+
+Expanded DEV exact4/128, report exact1/32; control1/128 and0/32. CTC DEV
+1.88058→0.90038, report1.58443→0.73870 (control→expanded). Common32 TRAIN
+probe changes0→2.4414% mean /2.4609% posterior CER: expanding the distribution
+also gives up some tiny-pool memorization. Posterior recognition closely tracks
+means; posterior noise is not the primary reader-generalization failure here.
+Train/evaluation loops took132.55s/169.63s, respectively; excludes all-line
+preflight/container startup/CPU gallery, and is not total billed time.
+
+All **8352** unique pool lines pass frozen mean geometry/pen gates (8192+128+32;
+an earlier informal8368 count was an arithmetic typo): mean per-line X/Y RMSE
+7.25312e-6/5.70495e-6, mean-per-line turn p90.04101°, maximum packed XY
+roundoff8.29697e-5; every pen boundary/final EOC correct, no internal EOC.
+Entire source codec tensors and source file hash stay unchanged after both arms.
+There is no before/after geometry intervention: one protected reconstruction is
+shared by both heads. CPU reload covers192 eval/probe lines, not8192 TRAIN.
+
+The first CPU report stopped at an over-strict equality assertion comparing
+complete baseline metric dictionaries. Both baseline branches have IDENTICAL
+mean/posterior decoded records on all2208 parent-pool lines. Different masked
+mean evaluation batch shapes produce only FP32 CTC roundoff (max per-line
+4.76837e-7). The reporter now permits1e-5 absolute CTC roundoff, but still
+requires exact mean/posterior decode records and full parent ID retention;
+a regression verifies that changed transcripts/draws cannot pass this guard.
+No GPU training was rerun for this report-only fix. Failed launcher/CPU report
+logs are preserved outside completed arms. As-run config/checkpoints/snapshots
+are immutable: their inherited legacy `initial_head_tensor_sha256` still refers
+to the parent's fresh initialization. The authoritative continuation digest is
+`initial_state.head_tensor_sha256`, paired across arms together with optimizer
+and RNG digests. Future runner explicitly overwrites the legacy field and adds
+parent-fresh digest/seed-policy metadata rather than rewriting historical files.
+
+Interpretation: more TRAIN supervision helps beyond another6000 steps of
+memorizing2048 (8.49 percentage points better DEV,7.16 better report32 against
+matched continuation control). It does NOT solve recognition:19% unseen-writer
+CER and7% TRAIN CER remain, and the final expanded step was still improving.
+Do not release faithful geometry to this reader. Next sensible experiment is
+bounded convergence/reader optimization on the fixed8192 pool before increasing
+corpus again or claiming a semantic/generative latent. No joint codec/CTC/KL/
+style/InkDiT training is promoted. The report preserves all128 DEV/32 report
+marker-free panels/transcripts, mean/posterior metrics, learning curves, paired
+line-error changes and predeclared CTC frame-slack diagnostics (index frames,
+not physical duration).189 root/fork tests pass.
+
+CPU reload: all192 eval/probe mean decoded records agree with the selected GPU
+checkpoints in both arms (zero differences). Against control, expanded improves
+108/128 DEV lines, ties13, worsens7; report32 improves25, ties5, worsens2.
+Against the old parent, it improves112/128 DEV (two worse) and28/32 report
+(one worse). All32 report panels plus DEV pages1/6/11/16 (32 varied DEV lines)
+were visually inspected: shared source curves remain indistinguishable from
+IAM/RDP at gallery scale; authentic sharp hooks/polygonality are not smoothed.
+OCR improves visibly but still misreads names, case, spaces and individual
+letters, even on visually straightforward lines. All160 panels are preserved.
+
+Exploratory compression-slack result: for expanded DEV,18 lines with
+`(ceil(points/8)-CTC_required)/characters≤.25` have29.15% CER;66 with margin>.5
+have14.81%. These are nonuniform index-frame margins, not physical time.
+This is a correlation confounded by text/length/writer difficulty, NOT proof
+that the8× bottleneck destroys geometry (transport geometry is faithful).
+If longer reader training plateaus, a controlled OCR-only temporal-resolution
+ablation is justified; don't change the protected codec based on this alone.
+All Modal GPU/CPU apps are stopped after artifact publication.

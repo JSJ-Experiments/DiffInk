@@ -1193,3 +1193,25 @@ a generative latent proof. The frozen codec's earlier geometry training had
 prompt overlap with original32. Research heads remain standalone with explicit
 polyphase feature contracts; no joint VAE/DiT launch. Next useful test is more
 TRAIN-only supervision, not further tiny-set memorization or releasing geometry.
+
+### Paired OCR continuation:2048→8192 — 2026-10-07
+
+Same selected2048 head/Adam moments/counters/RNG/calibration,6000 additional
+T4 updates per arm. Continuing2048 yields DEV27.71%/report32 23.39% CER;
+expanding TRAIN to8192 yields19.22%/16.23%. Parent baseline28.29%/25.10%.
+DEV-only selection: control step8000, expanded12000; final expanded step is
+still learning (TRAIN7.22%), so this is not convergence or a dependable teacher.
+Posterior20-draw CER19.27%/16.30% closely matches means. Same186 writers,
+fixed81 characters, pinned calibration192, DEV128/report32 IDs and every parent
+payload; train/form/transcript/test-writer guards retained. Whole codec stays
+bitwise unchanged. All8352 observed means pass fidelity gates (X/Y RMSE
+7.25e-6/5.70e-6; turn p90.041°; perfect pen/EOC). No new spikes or smoothing.
+
+Report: `checkpoints/iam_ocr_pool_expansion/20261007-041949/report/index.html`
+(local `data/` mirror), all160 eval panels with before/control/expanded OCR
+captions; trajectory is shared and intentionally identical.189 tests pass.
+See `docs/CONDITIONING_STUDY.md` for exact configs/hashes, CPU reload scope,
+FP32 baseline-loss tolerance/regression and historical metadata clarification.
+Next: bounded reader convergence on the fixed larger pool, keeping geometry
+locked. No unrestricted joint VAE/OCR/KL/style/InkDiT; no paper reproduction or
+independent-pretraining benchmark claim.
