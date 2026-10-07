@@ -2940,3 +2940,247 @@ whitening/DDIM,CPUclock/resource attribution,phase/sustained/gap guards,noGPU,
 ambiguous hostGPUs,memoryspikes,nonfatal sampler/storage failure,shutdown,
 exact vectorized raggedcollation,polyphase contract guards,true-stroke/padding
 exclusion and matching rather than indiscriminate smoothing.
+
+## Preregistered conditioning/denoising/sampling isolation (2026-10-07)
+
+Pause resource tuning; keep telemetry only. Initial CPU no-training check on
+first8fixed TRAIN,actual saved GPUepsilon9142,step10000C model: direct zero-input
+X/Y/segmentRMSE0.1060/0.01261/0.05709; terminalone-pass0.11285/0.01575/0.06526;
+DDIM2≈0.07988/0.00808/0.04918; DDIM10/50/100all≈0.0800/0.00815/0.04924.
+This preliminary latent-field geometry proxy suggests sampling-step count is
+NOT the main jaggedness cause; iterative cleanup improves the terminal estimate.
+Full frozen-codec/reader probe on all40/twoGPUnoise seeds follows.
+
+Three matched4000update continuations from Cstep10000 checkpoint
+`iam_generation_refinement/20261007-160458/physical_xy_segments/checkpoint-last.pt`
+SHA`011adfc6050ee22677db31023183d913b9632c53d392674967054a1ac3959db4`:
+A uniform original cosine denoising; B pureGaussian input,t999,one-pass regression;
+C zeros,t999,deterministic text+oracle-duration regression. Same128×4architecture,
+same384-channel targets/source32TRAIN/wholeform8held,full frozen codec/reader,
+whitening,Adam moments/LR1e-4,exact schedule offset10000,identical inheritedGPU
+RNG (epsilon/t/drop draws consumed by all arms),batch8,textdrop10%,noaugmentation.
+Only modelinput/time distribution differs. B has NO tinyalpha999target signal;
+C sees neither target nor noise. Native readouts A=DDIM50,B=terminal,C=zero.
+Same inherited physicalXY/targetsegment auxiliary coefficients,not recalibrated.
+No decoder/codec/reader training; no KL/CTC/style/incidental architecture change.
+
+Per-arm900s TRAIN safety cap,4000updates; evaluate0/2000/4000 all40,zero/terminal/
+DDIM50 plus nativeNULL/swapped text,matched seeds9142/9143. Source-only probe
+addsDDIM2/10/100. Preserve genuine predictedEOC stop AND oracle-window scores,
+predictedpenstates,localgeometry,alltrajectories/GPUepsilon packedHDF5. TRAIN/native
+XRMSE+YRMSE+.25segmentRMSE+.1(1-minpenF1)selects; never heldCER. Directzero's two
+seed labels are repeatedevaluations,NOTindependentdraws. Oracle duration remains
+identity-leakage caveat; heldprompts are generator-unseen but reader-familiar.
+No production/paper-promotion claim. If B/C get clean TRAIN while A doesn't,
+conditioning/representation works and trainingdistribution is implicated. If
+allremainpoor,look at conditional mapping/optimization,not more sampling steps.
+
+## Evidence-driven follow-up: NULL-loss interference
+
+First three4000update arms ended with nativeTRAINCER19.23%(uniform),26.55%
+(terminal),17.84%(direct),versus sourceDDIM24.68%. Direct alone is not a cure;
+heldnativeCER85.60/82.51/83.13% still fails. AllTRAINpenF1perfect. No sampler-
+count optimization,architecture change or production promotion follows.
+
+Exact CUDA RNG replay from the parent matches62periodic snapshots,allbatchIDs;
+first provisional replay captured3999directrows while finalrowstillbuffered.
+It is preserved,not overwritten. A complete final replay will verify4000rows.
+With10%per-exampletextdrop,~56.6%batch8updates containNULLexamples. Direct
+NULL-containing batches had meanwhitenedloss0.00606 versus0.00006045(~100×),
+gradnorm0.01943 versus0.00344(~5.65×). Uniform and terminal show similar stronger
+NULL-associated gradients. This is correlation,NOTcausalproof of interference.
+
+Preregistertwo matched4000update direct-zero continuations from direct14000
+SHA`561a96b6e0646fd25500b92a6f71925c82e961ab2e3885da9ea4af5c09f6774e`:
+textdrop10%control versus0%intervention. Identical model/Adam/RNG/dataset/oracle
+length/sourcecodec/reader/whitening/LR1e-4/batch8/XY+segmentweights,zeros/t999.
+Consume identicalGaussian/t/randomdropdraws even when applieddropmask iszero;
+logdrawn andappliedNULLcounts. Exactscheduleoffset14000,TRAINonlyselector,
+900sTRAINcap,eval0/2000/4000correct/NULL/swappedtext onall40. drop0NULLreadout
+is untrained/OOD,NOTa valid unconditionalgenerator metric. This is a capacity/
+optimization diagnostic,not abandoningCFG in a future generative model.
+
+## Completed conditioning-path and text-dropout studies (2026-10-07)
+
+**Decision:** keep resource telemetry, but prioritize generation fidelity rather
+than more CPU/GPU-utilization tuning. Two bounded T4 studies completed. The
+largest measured improvement came from conditional-training behavior, not
+additional sampling steps. This is a tiny-set mechanics result, not usable
+unseen-text generation or reproduction of the paper.
+
+### Contracts and provenance
+
+- Path study: `checkpoints/iam_generation_path/20261007-163247/`.
+- Dropout study: `checkpoints/iam_generation_null/20261007-164542/`.
+- Each has `report/index.html`, marker-free galleries for all 32 TRAIN and eight
+  whole-form-held lines, `report/summary.json`, packed evaluation HDF5, initial/
+  best/last checkpoints, optimizer/RNG states, logs and immutable source snapshots.
+- Frozen codec: `iam_codec_kl_study/20261007-012331/pen_bias_kl1e-6/checkpoint-best.pt`,
+  SHA `9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625`.
+  This is initialized **polyphase40 transport**, not a learned semantic InkVAE:
+  the first 40 of 384 channels pack eight XY/pen points. Do not describe these
+  experiments as fixing the original InkVAE or released InkDiT architecture.
+- Frozen evaluation-only recurrent reader:
+  `iam_ocr_recurrent_study/20261007-100011/bigru/head-best.pt`,
+  SHA `2ebac71d897920233c8399a38e1f16fce24075cfa722c7d8e588ab14e564100e`.
+  Source trajectories read perfectly; reader is corpus-familiar, not an
+  independent unseen-corpus OCR benchmark.
+- Writer 10160; 32 TRAIN lines, all eight lines of form g09-301 held out.
+  Transcript/form splits disjoint; no unseen characters. Oracle duration
+  `ceil(N/8)` is supplied, not predicted: 16 distinct TRAIN durations, six
+  singleton lines can leak identity. No target/reference trajectory at inference.
+- Standalone native-PyTorch prototype: four blocks, width 128, four heads,
+  FF expansion 4, dropout zero; all 384 whitened latent-mean channels modeled.
+  Whitening uses TRAIN only with std floor 0.1. No codec/reader training,
+  KL, CTC, style, rotation, architecture or preprocessing changes.
+- Genuine predicted pen states and first-EOC stopping used in renders/CER;
+  oracle-window CER is also saved. Geometry compares full aligned valid points,
+  separately from free-stop CER. Held-trajectory mismatch is not itself a
+  definitive generation failure: valid writing is nonunique; reader and visual
+  failure are the important evidence here.
+
+### Study 1: conditioning versus terminal denoising versus sampling
+
+Three matched 4,000-update continuations from step 10,000
+`iam_generation_refinement/20261007-160458/physical_xy_segments/checkpoint-last.pt`,
+SHA `011adfc6050ee22677db31023183d913b9632c53d392674967054a1ac3959db4`:
+
+- **uniform:** original random-t cosine denoising, native DDIM50.
+- **terminal:** exactly pure Gaussian input at t=999, native one-pass prediction;
+  no residual `sqrt(alpha999)*target` contamination.
+- **direct:** zero input at t=999, native deterministic text/duration regression.
+
+Identical parent weights/Adam/RNG, batch 8, LR 1e-4, AdamW betas 0.9/0.99,
+weight decay 0.01, clip 1, text dropout 10%, schedule seed 5142 offset 10000.
+All consume identical epsilon/t/drop random draws, including unused draws.
+Inherited auxiliary coefficients unchanged: physical XY 0.0018135135257448293,
+within-target-stroke first-difference 0.004050897768969159. These were calibrated
+previously by model-gradient magnitudes, not a generic smoothing penalty.
+900-second TRAIN cap per arm; all reached 4,000 updates in 91.5–94.5 seconds of
+training-loop time. Evaluate 0/2000/4000; native TRAIN-only checkpoint score:
+`XRMSE + YRMSE + .25*segment_vector_RMSE + .1*(1-min_pen_F1)`.
+
+Full no-training source readout sweep, TRAIN32 × two saved GPU-noise seeds:
+
+| Readout | CER | X RMSE | Y RMSE | segment-vector RMSE |
+|---|---:|---:|---:|---:|
+| DDIM2 | 24.145% | .079514 | .007996 | .048977 |
+| DDIM10 | 24.679% | .079445 | .008070 | .049049 |
+| DDIM50 | 24.679% | .079459 | .008069 | .049041 |
+| DDIM100 | 24.679% | .079458 | .008066 | .049041 |
+| terminal one-pass | 36.325% | .111516 | .016031 | .064898 |
+| zero one-pass | 29.487% | .099045 | .012124 | .056528 |
+
+More DDIM steps are **not the dominant source-model limitation**. Iterative
+cleanup helps compared with the terminal estimate, but 2–100 steps are nearly
+identical in geometric error. This does not prove every future sampler behaves
+this way.
+
+Final, matched-budget native results (not a mixture of best-selected steps):
+
+| Arm | TRAIN CER | X RMSE | Y RMSE | segment RMSE | second-diff RMSE | tangent p90 mean | held CER |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| uniform | 19.231% | .066387 | .007878 | .043697 | .058174 | 81.77° | 85.597% |
+| terminal | 26.549% | .090801 | .011861 | .054198 | .074962 | 96.25° | 82.510% |
+| direct | 17.842% | .069871 | .006671 | .043414 | .058516 | 85.50° | 83.128% |
+
+All TRAIN pen F1=1, no false EOC. Direct-only regression is not a cure. Native
+TRAIN selection picked step 4000 for uniform/terminal and 2000 for direct. The
+next study deliberately branches from **direct last step 14000**, not its
+best-selected step 12000, keeping a fixed-budget parent explicit.
+Independent CPU native reload (two TRAIN/two held per arm) max XY difference
+2.6703e-5, zero pen/transcript discrepancies. Exact saved sampler epsilon,
+paired minibatches/RNG and unchanged codec/reader checks pass.
+
+### Diagnostic: NULL-associated losses
+
+Exact CUDA dropout-draw replay matches all 4,000 minibatches and 63 periodic
+RNG snapshots across the three arms. With per-example text dropout 10%, 2,262
+of 4,000 batch-8 updates (56.55%) contain at least one NULL example. Direct arm:
+
+| Batch group | whitened MSE | raw gradient norm |
+|---|---:|---:|
+| no NULL | .000060455 | .0034377 |
+| contains NULL | .00606026 | .0194292 |
+
+NULL-containing batches have ~100× loss and ~5.65× gradient norm. This is
+**association**, not direct measurement of conflicting gradient directions.
+Provisional `diagnostics/dropout-replay.json` captured 3999 direct rows while
+its final log row was buffered. It is preserved. Complete replay is a new
+`diagnostics/dropout-replay-final.json`, also copied to the second study's
+`dropout-replay.json`; no completed diagnostic was silently replaced.
+
+### Study 2: matched text-dropout ablation
+
+Two 4,000-update continuations from identical direct step-14000 checkpoint:
+`iam_generation_path/20261007-163247/direct/checkpoint-last.pt`,
+SHA `561a96b6e0646fd25500b92a6f71925c82e961ab2e3885da9ea4af5c09f6774e`.
+
+**drop10:** 10% applied text dropout. **drop0:** no applied text dropout. All
+other settings above fixed, schedule offset 14000. Both consume the same
+Gaussian/t/random-drop draws; applied mask is the intervention. Drawn/applied
+NULL counts logged at every update. Both reached budget in ~100 seconds of
+training-loop time; evaluation at 0/2000/4000. TRAIN-only selector picks 2000
+for drop10, 4000 for drop0. Below compares **final step 4000 for both**:
+
+| Metric | drop10 | drop0 |
+|---|---:|---:|
+| TRAIN CER | 14.103% | **0.962%** |
+| exact transcripts, unique lines | 0/32 | **25/32** |
+| X RMSE | .066220 | **.025967** |
+| Y RMSE | .006617 | **.001492** |
+| target segment-vector RMSE | .039003 | **.024845** |
+| target second-difference RMSE | .051446 | **.033799** |
+| tangent-angle p90 mean | 74.19° | **45.76°** |
+| turn-angle p90 mean | 99.45° | **67.15°** |
+| true-corner turn-angle p90 mean | 131.98° | **107.21°** |
+| minimum TRAIN pen F1 | 1 | 1 |
+| non-final false EOC, TRAIN | 0 | 0 |
+| held-form CER | 81.893% | **81.481%** |
+
+Relative to control, X error improves 60.8%, Y 77.4%, segment 36.3%, second
+index difference 34.3%; CER improves 13.14 percentage points (93.2% relative).
+Angles are **means of per-line p90s**, not pooled p90s. Index differences of
+nonuniform RDP points are not physical velocity or geometric curvature.
+Direct zero-input seed9142/9143 evaluations are duplicates, not independent
+stochastic trials: offline validation confirms bit-identical XY/pen/latents
+for **both** arms, all 40 lines, correct/NULL/swapped text conditions.
+Independent CPU reload max XY drift 2.7180e-5, no pen/transcript differences.
+
+All 32 TRAIN and eight held seed9142 marker-free images manually reviewed.
+TRAIN letters/words are visibly more coherent and rounded, with fewer zigzags.
+However, local `f`/`r` bends, tiny hooks/corners and punctuation/end strokes
+still distort. **Not visually lossless.** Held text still largely scribbles.
+CER near zero is not evidence of exact geometric reconstruction.
+
+**Causal scope:** removing dropout changes BOTH NULL supervision and conditioned
+exposure (expected 11.1% more conditioned examples), so pure harmful-gradient
+interference is not conclusively isolated. An equal-conditioned-exposure or
+masked-NULL-loss arm would separate mechanisms. No claim that CFG/text dropout
+must universally be removed; drop0's NULL readout is untrained/OOD, not a useful
+unconditional generator. Zero-input deterministic prediction also averages
+away noise; it is a capacity control, not a stochastic diffusion replacement.
+
+### Engineering closure and next decision
+
+381 tests pass in both root and fork (18 new). New coverage: target/noise leakage
+exclusion, exact pure-terminal input, eval guards, TRAIN-only native selection,
+bounded budgets, paired minibatch/RNG/frozen/checkpoint checks, deterministic
+zero generation remains text-sensitive, two-arm reporting, NULL diagnostic
+grouping and unknown/missing group handling. All four study GPU/CPU apps stopped
+with zero tasks. No ongoing GPU spend or further utilization changes.
+
+As-run runners/helpers/model bytes match reviewed code. The first report used
+reporter v1; second report used generalized two/three-arm v2. Each has its own
+immutable `report/report-source.py`; do not rerender the first merely to match
+the newer reporter. Engineering-review provenance records these hashes.
+
+**Next priority:** preserve no-drop deterministic baseline as a mechanics control;
+investigate broader text coverage/compositional conditioning and unseen text,
+then return deliberately to stochastic diffusion/balanced NULL supervision.
+Do not spend another run just polishing the same 32 TRAIN lines, enable codec
+KL/OCR/style incidentally, or declare generation ready based on memorization.
+
+Launcher-only closure hygiene: corrected copied module descriptions and the
+NULL launcher's no-GPU help text (two dropout arms, not three denoising arms).
+As-run launchers archived in engineering-review; no training semantics changed.
