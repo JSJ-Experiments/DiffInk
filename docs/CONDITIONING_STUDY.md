@@ -643,3 +643,179 @@ Recovered with cached checkpoint-SHA-matched CPU checks and all-line MEAN
 galleries; failed/control arms retain all20 posterior metrics/trajectory files,
 without needlessly rendering hundreds of broken posterior images. The protected
 report includes every line's median/worst posterior images. No GPU retraining.
+
+## Initialized codec: matched KL continuations (2026-10-07)
+
+Continued the pinned protected step200 checkpoint, SHA
+`5ba90c388946e7a19693b8cb578c0218686ddb0637eebcecb36c5705d68ae948`.
+**No geometry reset and no fresh optimizer.** Three sequential T4 arms, each200
+further updates (absolute step400), restore the same AdamW moments/group order,
+CPU/CUDA RNG and seed42 training schedule after skipping its first200 batches.
+Same192 train/32 held-out lines, physical1/accum8, body LR1e-7, posterior LR1e-3,
+readout/OCR/style frozen, betas.9/.99, wd0, clip5, dropout/rotation0, scale.01.
+Objective unchanged except KL: mean expected-XY point + .2047183874 target index
+first-difference matching + .1 sampled geometry + .0209904994 bounded focal pen;
+KL0/1e-6/1e-5. GMM/CTC/style OFF. No generic smoothing. Held-out data never changes
+training, stopping or checkpoint selection; original8 retention remains separate.
+These are initialized engineering transport latents, NOT paper reproduction.
+
+Capture-safe optional KL averages valid latent channel×time ELEMENTS, matching
+`VAE.kl_divergence_new`. Invalid padding is selected BEFORE square/exp so NaNs
+cannot affect value or gradient. The default KL0 three-term path is preserved.
+GPU preflight compares eager core-KL gradients to captured gradients with fixed
+noise on all original8: relative gradient L2 ≤1.52e-7, max term difference0,
+max core-KL difference1.20e-7. Capturing performs no updates; initial states are
+bitwise source-equal. Actual logged training IDs are identical across arms.
+Fixed all224-line evaluation at0/100/200 uses mean +20 paired posterior draws;
+as-run code, checkpoints, metrics and trajectories are retained.
+
+Final endpoints, **not** whichever best checkpoint hides a regression:
+
+| KL / group | Mean X/Y RMSE | Mean turn p90 | Sampled X/Y RMSE | Sampled turn p90 |
+|---|---|---|---|---|
+| source200 / train192 | .000005405 / .000004392 | .03036° | .0006082 / .0006085 | 3.459° |
+| 0 / train192 | .000006579 / .000005449 | .03769° | .0004447 / .0004452 | 2.349° |
+| 1e-6 / train192 | .000010223 / .000005886 | .03470° | .0005810 / .0005801 | 3.388° |
+| 1e-5 / train192 | .000012212 / .000016893 | .07333° | .0012752 / .0012763 | 8.347° |
+| 0 / held32 | .000006459 / .000005417 | .03766° | .0004482 / .0004495 | 2.319° |
+| 1e-6 / held32 | .000010070 / .000005820 | .03464° | .0005859 / .0005857 | 3.353° |
+| 1e-5 / held32 | .000011771 / .000016828 | .07059° | .0012811 / .0012821 | 8.271° |
+
+All224 MEANS have perfect pen boundaries in every arm. KL0 also has perfect
+boundaries/final EOC on all4480 posterior draws. KL1e-6 final200 has3 false internal
+EOCs despite perfect pen-up F1; its selected100 checkpoint has ZERO training EOC
+errors and perfect train sampled pens. KL1e-5 has6 failing draws:
+one false pen-up plus FIVE false internal EOCs across `e10-546z-02`, `k08-779z-03`,
+`n04-290z-03`; all final EOCs remain correct. Pen-up F1 alone would miss five of
+these failures. Training minimum sampled F1 .98734; all held-out pens are correct.
+No updates hit clipping (0/600). Per-arm loop/evaluation times~98 seconds exclude
+capture/preparation. Train-only selected steps: KL0=200, KL1e-6=100, KL1e-5=0.
+No automatic model promotion; report always shows final200.
+
+The KL trade-off is real, not a free geometric improvement. Train mean per-line
+KL/element source1.12347 → KL0 1.15425 / KL1e-6 1.03952 / KL1e-5 .97661.
+At1e-6, ~94.5% of the KL reduction relative to source comes from pen-field uncertainty:
+pen contribution .36764→.28835, XY contribution .75582→.75116. XY latent mean RMS
+barely changes4.41275→4.41202. Pen std median .002→.00775; XY std median
+.000347→.000378; unused median std stays near1. At1e-5, XY std median .001266,
+pen .009311; lower prior loss costs noisier local curves and rare false stops.
+Median std alone can hide tails; the CPU-only posterior-tail audit records each
+failed point's routed pen std and every line's p90/p99/max. This route diagnostic
+is NOT an exact propagated decoder variance or a causal intervention.
+
+**Decision:**full-affine1e-6 is clean at100 but fails the strict EOC gate at200,
+and is not a geometry winner:
+its sampled XY errors are ~31% higher than the matched KL0 continuation, although
+slightly lower than source and tiny at normal rendering scale. That does NOT
+excuse false internal stops. Do not choose1e-5
+just for its lower KL. The unchanged coordinate mean distribution is NOT N(0,I),
+and semantic/generation quality is not established. DiT can learn a nonstandard
+latent distribution—N(0,I) is not a mandatory readiness condition here. Frozen
+OCR transfer CER remains~78–79%; no semantic-supervision success is claimed.
+After a clean posterior endpoint is established, refit OCR on the frozen codec first,
+then a separately controlled joint update, rather than another smoothing loss.
+
+Artifact root `checkpoints/iam_codec_kl_study/20261007-010118/`:
+`report/index.html`, `report/user-regions.png`, all224 marker-free mean comparisons,
+original8 median/worst posterior galleries, each arm's `eval-{0,100,200}.json`,
+`posterior-{0,100,200}.json`, checkpoints/config/source-code/metrics/provenance,
+CPU reload checks, and `posterior-tail-audit.json` plus failed-draw galleries.
+Stable link: `checkpoints/iam_codec_kl_study/latest/index.html`.
+Final checkpoint hashes:
+- KL0: `038e8ffd2b6763bb062a8e063c690665a4ce108ee3f5fcc3b0642b441d06c0fa`
+- KL1e-6: `f367ab2bbe8158427c4fe0a0e84124a2e9f3a2fb41c6d10063e3d0b7663b31d2`
+- KL1e-5: `3deddfbf55ecf59a567fc729c947aa2993d305305fc1584f35e4b2e64fac77e0`
+
+`modal_codec_kl_study.py --train --steps 200` explicitly allocates one T4 for all
+three sequential arms. No flags/import allocates no GPU. `--report-rel ...` and
+`--tails-rel ...` are CPU-only. An initial launcher dependency-import failure
+occurred before any training; that app was stopped, the launcher made standalone,
+and the successful bounded run completed. No failed/crash-looping app is left.
+Tests cover KL values/gradients/NaN padding/sequence normalization, unchanged
+optional/default losses, exact restored Adam moments and next displacement,
+reordered-group rejection, continued schedule, posterior statistic accounting/RNG,
+polyphase point-field indexing, strict EOC eligibility independent of F1, and
+frozen posterior rows under restored Adam momentum. Root/fork147 tests pass.
+
+### Follow-up: freeze feature-dependent pen variance, not pen variance learning
+
+The tail audit made the failure local and interpretable: all9 failed points in
+the two full-affine KL arms occur near the end of very wide lines, target X
+18.31–19.36 and92.6–98.7% of point indices. Full KL1e-6 pen std median .00775
+hides a MAXIMUM .37870; full1e-5 maximum .42545. This is a posterior-noise/stop
+problem, NOT an explanation of the earlier mean-trajectory underfitting/jaggedness.
+Routed pen std at failed points is .08–.41, despite nearly exact coordinate means.
+This supports a high-leverage absolute-X logvar hypothesis; it is not alone proof
+of a propagated-output variance formula. No generic smoothing or sigma cap added.
+
+Controlled T4 follow-up `20261007-012331/pen_bias_kl1e-6`,200 further updates from
+the SAME protected200 source/Adam/data/RNG/schedule as full-affine KL1e-6. The only
+policy change is freezing the24 pen-field FEATURE-WEIGHT rows of `conv_logvar`
+(first40 channels whose channel%5≥2). Their biases, XY/unused posterior weights,
+and original body optimizer remain trainable. Gradient masks alone would not
+freeze restored Adam momentum: those rows' moments are explicitly zeroed as well.
+Weight decay0; final protected rows must be bitwise source-equal. This is a
+checkpoint-compatible optimization policy, NOT a decoder architecture change,
+blanket smoothing, forced EOC rule or removal of KL. As-run settings record this
+intentional subset moment reset; all other optimizer state stays restored.
+
+Final200 training192 mean X/Y RMSE .000009131/.000005911, turn p90 .06111°;
+held32 .000009130/.000005930, turn .06013°. Sampled train X/Y .0005792/.0005800,
+turn3.3885°; held .0005842/.0005856, turn3.3525°. These are essentially unchanged
+from full-affine KL1e-6 sampling geometry, but **all224 means +4480 posterior draws
+have perfect pen boundaries/final EOC and ZERO internal EOCs**. Thus feature-
+dependent pen variance contributes to the newly observed rare false stops.
+Pen std median now .00202274 (vs.00775242 full-affine); corrected KL1.11813
+(vs1.03952 full-affine) demonstrates why the apparently better prior loss was
+misleading. XY mean RMS4.41269, no meaningful coordinate prior whitening.
+Train-only selected continuation100. Selected SHA
+`9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625`;
+final SHA `f85d7b97144eba1e0041d157666d6ba4c23cfbca6b0c66ab57c162f111d00dfd`.
+
+Checkpoint eligibility now explicitly requires training mean/sampled pen F1=1,
+all final EOCs correct and zero internal EOCs, independently of pen-up F1 and
+before train-score comparison. Held-out metrics cannot select a checkpoint.
+The earlier as-run selection used train_score alone; its full1e-6 selected100
+happens to be clean, but final200 is not. That distinction remains visible.
+
+Run `modal_codec_kl_study.py --train --steps 200 --protected-pen` to reproduce the
+single follow-up; original command still runs the three full-affine arms. These
+policies are not silently installed in production training. Report includes all
+224 means, named c/h, original8 posterior median/worst, and ALL former full1e-6
+failed draws replayed with IDENTICAL evaluation noise. Numerical paired data and
+source configs remain in both immutable dated roots. Refit OCR on the frozen
+codec next; do not infer semantic/text-generation readiness from this success.
+
+Independent final CPU reload checks all224 lines: maximum CPU/GPU XY difference
+KL0=1.34e-5, full1e-6=1.91e-5, full1e-5=1.53e-5, protected-pen=1.15e-5; zero pen
+changes. Readout/OCR/style/source and protected pen variance-weight rows are
+bitwise unchanged where required. Protected max routed pen std .00202275, versus
+.37870 in the matched full-affine1e-6 control. All three formerly failed1e-6 draws
+are repaired under the identical evaluation noise; no new failed draws observed.
+Visually inspected original8 all-mean panel, named c/h crops, both held-out32
+pages, named worst-posterior renders and paired false-EOC crops. At normal report
+scale the protected output is visually faithful; extreme-zoom IAM/RDP polygonality
+is retained, not artificially smoothed. Mean local index first-/second-difference
+and spatial-angle metrics remain in every evaluation/report, not RMSE alone.
+Reconstruction/pen gate passes for this protected engineering codec. Ready for a
+FROZEN-codec OCR refit, not unconstrained joint/readout training or a DiT claim.
+
+The protected report is `checkpoints/iam_codec_kl_study/20261007-012331/report/index.html`,
+with the original full-affine comparison linked separately at
+`.../20261007-010118/report/index.html`; latest points to the protected report.
+Both are downloaded under local `data/checkpoints/iam_codec_kl_study/` as well as
+on the persistent Volume. Follow-up captured gradient relative L2 9.55e-8 and
+core-KL difference1.20e-7. Moment reset maxima are recorded (~2.01e-15/7.07e-29);
+freezing restored moments is still required for EXACT row preservation. All T4
+runs completed and no GPU/research container is left running.
+
+Additional CPU/log check: this initializer sets correct pen logits near20.
+Float32 cross-entropy/focal loss at `[20,0,0]` is numerically0, with zero gradient.
+The KL0 continuation logs pen loss0 on all200 updates; both full-affine KL arms
+also have pen loss0 for their first20 updates, then nonzero losses on77/144 later
+updates. Thus a saturated pen head initially supplies no variance counter-pressure
+while KL raises pen uncertainty. This is specific evidence about the engineered
+readout, not a general claim that focal loss is broken. A lower pen-logit strength
+or calibrated probabilistic pen objective is a plausible ALTERNATIVE, not tested
+here. The feature-weight freeze is a successful controlled safety policy, not
+claimed to be the only correct production fix.

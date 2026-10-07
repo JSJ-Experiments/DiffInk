@@ -4,6 +4,7 @@ No optimizer, no architecture changes, no approximate precision. Explicit noise
 is drawn outside capture, so replay does not freeze the sampled posterior.
 """
 import torch
+import math
 from contextlib import contextmanager
 from torch.nn import functional as F
 from .latent_integration import DELTA_WEIGHT
@@ -27,6 +28,21 @@ def masked_pen(logits, states, mask):
     return (weights[states]*(1-ce.neg().exp()).square()*ce*mask).sum()/mask.sum()
 
 
+def masked_kl(mu, logvar, latent_mask):
+    """Corrected KL per valid latent ELEMENT; rectangular/capture-safe.
+
+    Select BEFORE exp/square, so NaN padding has zero value and zero gradient.
+    Caller requires a nonempty matching latent mask outside CUDA capture.
+    """
+    if mu.shape!=logvar.shape or mu.ndim!=3 or latent_mask.shape!=(mu.shape[0],mu.shape[2]):
+        raise ValueError('matching B,C,T and B,T latent mask required')
+    valid=latent_mask[:,None]
+    selected_mu=torch.where(valid,mu,torch.zeros_like(mu))
+    selected_lv=torch.where(valid,logvar,torch.zeros_like(logvar))
+    kl=-.5*(1+selected_lv-selected_mu.square()-selected_lv.exp())
+    return (kl.sum()/(latent_mask.sum()*mu.shape[1])).clamp(max=1e4)
+
+
 @contextmanager
 def dense_training_decoder(model):
     # PyTorch checks mask left-alignment BEFORE noticing gradients disable the
@@ -41,8 +57,8 @@ def dense_training_decoder(model):
         if previous is not None: transformer.use_nested_tensor = previous
 
 
-def fast_terms(model, raw, mask, epsilon=None):
-    """Geometry/pen only. Unused KL/CTC/style are not computed.
+def fast_terms(model, raw, mask, epsilon=None, include_kl=False):
+    """Geometry/pen only by default. Optional KL is explicit; CTC/style never computed.
 
     Caller validates nonempty finite raw batches outside capture. Rectangular
     masked reductions avoid Boolean indexing/nonzero and scalar CPU reads.
@@ -57,14 +73,18 @@ def fast_terms(model, raw, mask, epsilon=None):
     mean = masked_geometry(mixture_expectation(out), truth, states, mask)
     pen = masked_pen(out[:, :3], states, mask)
     sampled = mean*0
+    lv = model.conv_logvar(features) if epsilon is not None or include_kl else None
     if epsilon is not None:
-        lv = model.conv_logvar(features)
         z = mu+epsilon*(.5*lv).exp()
         with dense_training_decoder(model):
             sampled_out = model.decode(z, padding_mask=~mask)
         sampled = masked_geometry(mixture_expectation(sampled_out), truth, states, mask)
         pen = .5*(pen+masked_pen(sampled_out[:, :3], states, mask))
-    return torch.stack([mean, sampled, pen])
+    values=[mean,sampled,pen]
+    if include_kl:
+        lm=mask.reshape(mask.shape[0],-1,8).any(-1)
+        values.append(masked_kl(mu,lv,lm))
+    return torch.stack(values)
 
 
 class GeometryGraphs:
@@ -74,14 +94,16 @@ class GeometryGraphs:
     zero with set_to_none=False, and clip/update only between effective batches.
     Capture/warmup does not update weights or consume the caller's RNG stream.
     """
-    def __init__(self, model, pen_weight, sampled_weight=.1, max_graphs=80):
+    def __init__(self, model, pen_weight, sampled_weight=.1, max_graphs=80, kl_weight=0.):
         if next(model.parameters()).device.type != 'cuda' or model.training:
             raise ValueError('CUDA eval-mode model required (dropout must stay off)')
-        if max_graphs < 1 or pen_weight < 0 or sampled_weight < 0:
+        if max_graphs < 1 or any(not math.isfinite(w) or w<0 for w in (pen_weight,sampled_weight,kl_weight)):
             raise ValueError('nonnegative bounded loss weights and graph count required')
         self.model, self.cache = model, {}
         self.sampled = sampled_weight > 0
-        self.weights = torch.tensor([1., sampled_weight, pen_weight], device='cuda')
+        self.include_kl=kl_weight>0
+        weights=[1.,sampled_weight,pen_weight]+([kl_weight] if self.include_kl else [])
+        self.weights = torch.tensor(weights, device='cuda')
         self.base_weights = self.weights.clone()
         self.max_graphs = max_graphs
         self.parameters = [p for p in model.parameters() if p.requires_grad]
@@ -109,12 +131,12 @@ class GeometryGraphs:
                 with torch.cuda.stream(stream):
                     for _ in range(3):
                         self.model.zero_grad(set_to_none=False)
-                        (fast_terms(self.model, static_raw, static_mask, epsilon)*self.weights).sum().backward()
+                        (fast_terms(self.model, static_raw, static_mask, epsilon,include_kl=self.include_kl)*self.weights).sum().backward()
                 torch.cuda.current_stream().wait_stream(stream)
                 self.model.zero_grad(set_to_none=False)
                 graph = torch.cuda.CUDAGraph()
                 with torch.cuda.graph(graph):
-                    metrics = fast_terms(self.model, static_raw, static_mask, epsilon)
+                    metrics = fast_terms(self.model, static_raw, static_mask, epsilon,include_kl=self.include_kl)
                     (metrics*self.weights).sum().backward()
             # CUDA graph owns device work; do not keep Python autograd graphs
             # (and their AccumulateGrad stream references) alive between captures.

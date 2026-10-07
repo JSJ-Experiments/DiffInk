@@ -24,6 +24,27 @@ class FastGeometryTests(unittest.TestCase):
             torch.testing.assert_close(a,b,atol=1e-14,rtol=1e-14)
             self.assertTrue(torch.isfinite(b).all());self.assertTrue((b[~m]==0).all())
 
+    def test_capture_safe_kl_matches_core_value_gradient_and_length_normalization(self):
+        from iam_tools.fast_geometry import masked_kl
+        from model.vae import VAE
+        torch.manual_seed(41)
+        mu=torch.randn(2,4,5,dtype=torch.float64,requires_grad=True)
+        lv=torch.randn_like(mu,requires_grad=True)
+        mask=torch.arange(5)[None]<torch.tensor([5,3])[:,None]
+        mu.data[~mask[:,None].expand_as(mu)]=float('nan')
+        lv.data[~mask[:,None].expand_as(lv)]=float('nan')
+        core=VAE.kl_divergence_new(None,mu,lv,mask);fast=masked_kl(mu,lv,mask)
+        torch.testing.assert_close(core,fast,rtol=1e-14,atol=1e-14)
+        a=torch.autograd.grad(core,(mu,lv),retain_graph=True);b=torch.autograd.grad(fast,(mu,lv))
+        for x,y in zip(a,b):
+            torch.testing.assert_close(x,y,rtol=1e-14,atol=1e-14)
+            self.assertTrue(torch.isfinite(y).all())
+            self.assertTrue((y[~mask[:,None].expand_as(y)]==0).all())
+        for length in (2,17):
+            x=torch.full((1,4,length),2.);z=torch.zeros_like(x);m=torch.ones(1,length,dtype=torch.bool)
+            self.assertEqual(float(masked_kl(x,z,m)),2.)
+        with self.assertRaises(ValueError):masked_kl(mu,lv,mask[:,:-1])
+
     def test_pen_matches_focal_value_and_gradients(self):
         for state in ([0,0,1,0,2],[0,0,0,0,2],[0,0,0,0,0]):
             x=torch.randn(1,3,8,dtype=torch.float64,requires_grad=True)
@@ -63,6 +84,15 @@ class FastGeometryTests(unittest.TestCase):
         torch.testing.assert_close(mean[0],reference['point']+DELTA_WEIGHT*reference['delta'])
         torch.testing.assert_close(mean[2],reference['pen'])
         self.assertEqual(float(mean[1].detach()),0.)
+        optional=fast_terms(model,raw,mask,noise,include_kl=True)
+        features=model.encoder(raw);mu=model.conv_mu(features);lv=model.conv_logvar(features)
+        from model.vae import VAE
+        expected_kl=VAE.kl_divergence_new(model,mu,lv,mask.reshape(1,-1,8).any(-1))
+        torch.testing.assert_close(optional[:3],b)
+        torch.testing.assert_close(optional[-1],expected_kl)
+        optional_mean=fast_terms(model,raw,mask,include_kl=True)
+        torch.testing.assert_close(optional_mean[-1],expected_kl)
+        self.assertEqual(len(b),3)  # Default retains the original no-KL path.
         with self.assertRaises(ValueError):GeometryGraphs(model,.01)
 
     def test_parallel_metrics_equal_serial_including_real_corners(self):

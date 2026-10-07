@@ -447,3 +447,29 @@ perfect pen boundaries. CPU reload/source/frozen-head checks pass. Explicitly
 reinitialized engineering codec, NOT original learned-VAE/paper reproduction or
 semantic/generative readiness. Original input RDP corners are retained, no smoothing.
 Full configs, limitations, SHA and report links: [CONDITIONING_STUDY.md](CONDITIONING_STUDY.md).
+
+## Matched initialized-codec KL continuations (2026-10-07)
+
+Same protected200 source/Adam moments/RNG/training schedule; three200-update T4
+continuations differ only in KL0/1e-6/1e-5. Optional captured KL matches corrected
+core per-valid-element KL values and gradients; default geometry path unchanged.
+All224 mean curves/pens remain faithful. Full-affine
+KL1e-6 final200 has3 false internal EOCs despite perfect pen-up F1 (selected100
+is clean), and costs~31% more sampled XY error than matched KL0. Most prior
+loss reduction comes from pen uncertainty, not coordinate latent mean whitening.
+KL1e-5 adds more posterior jitter and6 failing draws (including5 false internal
+EOCs), despite perfect MEAN pens and lower KL. Not promoted. No OCR/style/GMM,
+no claim of paper reproduction, semantic latent quality or tested generation.
+A diffusion model does not inherently require an N(0,I) latent distribution.
+See CONDITIONING_STUDY.md and `checkpoints/iam_codec_kl_study/latest/index.html`.
+Root/fork147 tests cover optional KL, padding gradients, restored continuation,
+explicit EOC eligibility and momentum-safe posterior row freezing.
+
+The matched `20261007-012331` KL1e-6 follow-up freezes only24 pen-logvar feature
+weight rows (and zeroes their restored Adam moments), retaining bias learning.
+All4480 draws now have zero false internal EOCs and perfect pen boundaries, with
+essentially unchanged sampling geometry. Full-affine pen std had long-line tails
+up to .38–.43, hidden by tiny medians; prior loss improved largely by increasing
+pen uncertainty. Mandatory train-only EOC eligibility now prevents such endpoints
+from winning on pen-up F1 alone. This is a new posterior stop-error mechanism,
+not a retroactive explanation of the old latent-MEAN jaggedness.

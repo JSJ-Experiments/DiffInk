@@ -1096,3 +1096,25 @@ Volume overview: `checkpoints/iam_initialization_study/research-summary/index.ht
 All-line report: `checkpoints/iam_initialization_study/20261006-170142/report/index.html`.
 Selected checkpoint: `.../protected_noise/checkpoint-best.pt` (SHA5ba90c38…).
 Guarded launcher `modal_initialization_study.py`;139 regression tests pass.
+
+## Initialized-codec KL compatibility study (2026-10-07)
+
+Matched200-update T4 continuations restore the same protected source/Adam/RNG.
+All arms preserve near-lossless mean curves; only KL0 has perfect final posterior
+pens. KL1e-6 final200 has3 internal EOCs (selected100 is clean); KL1e-5 has noisier
+posterior curves and6 faulty draws, including5 internal EOCs.
+Small KL1e-6 lowers prior loss but is NOT a reconstruction improvement over KL0:
+most reduction is increased pen-field uncertainty, not a more Gaussian coordinate
+mean distribution. OCR/style/GMM stay off; generation remains untested.
+
+Volume report: `checkpoints/iam_codec_kl_study/latest/index.html`.
+Dated artifacts: `checkpoints/iam_codec_kl_study/20261007-010118/`.
+See `CONDITIONING_STUDY.md` for exact configurations, metrics, caveats and hashes.
+Opt-in `modal_codec_kl_study.py --train --steps 200`; CPU-only `--report-rel ...`
+/ `--tails-rel ...`.147 tests pass; no core architecture/production-default change.
+
+Follow-up `20261007-012331`: freeze only feature-dependent pen-logvar weight rows,
+retain bias learning and KL1e-6. All4480 sampled pens/stops are now correct, with
+near-lossless mean curves and unchanged sampled XY fidelity. Strict checkpoint
+eligibility now catches internal EOCs even when pen-up F1=1. Reproduce with
+`--train --steps 200 --protected-pen`; see the stable latest report above.
