@@ -473,3 +473,29 @@ up to .38–.43, hidden by tiny medians; prior loss improved largely by increasi
 pen uncertainty. Mandatory train-only EOC eligibility now prevents such endpoints
 from winning on pen-up F1 alone. This is a new posterior stop-error mechanism,
 not a retroactive explanation of the old latent-MEAN jaggedness.
+
+### Frozen English OCR refit (2026-10-07)
+
+`checkpoints/iam_frozen_ocr_study/research-summary/index.html` contains the new
+combined report, complete transcripts and all224 marker-free comparisons.
+1000-update mean-head fitting + matched500-update continuations preserved every
+non-OCR state tensor and all4704 mean/posterior trajectories bitwise. The
+mean-only head now memorizes192/192 training transcripts (CER0); held-out CER is
+still≈83–84%, so this is NOT English OCR/generalization or generation readiness.
+
+A distinct posterior-OCR issue was isolated:344 near-unused latent channels have
+means≈1e-7 but std≈1; mean-only training doesn't reject their inherited projection
+noise. Sample-aware fitting cuts train sampled CER61.24% →3.75% versus a matched
+mean-only control. A separate paired CPU diagnostic zeros ONLY these OCR input
+projection columns and yields3840/3840 exact training posterior transcripts,
+without any mean-transcript or codec change. Diagnostic weights remain separate;
+not automatic pruning of learned latents. Full detail/configs/hashes and caveats
+are in CONDITIONING_STUDY.md.
+
+Reusable patch: OCR now masks padded attention and removes invalid features
+before projection; `get_ocr_loss` accepts Boolean/binary-float valid masks.
+Raw lines remain minimally padded microbatches; only cached OCR inputs batch16.
+`modal_frozen_ocr_study.py` is explicit opt-in, bounded T4, no retries/crash loop.
+160 root/fork tests pass. Geometry remains faithful; next investigate unseen-text
+recognition while protecting it, rather than more curve polishing or blindly
+unfreezing the VAE/adding style.

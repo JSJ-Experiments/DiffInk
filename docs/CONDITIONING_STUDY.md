@@ -819,3 +819,129 @@ readout, not a general claim that focal loss is broken. A lower pen-logit streng
 or calibrated probabilistic pen objective is a plausible ALTERNATIVE, not tested
 here. The feature-weight freeze is a successful controlled safety policy, not
 claimed to be the only correct production fix.
+
+## Frozen-codec OCR refit and posterior-noise audit — 2026-10-07
+
+**Geometry remains passed; OCR generalization is NOT passed.** Work continues on
+`english-iam`; geometry source is protected codec selected100
+`checkpoints/iam_codec_kl_study/20261007-012331/pen_bias_kl1e-6/checkpoint-best.pt`,
+SHA `9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625`.
+All192 train/32 seen-writer held-out lines use manifest
+`6d1fafea62af6c5ddae48983bb9699d93016e4af7a11df2f8dd1743128c34c8a`.
+Forms overlap; this is not a writer/form-independent IAM benchmark.
+
+Production correctness patch: `ChineseHandwritingOCR.forward` now optionally
+accepts Boolean `[B,T]` **padding** masks (True=ignored), removes padded features
+before projection (including NaNs), and masks Transformer attention.
+`get_ocr_loss` accepts legacy binary float or Boolean **valid** masks, checks
+right-padding, and passes the inverse to attention. Exact repeated-label CTC
+feasibility is unchanged, including the actual VAE training delegation. Optional
+`mask=None` now means all-real inputs. No checkpoint tensor/architecture/default
+blank-bias change. API behavior checked against official PyTorch sources/docs:
+[attention masks](https://github.com/pytorch/pytorch/blob/v2.14.0/torch/nn/modules/activation.py),
+[CTCLoss](https://docs.pytorch.org/docs/2.14/generated/torch.nn.CTCLoss.html).
+
+### Controlled T4 work
+
+Only OCR parameters train. Encoder/decoder/readout/posterior/style remain frozen.
+Raw lines are encoded individually at their original minimal padding; ONLY cached
+OCR latent inputs are length-bucketed into physical batches16 with attention
+masks. This avoids introducing temporal-GroupNorm raw-padding effects. All224
+samples are exact-CTC-feasible; these runs use `zero_infinity=False` to expose
+rather than silently suppress unexpected invalid losses. OCR dropout.1 retained;
+trajectory dropout/rotation0, model scale.01. Mean+20 fixed posterior draws/line
+are evaluated at0/250/500 (also750/1000 for the first refit). Paired evaluation
+preserves training RNG. No KL/GMM/style/geometry optimization, no generic smoothing.
+
+- First: `iam_frozen_ocr_study/20261007-014901`:1000 updates, inherited head weights,
+  blank bias0, fresh AdamW5e-4 →1e-4 at750, betas.9/.99, weight decay1e-4, clip5,
+  cached means. Train-only CER/CTC checkpoint selection picks1000.
+  Selected SHA `39a10dbb266ce9476e01f41c807e9d46d997964ad664de33d033c4a0b11cd02e`.
+- Mean-only control: `.../20261007-015617`:500 continuation updates (total1500)
+  from that exact source, restored head Adam/RNG, LR1e-4 throughout.
+  Selected SHA `8738dc9b0b0615f60e6f1b0e740205ed31408561b456611619dbf19f56b154f6`.
+- Sample-aware: `.../20261007-015548`:same source/Adam/RNG/schedule/LR,500 updates;
+  CTC=.5 mean+.5 sampled-z. The control consumes the same noise RNG and performs
+  two mean forwards, ensuring matching dropout draws. Selected SHA
+  `4405923eec8bb29c918b36051ae44d98f1f35c9b9b1e0969b9b4649710c301b4`.
+
+Pairing audit confirms initial OCR evaluation, all500 batch-ID sequences and LRs
+are identical. Held-out data never enters gradients/calibration/selection.
+
+| endpoint | train mean CER / exact lines | train sampled CER | held-out mean / sampled CER |
+|---|---:|---:|---:|
+| first source, bias0 |78.3323% /0|81.7783%|79.1331% /83.9919%|
+| first mean fit1000 |0.2685% /180|59.9084%|82.1573% /88.8810%|
+| paired mean control+500 |0% /192|61.2445%|84.1734% /90.8216%|
+| paired mean+sample+500 |0.0948% /187|3.7547%|82.6613% /82.7571%|
+
+Repeat/nonrepeat breakdown is in every report (93 repeated-character training
+lines). Source all-non-OCR state tensors are bitwise preserved in EVERY run;
+all4704 saved before/after mean+posterior trajectories (224×21) are bitwise equal.
+Pen boundaries/EOCs remain perfect. Source mean train X/Y RMSE
+7.26895e-6/5.63885e-6 and turn p90 .0394448° therefore do not change. Named c/h,
+original8, all192 training and32 held-out mean marker-free pages are preserved.
+We visually checked named regions/original8/held-out gallery: no added spikes,
+no geometrical degradation. Target IAM/RDP polygonality is deliberately retained.
+
+### A different noise failure — not jaggedness
+
+The initialized transport uses40 routed fields and344 nearly inactive channels.
+Their training mean maxabs1.38e-6/RMS1.74e-7 is tiny, while posterior std≈.9999125.
+Their means are **not analytically zero** after body learning. Inherited OCR
+projection weights see little mean-training signal to reject this noise.
+
+A CPU no-training paired ablation zeros ONLY OCR `input_proj.weight[:,40:]`.
+The codec, latent distribution, all geometry/pen parameters and active OCR columns
+stay unchanged. Every prepared mean transcript stayed unchanged (measured, NOT an
+assumption about arbitrary inputs). Mean-fit1000 training sampled CER falls
+59.8958% →0.2582%. The polished mean-only control falls61.1039% →**0%**, with
+**3840/3840** training posterior draws exact, alongside192/192 exact means.
+Sample-aware head falls3.6497% →0.0963%. Held-out remains poor (≈82–84%).
+This isolates nuisance latent projection, NOT a failure of sampled geometry and
+NOT a recommendation to prune learned semantic channels generally. Diagnostic
+weights saved separately as `checkpoint-inactive-projection.pt`; original heads
+and optimizers remain unchanged. No automatic promotion or generation claim.
+
+Independent CPU reload: source/frozen state checks pass for all3. First and
+mean-control mean transcripts agree with GPU for all224; sample-aware has one
+held-out `k04-265z-01` near-tied mean argmax discrepancy, recorded with its CPU
+logit margin. All training mean transcripts/CER agree. CPU/CUDA posterior RNGs
+are different; only **within-device** before/after ablations are paired.
+
+### Reports, reproducibility and next gate
+
+Volume paths (local equivalents under `data/checkpoints/`):
+- `checkpoints/iam_frozen_ocr_study/research-summary/index.html` — combined evidence,
+  exact hashes/configs/pairing checks and complete transcript/report links.
+- Each dated study's `report/index.html`, `result.json`, `metrics.jsonl`,
+  `ocr-*.json`, `cpu-reload-check.json`, `inactive-projection-ablation.json`,
+  checkpoints, original source-code snapshots and geometry arrays.
+- `latest/index.html` points to the combined summary, not a claim of best model.
+
+First as-run configs inherited prior-codec textual schedule/optimizer metadata.
+Original configs/checkpoints are preserved; `metadata-clarification.json` records
+actual bucket scheduling and fresh/restored OCR optimizer behavior, established
+from source snapshots and per-update sample logs. Current runner explicitly sets
+those fields. A startup runner restart occurred before control training; partial
+initialization output is not used in the completed-study pairing or summary.
+
+Use `venv/bin/modal run modal_frozen_ocr_study.py --train --steps 1000`; no `--train`
+allocates no GPU. Continuations require pinned `--source` and `--sha`; `--sampled`
+selects the paired half-mean/half-sampled objective on a fitted source. CPU report
+`--report-rel checkpoints/iam_frozen_ocr_study/research-summary` allocates no GPU.
+Bounded3000 updates, wall900s, T4/cpu4, retries0/maxcontainers1 per app.
+
+160 root/fork tests pass (13 new tests): padded batch logits/CTC parity, padded NaN
+value/gradient safety, legacy binary float masks, prefix/type checks, cache/data
+split isolation, restored head moments, identical paired RNG consumption, and
+explicit exact-versus-approximate inactive-channel ablations. GPU source parity
+max logit difference5.72e-6, no argmax flips, CTC loss difference0.
+
+Do not keep spending updates merely memorizing192 lines. Head fitting is proven,
+and its posterior noise mechanism is isolated, but **unseen-text reading is the
+next unresolved gate**. Test controlled local-context/translation invariance or
+larger TRAIN-only OCR supervision with frozen faithful geometry; report held-out
+reading without selecting on it. Do not infer semantic/generative readiness,
+paper reproduction, or successful joint OCR/KL training from a transport codec
+plus a memorizing OCR head. Keep readout/geometry gates protected.

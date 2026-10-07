@@ -50,22 +50,40 @@ class ChineseHandwritingOCR(nn.Module):
             self.output_fc.bias.data.zero_()
             self.output_fc.bias[0].copy_(-5.0)
 
-    def forward(self, x):
+    def forward(self, x, padding_mask=None):
         """
         x: Tensor [B, C, T] — from frozen VAE encoder
         returns: [T, B, num_classes] — for CTCLoss
         """
+        if padding_mask is not None:
+            if padding_mask.shape != (x.shape[0], x.shape[2]) or padding_mask.dtype != torch.bool:
+                raise ValueError("OCR padding_mask must be Boolean [B,T], True = ignored")
+            if padding_mask.all(dim=1).any():
+                raise ValueError("OCR attention requires at least one real timestep per line")
+            # An attention mask alone cannot prevent padded NaNs leaking through
+            # Q/K/V matrix products. Remove invalid features before projection.
+            x = x.masked_fill(padding_mask[:, None, :], 0.)
         x = x.permute(0, 2, 1)          # [B, T, C]
         x = self.input_proj(x)          # [B, T, H]
         # x = self.input_norm(x)          # 输入 LayerNorm
         x = self.pos_encoder(x)         # [B, T, H]
-        x = self.transformer(x)         # [B, T, H]
+        x = self.transformer(x, src_key_padding_mask=padding_mask)  # [B, T, H]
         # x = self.output_norm(x)         # 输出 LayerNorm
         x = self.output_fc(x)           # [B, T, num_classes]
         return x.permute(1, 0, 2)       # [T, B, num_classes]
     
     def get_ocr_loss(self, features, labels, mask=None):
-        outputs = self.forward(features)  # [T, B, C]
+        if mask is None:
+            mask = torch.ones(features.shape[0], features.shape[2], dtype=torch.bool, device=features.device)
+        if mask.shape != (features.shape[0], features.shape[2]):
+            raise ValueError("OCR valid mask must have shape [B,T]")
+        if not ((mask == 0) | (mask == 1)).all():
+            raise ValueError("OCR valid mask must contain only 0/1")
+        mask = mask.bool()  # Released downsample_mask returns binary floats.
+        # CTC assumes a contiguous real prefix, unlike general attention masks.
+        if ((~mask[:, :-1]) & mask[:, 1:]).any():
+            raise ValueError("CTC valid mask must be a right-padded prefix")
+        outputs = self.forward(features, padding_mask=~mask)  # [T, B, C]
         outputs = torch.clamp(outputs, -30.0, 30.0)
         log_probs = outputs.log_softmax(2)
 
