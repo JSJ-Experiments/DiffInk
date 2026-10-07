@@ -63,21 +63,32 @@ def validate_parent(saved,parent,expanded):
     return c
 
 
-def run(config,repo,root='/data',pool_sha='',steps=6000):
+def run(config,repo,root='/data',pool_sha='',steps=6000,study='expansion'):
     if not torch.cuda.is_available() or not 1000<=steps<=8000:raise ValueError('CUDA and bounded1000–8000 additional steps required')
-    torch.set_num_threads(4);root=Path(root);pool,m,vocab=load_pool(root,pool_sha);_,parent,old_vocab=load_pool(root,PARENT_POOL)
-    if file_sha(root/PARENT_HEAD)!=PARENT_SHA:raise ValueError('pinned parent head required')
-    saved=torch.load(root/PARENT_HEAD,weights_only=True,map_location='cpu');previous=validate_parent(saved,parent,m)
-    if len(parent['splits']['large_train'])!=2048 or len(m['splits']['large_train'])!=8192:raise ValueError('this paired study requires2048/8192 TRAIN quotas')
+    if study not in ('expansion','convergence'):raise ValueError('known paired study required')
+    torch.set_num_threads(4);root=Path(root);pool,m,vocab=load_pool(root,pool_sha)
+    if study=='convergence':
+        from .ocr_convergence import PARENT_HEAD as head_rel,PARENT_SHA as head_sha,POOL_SHA,validate_parent as validate_convergence
+        if pool_sha!=POOL_SHA:raise ValueError('fixed8192 manifest required')
+        parent=m;old_vocab=vocab;parent_pool_sha=pool_sha
+    else:
+        head_rel,head_sha,parent_pool_sha=PARENT_HEAD,PARENT_SHA,PARENT_POOL
+        _,parent,old_vocab=load_pool(root,PARENT_POOL)
+    if file_sha(root/head_rel)!=head_sha:raise ValueError('pinned parent head required')
+    saved=torch.load(root/head_rel,weights_only=True,map_location='cpu')
+    previous=validate_convergence(saved,m) if study=='convergence' else validate_parent(saved,parent,m)
+    if len(m['splits']['large_train'])!=8192 or (study=='expansion' and len(parent['splits']['large_train'])!=2048):raise ValueError('fixed study TRAIN quotas required')
     if vocab!=old_vocab:raise ValueError('fixed alphabet changed')
+    family='iam_ocr_convergence' if study=='convergence' else 'iam_ocr_pool_expansion'
+    arms=[('lr1e-4',m['splits']['large_train'],1e-4),('lr2e-4',m['splits']['large_train'],2e-4)] if study=='convergence' else [('control2048',parent['splits']['large_train'],1e-4),('expanded8192',m['splits']['large_train'],1e-4)]
     base,_,_,cfg,original_vocab,provenance=load(config,repo,root,SOURCE,SHA,writer_id=None)
     if vocab!=original_vocab or cfg!=previous['cfg']:raise ValueError('codec/config drift')
     base.cuda().eval().requires_grad_(False);codec_digest=tensor_digest(base.state_dict())
-    out=root/'checkpoints/iam_ocr_pool_expansion'/time.strftime('%Y%m%d-%H%M%S',time.gmtime());out.mkdir(parents=True,exist_ok=False)
+    out=root/'checkpoints'/family/time.strftime('%Y%m%d-%H%M%S',time.gmtime());out.mkdir(parents=True,exist_ok=False)
     (out/'pool-manifest.json').write_bytes((pool/'manifest.json').read_bytes())
     (out/'parent-config.json').write_text(json.dumps(previous,indent=2)+'\n')
     (out/'original-codec-provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
-    for name in ('ocr_pool_expansion.py','ocr_pool_study.py','ocr_pool.py','ocr_context_features.py','frozen_ocr_study.py'):
+    for name in ('ocr_convergence.py','ocr_pool_expansion.py','ocr_pool_study.py','ocr_pool.py','ocr_context_features.py','frozen_ocr_study.py'):
         p=out/'source-code/iam_tools'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(Path(__file__).with_name(name).read_bytes())
     p=out/'source-code/model/ocr.py';p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes((Path(repo)/'model/ocr.py').read_bytes())
     try:cache,texts,audit=cache_corpus(base,pool,m,vocab,out)
@@ -86,34 +97,44 @@ def run(config,repo,root='/data',pool_sha='',steps=6000):
     stats=previous['feature_stats'];computed=fit_stats(cache,previous['feature_calibration_ids'],'relative_scaled')
     if computed!=stats:raise AssertionError('parent calibration fingerprints/moments changed')
     probe=previous['common_train_probe'];posterior_ids=previous['posterior_evaluation_ids'];results={};shared=None
-    for arm,ids in [('control2048',parent['splits']['large_train']),('expanded8192',m['splits']['large_train'])]:
+    for arm,ids,lr in arms:
         folder=out/arm;folder.mkdir();splits=dict(train=ids,dev=previous['dev_ids'],held_out=previous['held_out_ids'],common_train_probe=probe)
         head=make_head(cfg,len(vocab)+1,previous['feature_mode'],stats,previous['attention_radius']).cuda()
         optimizer=torch.optim.AdamW(head.parameters(),lr=1e-4,betas=(.9,.99),weight_decay=1e-4)
         pairing=restore(head,optimizer,saved)
         if shared is None:shared=pairing
         if pairing!=shared:raise AssertionError('unpaired continuation state')
-        settings=dict(previous,profile='paired-frozen-OCR-2048-to8192-continuation',pool_manifest_sha256=pool_sha,
-            pool_rel=str(pool.relative_to(root)),parent_pool_manifest_sha256=PARENT_POOL,parent_head_rel=PARENT_HEAD,parent_head_sha256=PARENT_SHA,
+        settings=dict(previous,profile='paired-frozen-OCR-LR-convergence' if study=='convergence' else 'paired-frozen-OCR-2048-to8192-continuation',pool_manifest_sha256=pool_sha,
+            pool_rel=str(pool.relative_to(root)),parent_pool_manifest_sha256=parent_pool_sha,parent_head_rel=head_rel,parent_head_sha256=head_sha,
             parent_updates=saved['updates'],train_ids=ids,feature_stats=stats,initial_state=pairing,
             initial_head_tensor_sha256=pairing['head_tensor_sha256'],parent_fresh_head_tensor_sha256=previous['initial_head_tensor_sha256'],
             seed_policy='checkpoint CPU/CUDA RNG restored; seed42 only parent/factory, bucket seed43',max_additional_updates=steps,
-            max_updates=saved['updates']+steps,base_lr=1e-4,final_lr=1e-4,lr_drop_step=None,
+            max_updates=saved['updates']+steps,base_lr=lr,final_lr=lr,lr_drop_step=None,
             schedule_seed=43,schedule_policy='restart both bucket schedules with seed43; parent data iterator is NOT resumed',
-            shared_initial_rng=True,samples_and_dropout_not_paired=True,max_wall_seconds=900)
+            shared_initial_rng=True,samples_and_dropout_not_paired=study!='convergence',max_wall_seconds=900)
+        if study=='convergence':
+            settings.update(schedule_skip=6000,schedule_policy='resume seed43 iterator after6000 consumed parent batches',
+                samples_and_dropout_paired=True,intervention='only learning rate1e-4 versus2e-4; same8192 pool')
         (folder/'config.json').write_text(json.dumps(settings,indent=2)+'\n')
         parity=batch_parity(head_model(head),cache,probe[:16]);(folder/'batch-parity.json').write_text(json.dumps(parity,indent=2)+'\n')
         first=evaluate(head,cache,texts,splits,vocab,folder,saved['updates'],posterior_ids)
         # Reset after all setup/evaluation so both first optimizer updates start
         # from EXACT same saved RNG, not newly constructed-head or eval RNG.
         if restore(head,optimizer,saved)!=pairing:raise AssertionError('post-evaluation state mismatch')
+        if study=='convergence':
+            from .ocr_convergence import set_lr_only,resumed_schedule
+            settings['lr_intervention_proof']=set_lr_only(optimizer,lr)
+            (folder/'config.json').write_text(json.dumps(settings,indent=2)+'\n')
         def save(name,step):
             torch.save(dict(ocr_state_dict=head.state_dict(),optimizer_state_dict=optimizer.state_dict(),updates=step,config=settings,
                 rng_cpu=torch.get_rng_state(),rng_cuda=torch.cuda.get_rng_state_all()),folder/name)
         best=(first['groups']['dev']['mu']['cer'],first['groups']['dev']['mean_ctc_loss']);best_step=saved['updates'];history=[dict(step=best_step,groups=first['groups'])]
         save('head-best.pt',best_step);head.train();started=time.monotonic();stop='budget_completed'
         with (folder/'metrics.jsonl').open('w') as log:
-            for additional,batch in enumerate(bucket_schedule(cache,ids,steps,seed=43),1):
+            schedule=resumed_schedule(cache,ids,steps) if study=='convergence' else bucket_schedule(cache,ids,steps,seed=43)
+            schedule_hash=hashlib.sha256()
+            for additional,batch in enumerate(schedule,1):
+                schedule_hash.update(json.dumps(batch).encode())
                 step=saved['updates']+additional;z,labels,mask=collate_latents(cache,batch);optimizer.zero_grad(set_to_none=True)
                 loss=head.get_ocr_loss(z,labels,mask)
                 if not torch.isfinite(loss):raise FloatingPointError('nonfinite CTC; no update')
@@ -122,7 +143,7 @@ def run(config,repo,root='/data',pool_sha='',steps=6000):
                     was_clipped=norm>5,lr=optimizer.param_groups[0]['lr']))+'\n');log.flush()
                 limit=time.monotonic()-started>900
                 if additional%1000==0 or additional==steps or limit:
-                    row=evaluate(head,cache,texts,splits,vocab,folder,step,posterior_ids);history.append(dict(step=step,groups=row['groups']))
+                    row=evaluate(head,cache,texts,splits,vocab,folder,step,posterior_ids);history.append(dict(step=step,groups=row['groups'],rng_sha256=state_digest([torch.get_rng_state(),torch.cuda.get_rng_state_all()])))
                     score=(row['groups']['dev']['mu']['cer'],row['groups']['dev']['mean_ctc_loss'])
                     if score<best:best=score;best_step=step;save('head-best.pt',step)
                     save('head-last.pt',step)
@@ -131,7 +152,8 @@ def run(config,repo,root='/data',pool_sha='',steps=6000):
         if tensor_digest(base.state_dict())!=codec_digest or file_sha(root/SOURCE)!=SHA or any(p.grad is not None for p in base.parameters()):raise AssertionError('codec mutation')
         result=dict(arm=arm,selected=next(r['groups'] for r in history if r['step']==best_step),best_step=best_step,last_step=step,
             additional_updates=additional,history=history,stop_reason=stop,selected_sha256=file_sha(folder/'head-best.pt'),final_sha256=file_sha(folder/'head-last.pt'),
-            entire_codec_bitwise_unchanged=True,elapsed_training_evaluation_seconds=time.monotonic()-started,initial_state=pairing)
+            entire_codec_bitwise_unchanged=True,elapsed_training_evaluation_seconds=time.monotonic()-started,initial_state=pairing,
+            sample_schedule_sha256=schedule_hash.hexdigest(),final_rng_sha256=state_digest([torch.get_rng_state(),torch.cuda.get_rng_state_all()]))
         (folder/'result.json').write_text(json.dumps(result,indent=2)+'\n');results[arm]=result;del head,optimizer;torch.cuda.empty_cache()
     (out/'result.json').write_text(json.dumps(results,indent=2)+'\n')
     return dict(output=str(out),arms={k:dict(best_step=r['best_step'],train_cer=r['selected']['train']['mu']['cer'],dev_cer=r['selected']['dev']['mu']['cer'],held_out_cer=r['selected']['held_out']['mu']['cer']) for k,r in results.items()})

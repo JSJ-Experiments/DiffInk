@@ -570,3 +570,21 @@ FP32 baseline-loss tolerance/regression and historical metadata clarification.
 Next: bounded reader convergence on the fixed larger pool, keeping geometry
 locked. No unrestricted joint VAE/OCR/KL/style/InkDiT; no paper reproduction or
 independent-pretraining benchmark claim.
+
+
+### Fixed8192 OCR convergence/readout diagnostic — 2026-10-07
+
+Two matched8000-update T4 continuations from step12000, LR1e-4 versus2e-4;
+same batches, restored optimizer/RNG, resumed iterator. TRAIN CER7.22→2.56/3.13%,
+but unseen-writer DEV19.22→19.71/19.84%. BOTH select unchanged step12000.
+Do not promote higher-LR final based on seen-writer report32 14.21%.
+CPU beam10 (no LM) only moves DEV19.22→19.01%; large backward pen jumps occur
+in just2/128 DEV lines, so neither explains the broad reader error. Geometry
+remains frozen and faithful, all8352 source gates pass; no new handwriting or
+joint codec training. Next justified hypothesis: controlled OCR-only frame
+resolution, not blind longer optimization. Not yet launched.
+
+Report `checkpoints/iam_ocr_convergence/20261007-044341/report/index.html`,
+interpretation `report/conclusion.html`, local `data/` mirror on Volume
+`diffink-data`. Exact configs/hashes/caveats and negative results in
+`docs/CONDITIONING_STUDY.md`.203 root/fork tests pass; all Modal apps stopped.

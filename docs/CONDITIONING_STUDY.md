@@ -1304,3 +1304,152 @@ that the8× bottleneck destroys geometry (transport geometry is faithful).
 If longer reader training plateaus, a controlled OCR-only temporal-resolution
 ablation is justified; don't change the protected codec based on this alone.
 All Modal GPU/CPU apps are stopped after artifact publication.
+
+## Fixed8192 OCR convergence: paired LR1e-4 versus2e-4 (2026-10-07)
+
+Next experiment keeps the supervision pool fixed, NOT another corpus expansion.
+Pin `expanded8192/head-best.pt` at total step12000:
+`checkpoints/iam_ocr_pool_expansion/20261007-041949/expanded8192/head-best.pt`,
+SHA `5de8792405583c7651f83de12ac7300f398fa5b088c5d0570ad00bb9f22b75ed`.
+Same immutable pool SHA
+`d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9`,
+same8192 TRAIN/128 DEV/32 report,186 TRAIN writers, fixed81 chars, calibration192,
+relative-scaled features, global attention, blankbias0/dropout.1.
+
+Why test a modest higher LR rather than immediately lower it: parent clipping
+occurred on only1/6000 steps (none in last1000). First1000 median/p95 gradient
+2.369/3.414; last1000 2.102/2.665, under clip5. Median shuffled training CTC
+.978→.527; final mean TRAIN CER7.224% was still falling. This does not prove
+higher LR is better; it makes2× LR a bounded optimization diagnostic, not a
+response to exploding gradients or a geometry-polishing change.
+
+Both heads restore exact parent parameters/buffers, Adam moments/counters and
+CPU/CUDA RNG. Control keeps inherited LR1e-4; other changes ONLY group LR to2e-4,
+with full optimizer-except-LR fingerprints proving moments/counters/other
+settings are untouched. Both run8000 additional updates (total12000→20000),
+constant LR, AdamW betas.9/.99, decay1e-4, clip5, cached mu/masked batch16;
+encoder physical batch1. Unlike the preceding expansion, data iterator is
+actually resumed: regenerate seed43 bucket stream, skip the6000 consumed parent
+batches, continue within its partially consumed epoch. Both arms have identical
+batches/shapes, so dropout draws can be paired; every batch ID, sample-schedule
+hash, RNG at each1000-step evaluation and final RNG are checked. No LR scheduler,
+augmentation, KL/style, head architecture or codec/readout change is incidental.
+
+Whole codec (including its old OCR) stays frozen. All8352 observed means are
+encoded/decoded and gated before any head update; source SHA/state checked after
+each arm. Feature moments inherited verbatim, independently checked.20 paired
+GPU posterior draws on DEV128/report32/common TRAIN32; full8192 TRAIN metrics
+are means only. DEV CER then CTC selects independently, original32 report-only.
+Same cumulative DEV reuse/five-writer/pretrained-codec caveats still apply: not
+paper reproduction, fully independent IAM benchmark or generation readiness.
+
+Explicit bounded T4 launch:
+`venv/bin/modal run modal_ocr_convergence.py --train --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9 --steps 8000`.
+No flag or wrong/missing fixed-pool hash allocates no GPU. T4/cpu4, sequential
+arms, per-arm900s/whole-function2400s, retries0/maxcontainers1. Shared runner /
+reporter retain expansion mode as default; convergence adds a pinned preset,
+not duplicated model/training implementations. CPU report reloads192 eval/probe
+lines independently, full TRAIN/all8352 source gates explicitly as-run GPU.
+
+A separate zero-training CPU readout diagnostic is predeclared: CTC prefix beam
+width10 over ALL alphabet columns, no language model/lexicon/token pruning,
+on the selected heads' mean logits for DEV/report only. It sums CTC paths rather
+than simply collapsing per-frame argmax. Checkpoint selection remains GREEDY
+DEV, never beam or report scores. Beam inference does not change geometry or
+training; no posterior beam evaluation is claimed. Raw stable log_softmax logits
+are used, not the CTC loss-only [-30,30] clamp. Beam pruning is approximate;
+small exhaustive-path tests verify algorithm correctness and repeated-character
+blank semantics.
+
+Eleven new tests: exact iterator suffix across partial epochs without disturbing
+Torch RNG, LR-only optimizer mutation, pinned split/feature/iterator guards,
+paired dropout RNG despite different LRs, self-contained Modal launcher,
+CTC path-sum advantage over greedy, repeated characters, exhaustive path parity,
+empty/all-blank behavior, invalid inputs, and same-logit mean-only head audit /
+training-mode/RNG restoration.200 root/fork tests pass.
+
+
+### Completed: more optimization did NOT improve unseen-writer reading
+
+Both arms completed all8000 updates, total step20000. Parent baseline records
+match exactly on all8352 lines (maximum CTC difference0); per-update sample IDs,
+iterator digest, evaluation/final RNG and optimizer-except-LR fingerprints match.
+Both independently select the ORIGINAL step12000 on greedy DEV; selected model
+tensors are unchanged from the source. The new `head-best.pt` file hashes differ
+because their continuation settings/LR/provenance differ, not better weights.
+
+| Mean CER (%) | Parent / selected both | Final LR1e-4 | Final LR2e-4 |
+|---|---:|---:|---:|
+| TRAIN8192 |7.2238|2.5593|3.1268|
+| DEV128 unseen writers |19.2208|19.7143|19.8442|
+| report32 seen writers |16.2298|15.7258|14.2137|
+| common TRAIN32 |2.4414|1.8555|2.7344|
+
+Final TRAIN exact lines2606→5301/4614 of8192; DEV4→2/1 of128.
+Final DEV20-draw posterior CER19.6714/19.7935%, report15.7762/14.3196%.
+Final mean DEV CTC .98885/1.02935 versus parent .90038. LR1e-4 loop/evaluation
+221.51s and LR2e-4 221.99s; these exclude startup, corpus cache/preflight and CPU
+reporting and are NOT total billed GPU times. Do NOT promote LR2e-4 based on
+14.21% report32: report IDs NEVER select, DEV worsened. This falsifies a simple
+"just another8000 updates /2× LR will improve DEV" hypothesis, not every possible
+optimization schedule. The TRAIN/DEV gap now argues for representation/reader
+or generalization diagnostics instead of blind longer training.
+
+CPU prefix-beam width10, no LM/lexicon, all alphabet columns, SAME mean logits:
+DEV19.2208→19.0130% (18 improved/99 tied/11 worse;740→732 errors/3850 chars),
+report16.2298→16.1290% (3/27/2;161→160 errors/992 chars). Exact counts stay4/128
+and1/32. All selected arms identical, hence all beam results identical. Tiny net
+changes do NOT establish beam as a production improvement; greedy readout is
+not the main19% CER bottleneck. No posterior beam scores or beam-selected head.
+
+Additional CPU acquisition proxy counts ONLY true pen-boundary jumps with
+`nextX-previousX < -0.5` model units (half normalized lineheight). Continuous-stroke
+backtracking/loops do not count. This is chronological index geometry, not
+physical velocity, a character alignment, a label-error claim or proof of
+late-dot causation. Every HDF5 point fingerprint/evaluation record was checked.
+
+| Group |No large backward pen jump: lines / CER|At least one: lines / CER|
+|---|---:|---:|
+| TRAIN |7423 /6.9769%|769 /9.6885%|
+| DEV |126 /18.9833%|2 /31.5068%|
+| report |31 /15.9375%|1 /25.0000%|
+
+TRAIN association is descriptive/confounded;2 DEV positives are insufficient
+for conclusions. Most DEV errors remain without large backward jumps, so this
+specific phenomenon cannot explain the broad failure. Smaller deferred strokes
+and local acquisition order remain unresolved. This does not rule out an
+OCR-only finer-frame adapter; earlier CTC frame-slack association is a distinct,
+also confounded, hypothesis. A4-versus8-point/frame readout is a sensible NEXT
+controlled test, NOT implemented or launched in this study. Do not change the
+8× transport codec or enable joint VAE/CTC/KL/style/InkDiT from these results.
+
+Codec source SHA `9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625`
+and all parameters/buffers remain bitwise unchanged. All8352 observed means:
+X/Y RMSE7.2531e-6/5.7049e-6, mean per-line turn p90 .041012°, packed XY maximum
+8.29697e-5; perfect pen boundaries/final EOC and no internal false EOC. This
+remains an initialized40-field chronological polyphase transport research
+codec, NOT a normal learned semantic VAE or a paper reproduction. CPU independently
+reloads192 DEV/report/probe lines, not all8192 TRAIN. All selected decoded records
+match GPU.20 sampled-z metrics are the GPU as-run records. No geometry updates.
+
+Report: `checkpoints/iam_ocr_convergence/20261007-044341/report/index.html`;
+read `report/conclusion.html` first for the negative-result interpretation and
+acquisition proxy. Volume `diffink-data`, local ignored `data/` mirror. All128
+DEV/32 report marker-free panels are generated; this turn visually inspected
+learning plot, report page2 and DEV page6, not every160 panel anew. Shared codec
+unchanged, all selected OCR captions intentionally identical. Prior expansion
+review covers all32 report panels and32 diverse DEV panels with this same codec.
+
+Saved heads under the dated study:
+- `lr1e-4/head-best.pt`: SHA `c41749c10877727b9f01623aa6f0b3da69b060dec647310956ef037737d182f7`
+- `lr1e-4/head-last.pt`: SHA `71d16b4693fc6e0fb5060ec30569554bed6cc1f9f0c7705a636a0c5be1dfe7c1`
+- `lr2e-4/head-best.pt`: SHA `3273b38c34e50c830ca0484869a10eb8f8765a47698ce5998da545d528416157`
+- `lr2e-4/head-last.pt`: SHA `98abe5ee472d4d6683fecd74942384d745785b6aae9f4540a8f74e8de7727379`
+
+As-run report summary inherited the expansion helper's generic "different masked
+batch shapes" baseline note. In THIS fixed-pool study batch shapes are identical
+and CTC difference exactly0; reusable reporter now writes the correct note.
+Immutable as-run source/checkpoints/summary are not rewritten; post-run review
+preserves this clarification and CPU analysis source separately. Three extra
+backward-jump tests bring this turn to14 new tests /203 root and fork tests passing.
+All GPU/CPU Modal apps finished; no runaway continuation remains.
