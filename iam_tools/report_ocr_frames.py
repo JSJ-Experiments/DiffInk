@@ -51,7 +51,7 @@ def report(directory,repo,root='/data'):
         if c['train_ids']!=m['splits']['large_train'] or c['dev_ids']!=m['splits']['dev'] or c['held_out_ids']!=m['splits']['held_out'] or c['feature_calibration_ids']!=m['splits']['small_train']:raise AssertionError('split/calibration drift')
         saved=torch.load(folder/'head-best.pt',map_location='cpu',weights_only=True)
         if saved['config']!=c or saved['updates']!=r['best_step'] or file_sha(folder/'head-best.pt')!=r['selected_sha256']:raise AssertionError('selected checkpoint drift')
-        cache=frame_cache(original,frames);head=make_head(cfg,len(vocab)+1,'relative_scaled',c['feature_stats'],points_per_frame=frames);head.load_state_dict(saved['ocr_state_dict']);head.eval()
+        cache=frame_cache(original,frames);head=make_head(cfg,len(vocab)+1,'relative_scaled',c['feature_stats'],seed=c['seed'],points_per_frame=frames);head.load_state_dict(saved['ocr_state_dict']);head.eval()
         splits=dict(train=probe,dev=m['splits']['dev'],held_out=m['splits']['held_out'],common_train_probe=probe)
         row=evaluate(head,cache,texts,splits,vocab,folder,'cpu-reload',ids,posterior_sampler=paired_posterior_sampler(original,cache,frames));cpu[name]=row;maps[name]={r['sample_id']:r for r in row['lines']}
         original_eval=json.loads((folder/f'ocr-{r["best_step"]}.json').read_text());gpu[name]=original_eval;gpu_map={r['sample_id']:r for r in original_eval['lines']}
@@ -59,7 +59,7 @@ def report(directory,repo,root='/data'):
         checks[name]=dict(mean_cpu_gpu_transcript_differences=differences,cpu_scope='192 eval/probe, not all8192TRAIN; CPU train means only common32',cpu_groups=row['groups'],posterior_device_rng_not_paired=True)
     if tensor_digest(base.state_dict())!=digest or file_sha(root/SOURCE)!=SHA:raise AssertionError('CPU codec mutation')
     logs={k:[json.loads(line) for line in (directory/k/'metrics.jsonl').read_text().splitlines()] for k in results}
-    paired=dict(same_fresh_head_weights=results['points8']['initial_head_tensor_sha256']==results['points4']['initial_head_tensor_sha256'],
+    paired=dict(same_initialization_dropout_seed=configs['points8']['seed']==configs['points4']['seed'],same_fresh_head_weights=results['points8']['initial_head_tensor_sha256']==results['points4']['initial_head_tensor_sha256'],
         same_batches=[r['sample_ids'] for r in logs['points8']]==[r['sample_ids'] for r in logs['points4']],
         same_lr_schedule=[r['lr'] for r in logs['points8']]==[r['lr'] for r in logs['points4']],
         same_schedule_digest=results['points8']['sample_schedule_sha256']==results['points4']['sample_schedule_sha256'],
@@ -72,6 +72,7 @@ def report(directory,repo,root='/data'):
         cpu_reload=checks,cpu_line_error_changes={g:compare_rows(cpu['points8'],cpu['points4'],m['splits'][g]) for g in ('dev','held_out')},
         same_reference8frame_slack={g:slack_comparison(m['records'],gpu,m['splits'][g]) for g in ('dev','held_out')},
         caveats='Fresh paired heads, not parent continuations. Same input384 and parameter weights; active20 versus40 fields and chronological4 versus8-point grouping, TRAIN192 calibration moments and positional indices differ. Dropout unpaired due different shapes; original noise paired before splitting on same device. DEV reused/five writers, codec prior TRAIN192 report prompt overlap; not independent IAM benchmark/paper reproduction.')
+    summary['head_initialization_dropout_seed']=configs['points8']['seed']
     out=directory/'report';out.mkdir(exist_ok=True);(out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
     fig,axes=plt.subplots(1,3,figsize=(15,4))
     for name,r in results.items():
@@ -95,6 +96,7 @@ def report(directory,repo,root='/data'):
         '<p>DEV alone selects. Five DEV writers/repeated evaluations and prior codec192 prompt overlap to report32 limit claims. Initialized polyphase transport research codec, NOT authors’ semantic VAE reproduction. Codec all params/buffers frozen; no joint CTС/geometry/KL/style/InkDiT.</p><p><a href="summary.json">Metrics/provenance</a> · <a href="../pool-manifest.json">Pinned dataset</a></p><table border="1"><tr><th>reader/selected step</th><th>TRAIN CER</th><th>DEV mean / posterior CER</th><th>report32 mean / posterior CER</th></tr>']
     for name,r in results.items():
         v=r['selected'];chunks.append(f'<tr><td>{name}/{r["best_step"]}</td><td>{v["train"]["mu"]["cer"]:.4%}</td><td>{v["dev"]["mu"]["cer"]:.4%} / {v["dev"]["sampled"]["cer"]:.4%}</td><td>{v["held_out"]["mu"]["cer"]:.4%} / {v["held_out"]["sampled"]["cer"]:.4%}</td></tr>')
+    chunks.insert(1,f'<p>OCR initialization/dropout seed {configs["points8"]["seed"]}; data-order seed43 unchanged.</p>')
     chunks.append('</table><img src="learning.png"><h2>Geometry gate / pairing / CPU reload</h2><pre>'+esc(json.dumps(dict(codec=brief,paired=paired,cpu_reload={k:{a:b for a,b in v.items() if a!='cpu_groups'} for k,v in checks.items()}),indent=2))+'</pre>')
     chunks.append('<h2>Paired line errors and SAME reference8-point CTC slack bins</h2><p>Slack=(ceil(real points/8)−[characters+adjacent repeats])/characters; nonuniform index frames, NOT physical duration. Same bins for both readers. Exploratory/confounded, not causal proof.</p><pre>'+esc(json.dumps(dict(changes={g:{k:v for k,v in values.items() if k!='lines'} for g,values in summary['cpu_line_error_changes'].items()},slack=summary['same_reference8frame_slack']),indent=2))+'</pre>')
     for group,page,fname in pages:chunks.append(f'<h2>{group} page{page}</h2><img loading="lazy" src="{fname}">')

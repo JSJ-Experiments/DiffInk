@@ -85,4 +85,26 @@ class OCRFrameReportTests(unittest.TestCase):
         b=dict(lines=[dict(sample_id='y',mu=dict(errors=2)),dict(sample_id='x',mu=dict(errors=1))])
         r=compare_rows(a,b,['x','y']);self.assertEqual((r['improved'],r['tied'],r['worsened']),(1,0,1))
 
+class OCRSeedReplicationTests(unittest.TestCase):
+    def test_seed_range_validated_before_any_allocation(self):
+        from iam_tools.ocr_frame_study import validate_seed
+        for seed in (0,42,137,2**31-1):self.assertEqual(validate_seed(seed),seed)
+        for seed in (-1,2**31,False,True,137.,'137',None):
+            with self.assertRaises(ValueError):validate_seed(seed)
+    def test_new_seed_changes_weights_but_keeps_within_seed_pair_and_rng(self):
+        from iam_tools.ocr_context_study import tensor_digest
+        cfg=dict(latent_dim=48,ocr_hidden_dim=16,ocr_num_heads=2,ocr_num_layers=1)
+        state=torch.get_rng_state().clone();pairs=[]
+        for seed in (42,137):
+            a=make_head(cfg,3,seed=seed,points_per_frame=8);b=make_head(cfg,3,seed=seed,points_per_frame=4)
+            self.assertEqual(tensor_digest(a.state_dict()),tensor_digest(b.state_dict()));pairs.append(tensor_digest(a.state_dict()))
+        self.assertNotEqual(*pairs);self.assertTrue(torch.equal(state,torch.get_rng_state()))
+    def test_default_seed42_preserves_historical_factory_and_runner_signature(self):
+        import inspect
+        from iam_tools.ocr_frame_study import run
+        self.assertEqual(inspect.signature(run).parameters['seed'].default,42)
+        cfg=dict(latent_dim=48,ocr_hidden_dim=16,ocr_num_heads=2,ocr_num_layers=1)
+        a=make_head(cfg,3);b=make_head(cfg,3,seed=42)
+        self.assertTrue(all(torch.equal(v,b.state_dict()[k]) for k,v in a.state_dict().items()))
+
 if __name__=='__main__':unittest.main()

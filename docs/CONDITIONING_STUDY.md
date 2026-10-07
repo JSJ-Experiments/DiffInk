@@ -1617,3 +1617,135 @@ not launched here.11.43% unseen-writer CER is progress, NOT a dependable oracle
 for releasing faithful geometry. Keep codec/geometry protected; no unconditional
 joint VAE/CTC/KL/style/InkDiT promotion. This initialized transport adapter is
 not a generic semantic-VAE latent upsampler or authors' English reproduction.
+
+## Predeclared replication:4/8-point OCR, initialization/dropout seed137
+
+Repeat the exact fixed8192 paired8000-update experiment with a second head
+initialization AND training dropout seed137. Data-order seed43 remains fixed,
+so every sample/update exposure matches the seed42 pair; posterior draw seeds
+8042+j*100 also remain fixed in original384×T8 space. Seed42 is NOT retrained
+or overwritten. All filters/splits/source/calibration, features/positions,
+head architecture/batch16, AdamW5e-4→1e-4 after6000, clip5, mean training,
+eval1000, DEV-only selection,20 posterior draws and frozen-codec gates unchanged.
+The only across-run intervention is fresh head initialization/dropout RNG seed;
+within each run it is4 versus8-point OCR grouping. Same source/pool SHA as above.
+No data-order robustness, extra writers, test-set performance, multiple new
+seeds, language model or joint codec training is claimed.
+
+Runner/CLI expose validated `--seed` (default42 retains historical behavior);
+negative/non-integer/out-of-range seeds fail before GPU allocation. CPU report
+records/uses saved seed; selected state/buffers always fully reloaded. T4/cpu4,
+sequential arms,8000 updates each,1800s per-arm/4800s whole guard, no retries.
+Launch: `venv/bin/modal run modal_ocr_frames.py --train --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9 --steps 8000 --seed 137`.
+
+Primary question: does the4-point advantage reappear on the SAME five DEV
+writers with another initialization/dropout stream? Report both seeds separately,
+not just whichever seed has the lowest DEV score, and preserve all regressions.
+Inspect per-writer changes to distinguish broad gains from a single writer's
+contribution. Two-seed averages repeat the SAME128 lines, not256 independent
+samples, and are NOT confidence intervals or a formal IAM benchmark. Results
+and checkpoint/report hashes appended after completion. No geometry changes.
+
+Three new seed tests validate bounds/default42/within-seed weight identity,
+across-seed weight differences and RNG preservation. Five cross-seed reporter
+tests guard fixed hyperparameters/data/schedule, predeclared seeds and actual
+completion, CPU reload agreement, writer/character counts, malformed/duplicate
+errors, and immutable seed42 summary hash.221 root/fork tests pass. CPU-only
+cross-seed reporter added while GPU runs; training helper remains unchanged.
+PyTorch current docs confirm manual_seed affects CPU/CUDA and fork_rng restores
+states (Context7 official source); paired posterior evaluation still uses its
+old fixed original-space draw stream. Raw Torch seed range is wider than this
+runner's deliberately restricted nonnegative32-bit experimental seed contract.
+
+
+### Completed seed137 replication:4-point benefit repeats across all5 DEV writers
+
+Both fresh seed137 heads completed8000 updates, selected8000 by DEV alone.
+Initial weight SHA `84ccf4049a53af1e7ffe69154ac793ac8c644b5c09b0ca33706def460a063913`
+is identical within the137 pair and differs from42. Every batch/update schedule,
+LR exposure, source/pool/config/calibration field and frozen-codec guard matches
+the seed42 experiment. Only initialization/dropout RNG changed across runs.
+CPU cross-seed publisher checked all fixed fields and pinned immutable first
+summary SHA `7e6f8385567840df0863d060a7a5b587b1b7f54d2585414574e2226d2f6dca58`.
+
+| Mean CER (%) |seed42 8-point|seed42 4-point|seed137 8-point|seed137 4-point|
+|---|---:|---:|---:|---:|
+| TRAIN8192 |7.3601|4.8016|6.5658|4.8716|
+| DEV128 |15.2987|11.4286|14.9351|11.5844|
+| report32 |12.3992|10.1815|12.5000|10.4839|
+| DEV20-draw posterior |15.2662|11.5078|14.9169|11.5766|
+| report20-draw posterior |12.4093|10.1058|12.5857|10.3881|
+
+Seed137 DEV575→446 errors/3850 chars (22.43% fewer); exact11→13/128.
+Report124→104/992 (16.13% fewer); exact3→2/32.80 DEV lines improve/24 tie/24
+worsen; report18/7/7. Seed42 has84/22/22 DEV and17/6/9 report; no regression is
+hidden. Seed1374-point report7000 was lower9.7782% than selected8000 10.4839%,
+but NEVER selects on report. Its DEV8000 is better11.5844 than7000 11.6883%.
+Mean across2 seeds: DEV15.1169→11.5065% (23.88% fewer errors), report12.4496→
+10.3327%. These reuse SAME128 DEV/32 report lines, NOT256/64 independent lines,
+not an ensemble or confidence interval. No cherry-picking the better seed.
+
+Every DEV writer improves in BOTH seeds. Seed137 per-writer micro CER:
+
+| writer |lines/chars|8-point CER|4-point CER|
+|---|---:|---:|---:|
+|10066|24/989|24.0647%|19.0091%|
+|10163|25/882|5.6689%|4.0816%|
+|10192|26/662|12.0846%|8.0060%|
+|10207|27/680|11.3235%|10.0000%|
+|10211|26/637|20.4082%|15.8556%|
+
+Thus gain is not solely one lucky writer. Writer10066 still~19%,10211~16%:
+substantial style-dependent weakness remains. Five writers/repeated DEV reuse
+and prior codec report-prompt overlap still limit generalization claims.
+Same reference8-frame slack bins also improve in137: tight18 lines25.2351→
+19.9060%, middle44 15.7049→10.6647%, loose66 10.7976→9.3869%. As before,
+frame grouping/calibration/positions changed together; no pure CTC-length claim.
+
+CPU selected192-line reload has ZERO mean transcript differences in both137
+heads. GPU/CPU posterior RNG differs; GPU20-draw metrics above are as-run.
+Local fresh137 learnable-weight hash independently matches as-run after reusing
+ONLY saved immutable sinusoidal PE buffer (cross-wheel regenerated buffer differs
+by6.1035e-5). Selected checkpoints always load full saved buffers. Seed42 results,
+checkpoints and source snapshots not rewritten. Calibration moments match exactly
+across seeds for each resolution, including same69204 real TRAIN192 points.
+
+All8352 source mean gates repeat exactly: X/Y RMSE7.2531e-6/5.7049e-6;
+mean per-line geometric turnp90 .041012°, maximum packedXY8.29697e-5, perfect
+pen boundaries/final EOC/no internal falseEOC. Entire codec params/buffers/old
+OCR bitwise frozen after BOTH runs. No geometry/GMM/pen/KL/style or InkDiT update.
+Reader training is mean-only; posterior reading tests do not newly certify every
+8352 sampled-z trajectory. Four-point loop/eval294.35s versus8-point225.55s;
+exclude startup/preflight/cache/CPU reporting, not total billed time.
+
+Visual review this turn: learning plot, report page2 and DEV page6 (16 varied
+lines), all160 marker-free panels generated/preserved. Shared target/reconstruction
+curves remain indistinguishable at gallery scale; only OCR captions change.
+Corrections repeat on "narrow across the knuckles"/"reproduce the same form",
+while names, case, punctuation and "survival after death" remain wrong in places.
+Authentic target corners/polygonality are not smoothed or modified. No claim all
+160 images or old eight exemplars were newly visually re-audited this turn.
+
+New run: `checkpoints/iam_ocr_frame_study/20261007-055354/report/index.html`.
+Paired BOTH-seed comparison/per-writer table:
+`checkpoints/iam_ocr_frame_study/20261007-055354/replication/index.html`.
+Volume `diffink-data`, local ignored `data/` mirrors, latest report pointer is
+not necessarily the best model. Selected137 heads downloaded and SHA verified;
+final heads remain saved in Volume. Hashes:
+- `points8/head-best.pt`: `f3fd770773f6a25cacf7feae323b270cd9d23f4d1307c18514659aeba925cc4c`
+- `points8/head-last.pt`: `46c605e5f6d65bf7f739e4e3b4d048d8002019f02bd69540299ab9b8491709ac`
+- `points4/head-best.pt`: `235811c3db0b4fe091b1a60cb0190c1a4d33733ef7e00e06144a04cb754bd872`
+- `points4/head-last.pt`: `825008f04bc800eea2443221bd6f6546f9960ff0bdaee70a66df1b544f8e2812`
+
+221 root/fork tests pass. T4 app `ap-sNylCTSEYfCdSjBE1iE4eG` and CPU app
+`ap-Qn0fRmeRYQstk2D3u3D85z` completed, no failed/crash-looping jobs or runaway
+continuations. Preferred experimental reader granularity is now4-point for this
+initialized transport. Default factory remains8 to avoid silently breaking old
+checkpoints;4-point heads require explicit frame_cache/feature contract and are
+NOT drop-in generic learned-latent OCR heads or ordinary VAE checkpoints.
+
+Next justified question: bounded2-versus4-point OCR-only comparison, or isolate
+another representation feature, keeping source/samples/geometry locked. Not
+implemented/launched in this replication.11–12% DEV CER is not a dependable oracle
+for unrestricted joint geometry training. No semantic-VAE/paper-reproduction/
+independent-IAM-test or generation-readiness claim.

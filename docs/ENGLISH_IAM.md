@@ -1253,3 +1253,23 @@ frame benefit or test2-vs4 OCR frames, not blindly enable joint VAE/CTC/KL/DiT.
 Report `checkpoints/iam_ocr_frame_study/20261007-052514/report/index.html` and
 `report/conclusion.html` on `diffink-data`, local `data/` mirror. Exact config/
 hashes/limitations in `docs/CONDITIONING_STUDY.md`.213 tests pass; all jobs finished.
+
+
+### Four-point OCR:second-seed replication — 2026-10-07
+
+Matched seed137 heads repeat the seed42 result: DEV14.94→11.58% CER at8 vs4
+points/frame (seed42 15.30→11.43%). Same8192 TRAIN, per-update IDs/LR/8000 updates,
+source/calibration; initialization/dropout seed alone changed across repeats.
+Every one of5 DEV writers improves in BOTH seeds; mean CER15.12→11.51%, not256
+independent samples or an ensemble. Seed137 DEV80 improved/24 tied/24 worse;
+report exact3→2 despite fewer total errors. CPU reload192 mean transcripts all
+match GPU; source geometry/pen/codec remain unchanged on all8352 observed means.
+
+Four-point is preferred experimental READER granularity, not a drop-in semantic
+VAE adapter. Old default8/checkpoint contracts preserved. Reader still has11–12%
+CER and writer-dependent errors; keep geometry locked, no joint VAE/KL/style/DiT
+promotion. Next controlled2-vs4 readout question not launched yet. Comparison:
+`checkpoints/iam_ocr_frame_study/20261007-055354/replication/index.html`; dated
+new galleries in `report/index.html`, Volume `diffink-data`, local `data/` mirror.
+Exact configs/hashes/limitations in `docs/CONDITIONING_STUDY.md`.221 tests pass;
+all jobs finished.

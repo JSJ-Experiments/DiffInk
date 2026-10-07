@@ -49,7 +49,13 @@ def paired_posterior_sampler(original,framed,frames):
     return sample
 
 
-def run(config,repo,root='/data',pool_sha='',steps=8000):
+def validate_seed(seed):
+    if type(seed) is not int or not 0<=seed<2**31:raise ValueError('integer OCR initialization/dropout seed in0..2**31-1 required')
+    return seed
+
+
+def run(config,repo,root='/data',pool_sha='',steps=8000,seed=42):
+    validate_seed(seed)
     if not torch.cuda.is_available() or pool_sha!=POOL_SHA or not 1000<=steps<=8000:raise ValueError('CUDA, fixed pool and bounded1000–8000 updates required')
     root=Path(root);torch.set_num_threads(4);pool,m,vocab=load_pool(root,pool_sha)
     base,_,_,cfg,alphabet,prov=load(config,repo,root,SOURCE,SHA,writer_id=None)
@@ -70,7 +76,7 @@ def run(config,repo,root='/data',pool_sha='',steps=8000):
     for frames in (8,4):
         arm=f'points{frames}';folder=out/arm;folder.mkdir();cache=frame_cache(original,frames)
         stats=fit_stats(cache,m['splits']['small_train'],'relative_scaled',frames)
-        head=make_head(cfg,len(vocab)+1,'relative_scaled',stats,seed=42,points_per_frame=frames).cuda()
+        head=make_head(cfg,len(vocab)+1,'relative_scaled',stats,seed=seed,points_per_frame=frames).cuda()
         h=tensor_digest(head.state_dict())
         if initial_sha is None:initial_sha=h
         if h!=initial_sha:raise AssertionError('fresh weight pairing failed')
@@ -78,7 +84,7 @@ def run(config,repo,root='/data',pool_sha='',steps=8000):
             pool_rel=str(pool.relative_to(root)),pool_manifest_sha256=pool_sha,points_per_frame=frames,feature_mode='relative_scaled',feature_stats=stats,
             feature_calibration_ids=m['splits']['small_train'],train_ids=train,dev_ids=splits['dev'],held_out_ids=splits['held_out'],common_train_probe=probe,
             posterior_evaluation_ids=posterior,posterior_draws=20,posterior_policy='draw same original384xT8 noise then chronological re-index; unused noise excluded',
-            attention_radius=None,initial_head_tensor_sha256=h,physical_batch=16,encoder_physical_batch=1,seed=42,schedule_seed=43,schedule_sha256=schedule_sha,
+            attention_radius=None,initial_head_tensor_sha256=h,physical_batch=16,encoder_physical_batch=1,seed=seed,schedule_seed=43,schedule_sha256=schedule_sha,
             same_sample_ids=True,dropout_rng_not_paired=True,calibration_same_ids_but_refit_per_granularity=True,
             base_lr=5e-4,final_lr=1e-4,lr_drop_step=int(.75*steps),betas=[.9,.99],weight_decay=1e-4,clip=5.,dropout=.1,blank_bias=0,
             max_updates=steps,max_wall_seconds=1800,eval_every=1000,train_latent='cached_mu',entire_codec_frozen=True,
@@ -92,7 +98,7 @@ def run(config,repo,root='/data',pool_sha='',steps=8000):
         def ev(step):return evaluate(head,cache,texts,splits,vocab,folder,step,posterior,posterior_sampler=sampler)
         def save(name,step):torch.save(dict(ocr_state_dict=head.state_dict(),optimizer_state_dict=optimizer.state_dict(),updates=step,config=settings,rng_cpu=torch.get_rng_state(),rng_cuda=torch.cuda.get_rng_state_all()),folder/name)
         first=ev(0);best=(first['groups']['dev']['mu']['cer'],first['groups']['dev']['mean_ctc_loss']);best_step=0;history=[dict(step=0,groups=first['groups'])]
-        torch.manual_seed(42);save('head-best.pt',0);head.train();started=time.monotonic();stop='budget_completed'
+        torch.manual_seed(seed);save('head-best.pt',0);head.train();started=time.monotonic();stop='budget_completed'
         with (folder/'metrics.jsonl').open('w') as log:
             for step,ids in enumerate(schedule,1):
                 z,labels,mask=collate_latents(cache,ids);optimizer.zero_grad(set_to_none=True);loss=head.get_ocr_loss(z,labels,mask)
