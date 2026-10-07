@@ -2754,3 +2754,189 @@ Artifacts:
 322tests root/fork (12new): actual decoder-input autograd, stale gradients,
 frozen Adam moments/steps/weights, exact mean/fixed-noise arrays, serialized
 checkpoint guards, paired study/report contracts, empty body gradient group.
+
+## Preregistered bounded generation gate (2026-10-07)
+
+Move from curve reconstruction to text control. Keep original faithful source
+`iam_codec_kl_study/20261007-012331/pen_bias_kl1e-6` SHA9c53f68e… frozen;
+no posterior200 promotion, no source weights/optimizer changes. Frozen canonical
+BiGRU remains evaluation-only. Prototype is **NOT released InkDiT/paper config**:
+4×128-wide full-text cross-attention blocks,4heads, FF4×, dropout0, all384latent
+channels, x0 cosine diffusion1000steps, deterministic DDIM50 sampling.
+Full transcript memory (not aligned/truncated to latentT); an always-valid NULL
+key makes text dropout independent of transcript/padding length. Native PyTorch
+attention, no unneeded audio/x-transformers dependencies. Existing official
+DiT/Diffusion/modules/trainers remain unchanged. CPU audit found zero current
+pool transcripts actually truncated by upstream latentT: do not claim this is
+a demonstrated cause of prior curve trouble. Upstream no-prefix CFG retains
+text even in its "unconditional" branch; this prototype explicitly drops TEXT.
+
+Generator scope fixed BEFORE training: writer10160,32SHA-sorted TRAIN lines
+(seed7314) from immutable8192TRAIN reader pool, entire form g09-301 held out
+(8lines/unseen transcripts). TRAIN/held-out texts and forms disjoint; reserved
+25test and5DEV writers excluded. These images ARE in the previously trained
+reader corpus. Thus generator unseen prompts, NOT an independent OCR/English
+benchmark. One writer only; no writer-control claim. TRAIN-only per-channel
+mean/populationstd floor0.1 whitening, inverse before frozen decoder; no channel
+masking, no prefix/target trajectory input to sampler. Use latent MEAN targets
+intentionally for the first mechanics test; NOT sampled-z paper reproduction.
+
+Two8000update sequential T4 arms: text vs no_text, identical initial weights,
+TRAIN32 minibatch8 schedule(seed5142), Gaussian noise/t/drop draws(seed6142).
+Text arm null conditioning10%; no_text arm consumes same RNG draws, alwaysNULL.
+AdamW3e-4,betas .9/.99,wd.01,clip1,FP32,no augmentation. No VAE KL/CTC/style/GMM
+training. Max1800s per arm, finite gradients/objective mandatory. Evaluate
+0/4000/8000; TRAIN fixed-terminal-noise activeXY+pen denoising error selects,
+held-out prompts never select/stop. Full-noise generation with matched per-ID
+initial epsilon, two seeds9142/9143; correct/null/swapped text and true textCFG3.
+Save ALL results, including baseline. No automatic production promotion.
+
+Important limitation: both models receive oracle ceil(trueN/8) duration.
+Evaluate actual predicted first-EOC termination AND oracle-window OCR separately;
+never force final EOC or true pen states. Frozen reader scores actually DECODED
+XY+predictedhard pen fields, repacked only for its explicit research contract,
+not arbitrary semantic z. TRAIN trajectory errors measure memorization; unseen
+trajectory need not match one reference point-for-point. Reader CER is a proxy;
+marker-free visual legibility/text response is the primary meaningful gate.
+
+Artifacts packed into source/evaluation HDF5 files (including actual initial GPU
+noise), avoiding another50kVolume inodes. Independent CPU sampler reload MUST
+use saved GPUepsilon, not a CPU RNG with the same integer seed. Runtime digest
+checks freeze codec/reader. Preserve configs/data/noise/weights/sources/metrics,
+report all40lines, same-noise text ablations and both seeds for held-out prompts.
+Do not confuse lower denoising loss with valid generated handwriting. Outcomes
+may establish tiny-set text memorization only, not unseen text generation.
+
+## Resource monitoring and preregistered generation refinement (2026-10-07)
+
+Idle CPU cores alone are not a defect. Add dependency-free process-tree/thread
+CPU-seconds per wall-second, summedRSS, contextual cgroup usage/throttling/limits,
+NVIDIA device busy/memoryactivity/VRAM/power and phase-tagged step latency.
+Cgroup scope is unverified: never infer allocated-core saturation from host or
+shared cgroup counters. CPU request4 is a reservation, not a hard4-core limit.
+Thirty-second homogeneous TRAIN windows trigger console+JSONL recommendations;
+eval/startup/CPU-only phases don't trigger idle-GPU warnings. No automatic
+resource scaling or invented external notification destination. Persist
+`resources.jsonl`, `alerts.jsonl`, `resource-summary.json` beside every next run.
+
+First bounded throughput study:5disposable45s warmed cases from the identical
+text8000checkpoint: live4threads/batch8; cached4/batch8; cached/no-hash4/batch8;
+cached/no-hash1/batch8; cached/no-hash1/batch32. Same model/FP32/dataset/T4,
+restored parent Adam,LR1e-4. Last case changes effective batch and is throughput
+ONLY, not a matched quality result. Separate cache and per-step noise-digest
+CPU synchronization interventions. GPU boundary synchronize; update wall timing
+ends after the ordinary loss/gradient scalar reads. Benchmark does not promote
+any disposable weights. Existing source32 mean-latents fit in GPU memory;
+corpus-sized caching is not assumed safe.
+
+Generation report images inspected: text controls familiar TRAIN prompts, but
+TRAIN is still jagged/inexact and unseen whole-form text is mostly illegible.
+Hypothesis: per-channel whitening gives X~14times Y physical error tolerance,
+so uniform whitened MSE is poorly aligned with local model-space handwriting.
+Preregister3matched2000update continuations from text8000
+SHA`ddf0720e29c8692eea2bd31a2f0f28444dfa230fee271ceaab0a48080f2bfceb`:
+A uniform384-channel whitened MSE; B add physicalXY anchor; C add sameXY anchor
+plus within-true-stroke target segment-difference matching. No generic smoothing;
+index differences are not physical velocity/curvature. Only valid for this
+explicit polyphase40 transport; forbidden for generic semantic VAE channels.
+Frozen faithful codec/reader, same source32/held-form8/whitening/oracle length,
+restored Adam/RNG, exact schedule offset8000,LR1e-4,batch8,dropout0,no other
+objectives. Fixed auxiliary coefficients calibrated on first4TRAIN minibatches
+(seed11242): full-model gradient norms,XY25% and segment10% of base gradient.
+Per-arm600s safety limit; terminal TRAIN denoising selects, never unseen CER.
+Evaluate0/2000 with original correct/null/swapped/CFG3 policies/two savedGPUnoise
+seeds and marker-free renders. No automatic promotion. Resource telemetry on.
+
+## Completed initial generation gate
+
+`checkpoints/iam_generation_gate/20261007-153404/report/index.html`.
+Both matched arms reached8000updates; TRAIN-only selector chose8000. Frozen
+codec preflight40/40 passed (source reader0errors). Sampling uses saved realGPU
+noise for independentCPUreload (no pen/transcript discrepancy; maxXY drift
+6.20e-5 for text,1.62e-5 no_text). All as-run source/reporter bytes preserved.
+
+Free-stop CER: text TRAIN35.58%, NULL84.99%, swapped86.11%; matched no_text
+TRAIN72.44%. Held-form8correct86.21%; no_text85.80%. No exact generated lines.
+CFG3 hurts TRAIN72.01%, held81.69% still fails. At terminal-noise TRAIN,
+text standardizedXYMSE0.00704 versus no_text0.24781. **Text dependency exists,
+but readable generation/unseen composition does NOT pass.** Representative
+4TRAIN/4held gallery rows visibly remain jagged/illegible. Not the old codec
+failure: exact frozen source geometry and source reader pass.
+
+Oracle length caveat:16distinctTRAINlatentlengths,6singleton lines outof32;
+length can leak line identity. No unseen characters, but only32lines aren't
+adequate evidence of compositional generation. Reader is corpus-familiar;
+CER is not an independent benchmark. TRAIN correct meanX/YRMSE0.12895/0.01304,
+penF1perfect; per-channel meanX/Ywhiteningstd2.89585/0.20491 (ratio14.13).
+Scale/objective mismatch is a plausible contributor, not yet a unique cause.
+
+Resource study `iam_resource_benchmark/20261007-155649/report/index.html`
+established caching/no per-step noiseGPUcopy +14.7% examples/s; batch32 is
+4.35times original batch8 throughput. CPUprocessusage~0.98core, GPUbusy33–39%;
+4→1PyTorchCPUthreads did not improve speed. See `RESOURCE_MONITORING.md` for
+raw metrics, alert scope, profiling/scaling recommendations and limitations.
+No automaticscaling; never increase cores just because three are idle.
+
+Continuation as-run sources are preserved separately from subsequent hygiene
+updates. Initial continuation config inherited parent schedule/initial-state
+SHA and1800s wall-cap fields; actual runner uses the offset8000 schedule and
+600s TRAIN safety cap. Actual pairing verified from per-update sampleIDs and
+periodic/final RNGSHAs, parent checkpoint SHA and as-run source. Future runner
+now serializes the effective600s cap, actual continuation schedule/initial-state
+SHA and inherited RNGSHA. These metadata-only fixes do not alter completed
+models or retroactively rewrite completed config files. Reusable monitor also
+adds storage-failure guards and keeps I/O outside training timing locks.
+
+## Completed monitored generation refinement
+
+Artifacts: `checkpoints/iam_generation_refinement/20261007-160458/`;
+`report/index.html` all32TRAIN/8held marker-free comparisons; both held noise
+seeds, CPUreload; `report/resources.html` measured utilization/alerts. All3arms
+2000updates; same parent step8000,Adam moments,minibatch schedule/inheritedGPU
+noise state. Checks pass: unchanged frozen codec/reader, identical periodic/final
+RNGSHA and every-update sampleIDs. Auxiliary calibratedXYweight0.001813513526,
+segmentweight0.004050897769 (full-model gradient fractions25%/10%,not arbitrary
+smoothing). PhysicalXYlookup verified against source targets(maxerror<0.0005).
+IndependentCPUfull-noise sampler2TRAIN/2held per arm: maxXYdifference1.72e-5,
+0pen discrepancies, all free-stop reader transcripts identical.
+
+Correct-text TRAIN,means over32lines×2seeds:
+
+| Model | FreeCER | XRMSE | YRMSE | segmentdiff vectorRMSE | seconddiff vectorRMSE | tangentp90mean° | turnp90mean° |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| parent8000 |35.58%|0.128951|0.013042|0.068509|0.098548|106.28|131.83|
+| A uniform continuation |25.69%|0.082056|0.008036|0.057668|0.081414|96.94|124.75|
+| B +physicalXY |23.99%|0.079985|0.008076|0.056068|0.079620|96.12|122.94|
+| C +sameXY+targetsegments |24.68%|0.079459|0.008069|0.049041|0.066949|89.85|116.73|
+
+AllTRAINpenF1=1.0,0non-finalfalseEOC,no exact generated lines in any arm.
+Derivative matching improves segment error15.0% and seconddifference17.8%
+relative to matched A,with XRMSE3.2%better,YRMSE0.4%worse. It is an objective
+contributor,not a complete cure. B has slightly better readerCER than C; don't
+pretend all metrics agree. Angles are means of per-line p90 distributions,
+not pooledp90; index differences are not physical velocity/curvature.
+Held correct freeCER A85.60%,B84.36%,C85.60%: still fundamentally fails.
+
+Visually reviewed all32TRAIN and all8held seed9142: continuation makes more
+words recognizable, and targetmatching reduces some zigzags, but all3 still
+have pointed/artificial curves and malformed letters. Held text remains largely
+scribbles. Neither production generation nor paper reproduction passes.
+No architecture/codec change, no source-weight promotion. The old codec's
+lossless reconstruction does not prove this small denoiser can generalize text.
+
+Monitored actual refinement phases:334–337examples/s,batch8; GPUbusy36–38%,
+CPUtree0.95–0.96cores. Sustained lowGPU alerts were correctly emitted in all3
+TRAIN phases and not in eval. No measured memory pressure. This is useful
+iteration speed despite idle GPU capacity. Next optimization candidates:
+CPU/CUDA profiler,CUDAgraphs/compilation/fused dispatch,matched larger-batch
+learning study; increasing CPUreservation or moving toL4 is not yet supported.
+Next quality candidates: stronger-but-controlled physical/tangent alignment,
+terminal-noise weighting versus uniform timestep,broader text coverage and
+explicit duration/style conditioning. Do not blindly keep tweaking the codec
+or enable OCR/KL as a cure for unproven generator text composition.
+
+363tests pass root/fork;41new versus322 previous. Tests cover text/null masking,
+whitening/DDIM,CPUclock/resource attribution,phase/sustained/gap guards,noGPU,
+ambiguous hostGPUs,memoryspikes,nonfatal sampler/storage failure,shutdown,
+exact vectorized raggedcollation,polyphase contract guards,true-stroke/padding
+exclusion and matching rather than indiscriminate smoothing.
