@@ -2067,3 +2067,267 @@ Selected clean SHA256 `f64d79e1ccfbfedaaafdaa365ba0458d9b0b28d2f7b99bca43d56cd86
 affine `6495d2e0bf8e57d6bcfdd8cbadf136809b4e60ad0a9e977795eb84790c44e7f2`;
 local `8b587a92473d08b23e68a19ed5715a3792d651da6b2ee72518c9b3e5f37564b0`;
 spatial `d8e1396859eb2b7c4aee379142a7d17304d62257411daf5931d6969bc14a406e`.
+
+## Predeclared local OCR context residual (2026-10-07)
+
+Neither affine robustness nor explicit horizontal location solved writer-sensitive
+reading. Parent frame input has only a linear projection before global attention;
+connected stroke shape spans multiple irregularly spaced acquisition blocks.
+Hypothesis: a small shared local nonlinear stencil can help recognize those
+patterns. This is NOT a claim that temporal CNN context is the only missing cause.
+
+Matched pair resumes the SAME pinned four-point step8000 parent used above, not a
+cherry-picked stronger arm. All8352 observed mean codec/pen gates run again before
+any training. Same TRAIN8192 / DEV128 / report32, calibration192, AdamW parent
+moments/counters/CPU+CUDA RNG, original8-frame bucket schedule suffix8000→14000,
+physicalOCR16/rawencoder1, LR1e-4/betas.9/.99/wd1e-4/clip5/dropout.1 and two
+half-weighted clean CTC forwards. Every1000 clean evaluation and DEV-only selection
+includingstep0; 20 fixed original384×T8 posterior draws then4pointreindex on192IDs.
+Learned parent blank bias restored, no reset. No affine/spatialX/newlabels/rotation,
+geometry/VAE/KL/style/DiT or data changes. T4/cpu4/16GB, 6000additionalupdates per
+arm,1800sperarm/4800sfunction,retries0/maxcontainers1,sequential.
+
+BOTH arms add identical7744parameter residual AFTER strict parent restoration:
+Conv1d20→64/kernel5/pad2, GELU, Conv1d64→20/kernel1/nooutputbias, finalprojection
+ZERO. Applied to existing20 relative-scaled fields before existing384inputlinear.
+Same parent function and extra initial weights in both arms; control gate0,
+treatment gate1. Parent optimizer state/indices/counters remain intact, branch
+gets a new group at inherited hyperparameters. No residual dropout, resampling,
+normalization or token length change; hence same dropout RNG/exposure is testable.
+Zero frames before/afterconv and zero synthetic phases afterresidual. This spans
+five acquisition frames (~20points), NOT arc-length/physical-time neighborhoods.
+Pens remain observed context; this is OCR filtering, never target smoothing.
+
+Nine tests cover exact initial parity, optimizer/counter/RNG preservation,
+trainable branch versusdisabledcontrol, paddedNaN immunity and length invariance,
+actual neighbor sensitivity/inputimmutability, strictselectedreload, duplicate
+attachment rejection, guardedlauncher, pairedconfig/state/budget/RNG/exposure
+reportguards. Initial seven-test full suites pass258; nine-test focused suite
+passes, full260 suite will be rechecked. Explicit research checkpoint contract,
+not ordinary semanticVAE/paper reproduction. ReusedDEV and reportoverlap caveats
+continue; don't promote tiny per-run differences.
+
+```sh
+venv/bin/modal run modal_ocr_local.py --train --steps 6000 \
+ --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9
+```
+
+## Predeclared packed recurrent OCR comparison (2026-10-07)
+
+A read-only source-geometry audit on128DEV lines (parent8000 predictions) gives
+Pearson(lineCER, points/character)=-0.360; writer10066 averages10.67points/char
+versus12.47 for10163. X versusacquisition-index correlation is >.99 for all five
+writers and has only-.066 correlation withlineCER. Large (>one model-height)
+stroke-start backtracks are rare. These descriptive/reusedDEV correlations do
+NOT prove point density causes errors, but don't support delayedstrokes as the
+main explanation. Preserve diagnostic/source, no reordering or label changes.
+
+Test a stronger serial-context inductive bias, separate from localresidual:
+fresh4-point globalTransformer384/3layers/4heads/sinusoidalpositions versus
+fresh3-layer packed bidirectionalGRU320/direction, inputlinear384 and output640.
+Same20relative-scaled inputfields/calibration192/4-point clocks/masks/vocab;
+GRU has no sinusoidalpositions (order suppliedbyrecurrence). 5,502,802 versus
+5,250,002 parameters, GRU4.59%smaller. This is a WHOLE reader architecture test,
+not isolated recurrence with identicalparameter/dropoutinitialization. No norms,
+newdata/augmentation/derivativefeatures/label/trajectory/codec changes. Packed
+right-padded sequences REQUIRED: backward recurrence must never process padding.
+All dropout=.1; each freshseed42, not paired randomoperators acrossarchitectures.
+
+Same8,192TRAIN/128DEV/32report and original8-frame seed43bucket schedule, physical16,
+8,000updates each, oneCTCforward/update (same asoriginalfreshframe controls),
+AdamW LR5e-4 untilupdate6,000 then1e-4, betas.9/.99/wd1e-4/clip5. Every1,000 clean
+means/20fixedposterior draws, DEV-onlyselection includingstep0. No oldhead or
+optimizer transfer (different architectures). Codec/source/data are identical to
+otherstudies. Threshold for a convincing first improvement: at least~1percentage
+point DEVgain againstmatchedTransformer, spread acrosswriters rather than one
+fortunateglyph; report32neverselects. Confirm a substantial win with another
+trainingseed before recommending the architecture. Small differences stayweak.
+
+To avoid paying for identicaldecode/curve-scoring work again, bind andreuse
+previousfull8352mean geometry/pen evidence from affine20261007-085841 ONLYafter
+exactsourceSHA/config/poolmanifestbytes and complete-ID/pass validation. Refresh
+ALL8352 encoder/packedrealXY/pen/mask/pointfingerprint/CTC checks from actualsource
+weights. Copy originalgeometry/audit and save geometry-gate-reuse.json withboth
+SHA256s. This is NOT a newly decodedfullpool or newstochasticgeometry test. CPU
+report independently re-decodes192eval/probe lines and strictlyreloadsselected
+heads. Immutablecodec hash/buffers/gradientabsence checked aftertraining.
+
+T4/cpu4/16GB;1800sperarm/5400sfunction,retries0/maxcontainers1,sequentialarms.
+This DIFFERENT study may run alongside the local-residual study, at mosttwoT4s,
+not duplicatejobs. Ten tests cover packedpadding/NaN immunity, backwardpadding
+invariance, independentseededinitialization, finiteCTCgradients, unusednoise
+exclusion, invalidprefix masks, strict source/config/pool/ID reuseguards and
+noGPU-by-default launcher. Standalone initializedtransport research, NOT ordinary
+semanticVAE/paperreproduction. No KL/style/geometry/InkDiT promoted.
+
+```sh
+venv/bin/modal run modal_ocr_recurrent.py --train --steps 8000 \
+ --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9
+```
+
+## Predeclared OCR dropout regularization continuation (2026-10-07)
+
+Local-context result is weak: matchedclean11.2987%DEV versuslocal11.1688% (only
+5fewererrors), report8.8710% versus9.0726%worse. It merely ties the earlierbestclean
+score and isn't a convincing win. Preserve rather than promote it. A fresh
+Transformer/BiGRU architectural comparison is still running independently.
+
+Strong TRAIN/DEVgap and lateDEVregression justify one orthogonalregularization
+control: OCRdropout.1 versus.3, BOTH from selectedclean total10000 head
+`iam_ocr_augmentation/20261007-085841/clean_control/head-best.pt`, SHA
+`f64d79e1ccfbfedaaafdaa365ba0458d9b0b28d2f7b99bca43d56cd86fe14998`.
+Keep actualparentweights/learnedblankbias/AdamWmoments/counters/CPU+CUDA RNG,
+LR1e-4,betas.9/.99/wd1e-4/clip5 and twohalfweightedcleanCTCforwards. Resume exact
+original8-frame seed43schedule AFTER10000, same8192TRAIN/calibration192/128DEV/
+32report/4-point feature/input/outputarchitecture.6000additionalupdates/1800sperarm,
+DEVonlyselection includingparent0, evalevery1000/20fixedposteriorOCRdraws192IDs.
+Change only9Dropout.p and3MultiheadAttention.dropout attributes, no tensorchange
+or extra parameters. Require initialevalparity and compare finaldropoutRNG plus
+all per-updateIDs/LR. Trainingmasks/activations differintentionally. This is OCR
+DROPOUT ONLY: trajectorydecoder remainsfrozenwithdropout0; do NOT reintroduce
+its earlier jaggedness-causingdropout. Bind/reuse previous8352mean geometrygate,
+refreshall8352encoders/realfieldchecks, independentlyre-decode192CPUreport asabove.
+
+At mosttwoT4s concurrently; localGPUfinished. No label/newdata/augmentation/
+trajectory/KL/style/DiTchanges. A >=~1ppDEVgain with broadwriter benefit would
+warrant confirmation; another fewerrors doesnot resolvegeneralization. Fourunit
+tests establish unchangedtensors/optimizer/RNG/evalfunction, completeOCRdropout
+sitecoverage, trainingeffect withmatched RNGcount, invalidrates and guardedlaunch.
+
+```sh
+venv/bin/modal run modal_ocr_dropout.py --train --steps 6000 \
+ --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9
+```
+
+## Predeclared recurrent seed confirmation (2026-10-07)
+
+First fresh architecture run completed: Transformerbest7000 DEV11.3506%,
+BiGRUbest8000 DEV8.6753% (103fewer/3850errors,2.6753percentagepoints), report
+9.5766% versus8.5685%. This exceeds the predeclared~1ppgate, but is one run on
+reusedDEV. Do NOT recommend switch until savedhead reload andwriter audit.
+Repeat BOTH fresharchitectures with seed137, samecode/data/calibration/schedule43/
+8000updates/LRs/budgets/DEVselection/posteriordrawcontract. Only initialization
+andtrainingdropout seed differs from42; still NOT pairedrandomoperators across
+architectures. No hyperparameterchanges from the promisingfirstrun. Expose guarded
+--seed for this replication; preserve oldseed42as-run launcher separately, core
+traininghelper unchanged. At mosttwoT4s: firstrecurrentGPU finished, dropoutstudy
+stillrunning; secondarchitecturaljob runsalongside it. Two-seed evidence stillnot
+independent128×2samples, ensemble, freshwriters or papersemanticVAE reproduction.
+
+```sh
+venv/bin/modal run modal_ocr_recurrent.py --train --steps 8000 --seed 137 \
+ --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9
+```
+
+## Completed OCR reader improvement and confirmation (2026-10-07)
+
+A meaningful reader improvement was repeated **without changing handwriting**:
+
+| Fresh seed / reader | selected step | TRAIN mean CER | DEV mean CER | DEV 20-draw CER | report32 mean CER |
+|---|---:|---:|---:|---:|---:|
+| 42 / Transformer | 7000 | 5.3507% | 11.3506% | 11.4195% | 9.5766% |
+| 42 / packed BiGRU | 8000 | 0.0205% | **8.6753%** | 8.7026% | 8.5685% |
+| 137 / Transformer | 8000 | 4.6480% | 10.5974% | 10.5753% | 9.6774% |
+| 137 / packed BiGRU | 8000 | 0.0149% | **8.7273%** | 8.7506% | 7.5605% |
+
+Each pair uses the same 8,192 TRAIN lines, 128 DEV lines / 3,850 characters,
+32 report-only lines / 992 characters, 8,000 updates per arm, four-point
+inputs/output clock and original eight-frame sample schedule (seed43).
+Actual per-update sample IDs and LRs match within both pairs; all budgets
+completed and frozen-source guards pass. GRU reduces DEV errors 437→334 in
+seed42 (103 fewer, 2.6753pp) and 408→336 in seed137 (72 fewer, 1.8701pp).
+Two-seed average: 10.9740→8.7013%, 2.2727pp / approximately20.71% relative.
+These are **not 256 independent DEV lines, an ensemble or fresh-writer
+confirmation**. Seed42 is the canonical engineering candidate; seed137 is
+confirmation, not selected using its lower report CER. Previous best clean
+11.1688% is also higher than both GRU CERs, but came from an additional
+continuation with different training exposure; do not conflate the controls.
+
+All five DEV writers improve in seed42. Seed137 improves four; writer10163
+is one error worse (21→22 out of882 characters):
+
+| writer / characters | seed42 Transformer→GRU errors | seed137 Transformer→GRU errors |
+|---|---:|---:|
+| 10207 / 680 | 75→45 | 52→45 |
+| 10163 / 882 | 35→17 | 21→22 |
+| 10192 / 662 | 48→29 | 47→34 |
+| 10211 / 637 | 93→88 | 93→85 |
+| 10066 / 989 | 186→155 | 195→150 |
+
+Seed42 DEV lines:72 improve /33 tie /23 worsen; exact transcripts13→29.
+Seed137:60 /41 /27, exact20→24. Report line comparisons:seed42 16 /6 /10,
+seed13716 /7 /9. Not every line improves. Hardest writer still has15–16%
+CER and10211 approximately13–14%; punctuation, capitalization and tight
+connected glyphs remain imperfect. `f05-342z-06` still has substantial errors.
+Mean CTC loss need not improve with CER: seed42 GRU DEV0.4454 versus
+Transformer0.4153 despite better greedy reading. Overconfidence/calibration
+remains relevant before using this reader to supply geometry gradients.
+**No automatic joint-training unlock.**
+
+CPU reports independently reloaded all four selected heads: zero mean
+transcript differences on192 eval/probe IDs versus GPU. The same20-draw
+posterior contract excludes unused latent noise; no ensemble or posterior
+beam was evaluated. Beam10 / no language model is not the win: seed42 GRU
+8.6753→8.7532% (slightly worse), seed1378.7273→8.6753% (tiny improvement).
+Keep greedy decoding canonical rather than selecting beam using report scores.
+
+The source codec remained bitwise unchanged. For architecture/dropout studies,
+reuse the exact, bound prior8,352-line mean decoder/pen gate; newly repeat all
+8,352 encoder/real-phase/XY/pen/CTC checks. Independently re-decode and re-gate
+192 CPU evaluation/probe lines. This is not a newly decoded full pool or a
+new full-pool sampled-trajectory certification. Mean drawings, target corners
+and pen boundaries are unchanged.
+
+**What is established:** the recurrent reader package learns this online
+sequence better at the same data/update budget, with4.59% fewer parameters.
+This is not proof that recurrence alone caused the gain: it also removes
+sinusoidal positions, changes parameter layout/initialization and training
+dropout operators. Four-point grouping, CTC clock, labels and curve geometry
+did not change, so those changes cannot explain this particular gain.
+Positional-encoding scale or Transformer optimization remain possible
+contributors. No decoder modification or generic smoothing was needed.
+
+Negative experiments retained:
+- Local residual,6,000 updates per arm: clean best+2,000 DEV11.2987%, local
+  best+5,000 11.1688%, only five fewer errors. DEV34 better /59 tie /35 worse;
+  report7 /17 /8 and8.8710→9.0726% (worse). Merely ties old best clean;
+  not promoted.
+- OCR dropout,6,000 updates per arm from selected total10,000 clean: both
+  select step0 /11.1688% DEV. Last dropout0.1 TRAIN0.9782% /DEV11.5584%;
+  dropout0.3 TRAIN5.5747% /DEV11.9740%. No benefit in this bounded continuation,
+  not proof that all regularization is useless. Parent moments, batches,
+  LRs and final dropout RNG match. Trajectory decoder dropout stays0/frozen.
+
+Exact reports, source snapshots, checkpoints/configs/per-update logs:
+- `checkpoints/iam_ocr_local_context/20261007-094937/report/index.html`
+- `checkpoints/iam_ocr_recurrent_study/20261007-100011/report/index.html` (seed42)
+- `checkpoints/iam_ocr_recurrent_study/20261007-101618/report/index.html` (seed137)
+- `checkpoints/iam_ocr_dropout_study/20261007-100919/report/index.html`
+
+Combined review:
+`checkpoints/iam_ocr_reader_improvements/20261007-104500/index.html`, including
+explicit selected-reader contract, negative results, manual visual-review
+scope, descriptive source/order audit and post-commit provenance. Artifacts
+are on Modal Volume `diffink-data` and the ignored local `data/` mirror.
+Original as-run artifacts are not overwritten by later engineering reviews.
+Canonical standalone head: seed42 `bigru/head-best.pt`, SHA
+`2ebac71d897920233c8399a38e1f16fce24075cfa722c7d8e588ab14e564100e`.
+Confirmation SHA:
+`01781cf158372d5d884f4b02bf7200a267ad1b39a585d459f5a2ecaffbdb345f`.
+
+278 tests pass in root and fork (27 new). Legacy eight-frame defaults,
+official VAE/DiT training paths and paper-English configs remain unchanged.
+These are standalone four-point initialized-polyphase40 research readers,
+**not drop-in ordinary VAE heads or paper reproduction**. Reused five DEV
+writers, only32 report lines and prior codec report-prompt overlap limit
+claims. Before joint training: implement a deliberate differentiable adapter
+and actual VAE-loss-path test, calibrate geometry gradients, and impose strict
+geometry/pen gates. Reader CER alone does not authorize changing the current
+faithful trajectories.
+
+One CPU dropout report was canceled by local client disconnect (remote log
+confirms cancellation); retry only the CPU report, not GPU training. The
+canceled log is preserved separately. Installed CLI help/current Modal docs
+confirm `modal run --detach` for long jobs that must survive disconnects;
+retain bounded function timeouts and monitor completion rather than leaving
+duplicate inputs running.

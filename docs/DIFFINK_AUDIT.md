@@ -662,3 +662,21 @@ reused DEV and report prompt overlap are not independent paper-reproduction
 claims. No joint geometry/KL/style/InkDiT training enabled. Exact configurations,
 small-effect limitations, CPU beam/robustness checks and provenance are recorded
 in CONDITIONING_STUDY. Both failures and selected/final checkpoints preserved.
+
+### Confirmed English OCR reader improvement (2026-10-07)
+Fresh matched four-point Transformer versus packed three-layer BiGRU320/direction:
+same8,192 TRAIN /128 DEV /32 report,8,000 updates, LRs, calibration and CTC clock.
+Seed42 DEV CER11.3506→8.6753%; seed13710.5974→8.7273%, broad writer gains
+(5/5 then4/5; one writer regresses one error). Two-seed average10.9740→8.7013%,
+approximately20.7% relative reduction. All selected CPU192 reload mean transcripts
+match GPU; fixed20-draw posterior OCR remains stable. Entire handwriting codec
+frozen: no changed curves or pen boundaries. Local residual and stronger OCR
+dropout did not earn promotion; failures are preserved. Canonical candidate is
+first seed42 BiGRU, not a seed chosen using report32. Legacy official defaults
+remain unchanged; initialized-transport standalone reader, not a generic semantic
+VAE or paper reproduction. 278 tests pass. Combined report / selected-head contract:
+`checkpoints/iam_ocr_reader_improvements/20261007-104500/index.html` on Volume
+`diffink-data` and local `data/` mirror. Exact configs/limits in CONDITIONING_STUDY.
+Look for better OCR captions, not drawing differences. Hard writers/glyphs still
+get misread; calibration and safe real-VAE adapter integration remain before joint
+geometry/OCR/KL work. No incidental joint VAE/KL/style/DiT updates.
