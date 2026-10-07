@@ -1340,3 +1340,19 @@ Report: `checkpoints/iam_ocr_joint_study/20261007-114143/report/index.html`; exp
 finalB/sampled review: `diagnostics/engineering-review/index.html` under same root,
 on Volume `diffink-data` and local `data/`. Exact configs/limits in CONDITIONING_STUDY.
 Next: deliberate bounded KL/prior tradeoff with fixed-sigma control; no InkDiT yet.
+
+### KL tradeoff and decoder-noise diagnosis (2026-10-07)
+Three matched200update T4 arms (KL0/1e-7/1e-6), same8192TRAIN schedule/source/
+optimizer/epsilon, no OCR/style/GMM training.1e-6 slightly improves DEV KL1.09299→
+1.09006 and sampled XYRMSE~6%; lower weights mostly shrink uncertainty and worsen
+KL. All final checkpoints fail some strict corner-angle gates; no promotion.
+1000 independent CPU mean reloads agree with GPU (no pen/transcript differences);
+inspected drawings remain near-lossless, actual failed draws are included. CPU
+module swaps identify convdecoder updates and nominally unused344channel noise
+as contributors to tiny extra stochastic drift; frozen Transformer alone does
+not freeze the convdecoder. Not bad-data or capacity failure. Generic semantic
+latents must NOT be masked as unused.310 tests pass; exact findings/configs/limits
+in CONDITIONING_STUDY. Report on Volume diffink-data/localdata:
+`checkpoints/iam_kl_tradeoff/20261007-132418/report/index.html`; actualfailures/probe
+review under same root `diagnostics/engineering-review/index.html`. Next: isolate
+posterior calibration with complete geometry frozen; no incidental style/DiT.

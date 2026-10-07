@@ -2488,3 +2488,154 @@ bounded deliberate KL/prior-versus-reconstruction tradeoff with fixed-sigma cont
 not blindly increasing OCR weight or unlocking InkDiT. Reused five DEV writers,
 32report lines, prior codec prompt overlap, experimental normalization/EOC and
 initialized transport still prevent paper-reproduction/general generation claims.
+
+## Predeclared KL tradeoff with fixed-source uncertainty (2026-10-07)
+
+Follow-up to frozen-GRU joint test; source remains original protected codec SHA
+9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625, NOT a
+posterior-contracted joint checkpoint. Same canonical GRU is evaluation-only.
+Three matched200update arms: KL0,1e-7,1e-6. Previous1e-5 already degraded sampled
+curves, so do not repeat the obviously poor stronger setting. Original1e-6 source
+was trained on192lines; this continuation uses pinned8192TRAIN schedule seed4042.
+
+Same restored AdamW moments/bodyLR1e-7/posteriorLR1e-3; frozen readout/style/reader;
+protected pen logvar weights/moments, trainable pen variance bias. Physicalbatch1,
+accum8, explicit same noise(seed7042) across arms. Geometry and bounded pen objective
+unchanged: G(mu)+0.1G(z)+PEN*boundedPen, G=pointMSE+DELTA_WEIGHT*target first
+index-differenceMSE. KL uses corrected valid-channel×latent-time normalization.
+No GMM/OCR/style/dropout/augmentation objective or architectural change. Initial
+TRAIN32 raw geometry-versus-KL gradient norms/cosines recorded per body/posterior
+group; coefficients are a bounded prior tradeoff, not tuned on DEV.
+
+Evaluate0/100/200: TRAINprobe32+DEV128+report32+all original8 =200unique lines.
+Four old8 outside reader pool loaded from immutable originaltinyTRAINh5 ONLY for
+evaluation; never inserted into TRAIN schedule. For every line,20 paired draws
+under BOTH its current posterior sigma AND fixed source sigma, with identical
+original-shape epsilon across versions/policies. Mean-location changes permitted,
+source uncertainty held fixed for the diagnostic. Save source std tensor/SHA,
+configs, as-run sources, selected AND final checkpoints, metrics and trajectories.
+
+Gates are the joint study's per-line mean/sampled XY/turn/corner/shallow/pen gates
+for BOTH noise policies; TRAINprobe/original8 can stop, DEV/report cannot. Same
+TRAIN-only selector minimizes corrected TRAINprobe KL then own sampledXY among
+gate-passing checkpoints, including0. KL0 may legitimately select0 even if actual
+sampled geometry improves; always show final separately. Fixed-sigma diagnostic
+cannot be mistaken for samples of the current learned posterior. No full8352 or
+semantic/generative-readiness claim from this bounded test. Prior closeness alone
+is not semantic regularization or proof diffusion generation will work.
+
+One detached T4 job, sequential3arms,1800s loop/eval limit perarm/7200s function,
+retries0/maxcontainers1. CPU independent reload/marker-free visual review follows;
+all8 named curves and final arms shown, no selected0 hiding later failures.
+
+## Completed KL / fixed-source-sigma tradeoff (2026-10-07)
+
+All three matched T4 arms reached200updates. At the final evaluation each hit a
+predeclared TRAIN/named corner gate, so the stop reason is a geometry gate even
+though the full update budget completed. No new checkpoint is promoted; retain
+original codec/canonical standaloneGRU. This is a useful negative result plus a
+causal diagnosis, not a visually improved production VAE or paper reproduction.
+
+Same source/restored optimizer/full8192TRAIN schedule/noise; all batch/noise/RNG
+pairing and frozen-reader/protected-weights checks pass. Initial gradient norms
+reveal why a numerically tiny KL matters: body geometry0.000257483 versus raw
+KL2.354502 (weighted1e-6 fraction0.00914, cosine−0.184); posterior geometry
+7.60817e-8 versus rawKL0.07201185 (weighted1e-6 fraction0.9465, cosine−0.9418).
+1e-7 contributes~9.5% of the variance-head gradient,1e-6~95%. A total-gradient
+fraction alone would hide this important parameter-group imbalance. No clipping
+on any of600updates. Loop/evaluation191.269/192.739/191.837s, excluding startup,
+capture, report and billing. Saved default model/trainer/dataset behavior unchanged.
+
+DEV128 final own-posterior20draws (mean per-line/per-draw errors):
+
+| State | KL/valid element | Mean XYsigma | X RMSE | Y RMSE | Mean turnp90° |
+| --- | --- | --- | --- | --- | --- |
+| Source | 1.0929865 | 0.000476659 | 0.000583650 | 0.000584415 | 3.32585 |
+| KL0/200 | 1.1279872 | 0.000291562 | 0.000410284 | 0.000410495 | 2.13166 |
+| KL1e-7/200 | 1.1236696 | 0.000305396 | 0.000421607 | 0.000421846 | 2.21860 |
+| KL1e-6/200 | 1.0900645 | 0.000465288 | 0.000547097 | 0.000547085 | 3.18790 |
+
+The two lower weights again mostly contract uncertainty and WORSEN KL.1e-6
+slightly lowers KL(~0.27%) and sampled point error(~6.3%), without broad variance
+collapse: XYsigma mean~2.4% lower, median0.000355220→0.000370239. XY KL
+contribution0.725733→0.723623; pen0.367254→0.366442; unused~0. Small gains in
+both active subsets, not a large prior/semantic-latent breakthrough. Mean XY
+RMSE stays~6e-6; mean pen states exact. DEV meanCER unchanged8.6753% for0/1e-7,
+1e-6final8.7013% (one more error); no OCR objective trained. Own sampled CER is
+also reported but tiny changes are not recognized as meaningful reader improvements.
+
+Holding the SAME source sigma/epsilon in every version leaves sampled X/Y around
+0.000584/0.000584 and turn3.33degrees; no robustness gain. Final gates fail7/7/8
+fixed-sigma corner/shallow checks for0/1e-7/1e-6;1e-6 additionally fails25 own
+noise angle checks. These are metric failures (not necessarily25distinct lines),
+not pen/meanXY failures. TRAIN-only selector retains0 forKL0/1e-7 and100for1e-6.
+The selected1e-6/100 also has DEV/report angle failures; no promotion on the basis
+of TRAIN eligibility. Preserve/show ALLfinal checkpoints, not just selected ones.
+Do not loosen the preregistered gates after seeing these results.
+
+Examples of actual failures, not only source-worst/handpicked previews:
+- `k06-499z-02`, GPUfixedσ draw14: cornerp90 3.56664→4.46024degrees, bound4.27997;
+  paired source/final trajectory RMS shift3.12e-5. Source/final XRMSE~0.000578/
+  0.000574. Thus low aggregate point error can hide a local direction change.
+- `p03-331z-03`, fixedσ draw1: cornerp90 3.31024→4.12494, bound3.97229.
+- `b07-568z-04`, fixedσ draw14: shallowp90 1.40761→1.69450, bound1.68913
+  (barely beyond gate). Do not exaggerate this as an obvious visual deformation.
+- Supplemental CPU all8×20:0/1e-7 pass both noise-policy gates.1e-6 final fails
+  one own-noise corner check, `a07-421z-02` draw13; fixed-sigma gate passes.
+  Source-worst gallery draw17 would not show that failure, so actual draw13 is
+  included separately. These CPU epsilons are NOT GPU-paired.
+
+Independent CPU reload verifies1000means: source plus all3final and1e-6selected100,
+200lines each. Max CPU/GPU XYdiff9.54e-6, zero pen/transcript differences. Main
+report separately renders all200 means and original8 mean/source-worst20draw c/h
+closeups. Manual review: all8 full means, c/h mean/own/fixed-noise closeups,
+actual failed draw full lines and worst-increase target-corner closeups. Drawings
+remain visually near-lossless in these views; no return of the old obvious spikes.
+Those remaining target hooks/polygonality are deliberately preserved, not smoothed.
+Not all200gallery lines or all4000draws were manually reviewed.
+
+### CPU causal probe: nominally unused latent noise leaks through conv decoder
+
+"Frozen readout" in optimizer_groups freezes `transformer_decoder`, NOT
+`model.decoder` (the convolutional upsampling stack), which was still in the
+body group atLR1e-7. Even tiny body updates can change its noise response.
+
+Posthoc CPU module swaps on15known curves/failure examples,20paired CPUeps each,
+with identical fixedSOURCE sigma; no training/selection/promotion:
+- FullKL0final versus source: mean displacementRMS8.37e-6; sampled3.035e-5.
+- SOURCEencoder/mu plus UPDATEDconvdecoder: mean8.44e-6; sampled3.049e-5.
+- UPDATEDencoder/mu plus SOURCEconvdecoder: mean9.06e-6; sampled9.06e-6.
+Thus swapping only convdecoder reproduces nearly all the additional stochastic
+source-to-final drift on this diagnostic set; encoder/mu changes are chiefly a
+small fixed location shift. This is causal module-swap evidence for this scope,
+not a universal statement about every dataset/model.
+
+Zeroing ONLY noise in channels>=40, retaining the same active-field noise and
+all means, reduces full source-to-final sampled drift3.035e-5→8.377e-6, essentially
+mean-shift level. SOURCE itself already has unused-noise leakageRMS2.843e-5;
+final2.923e-5. The *pattern* changes more than its aggregate amplitude. These
+344channels are nominally unused only in this explicit initialized-polyphase40
+codec, NOT in a normal384-d semantic VAE. Do not mask generic learned latents.
+This is a contributor to the small fixed-noise corner failures, not evidence
+that unused noise explains all active-coordinate sampling error or the historical
+large mean-geometry artifacts. Module-swap outputs are diagnostics, NOT promoted
+surgical checkpoints. Probe completed/serialized all15×8policy/model×21means/draws;
+wrapper later reportedexit143, full artifact structure/SHAs were checked. No rerun
+or hidden partial result; preserve the abnormal wrapper status in provenance.
+
+Next justified comparison: freeze the COMPLETE geometry decoder (conv+Transformer)
+when calibrating posterior noise, possibly encoder/mu too for a fully isolated
+uncertainty refit. Also compare explicit unused-channel masking for this transport
+contract only. Do NOT blindly increase KL, generic smoothing, change RDP, turn on
+style/CTC or declare InkDiT readiness. These simpler causal hypotheses now have
+more support than architecture-capacity or "bad IAM dataset" explanations.
+
+Study root on Volume `diffink-data` and local ignored `data/`:
+`checkpoints/iam_kl_tradeoff/20261007-132418/`.
+- immutable CPU report: `report/index.html` (metrics-table/configs/SHAs/gates);
+- actual failed draws, causal explanation, provenance: `diagnostics/engineering-review/index.html`;
+- causal module swaps: `diagnostics/component-swap/summary.json` + exact probe source;
+- selected/final checkpoints, as-run sources, sourceSTDtensor/SHA, every-update log.
+310 tests root/fork (13new). Same experimental normalization/EOC, reusedDEV5writers,
+report32prior codec overlap and initialized transport limitations remain explicit.
+All200original/heldout means quantified; no new full8352 stochastic certification.
