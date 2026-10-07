@@ -1325,3 +1325,18 @@ VAE or paper reproduction. 278 tests pass. Combined report / selected-head contr
 Look for better OCR captions, not drawing differences. Hard writers/glyphs still
 get misread; calibration and safe real-VAE adapter integration remain before joint
 geometry/OCR/KL work. No incidental joint VAE/KL/style/DiT updates.
+
+### Frozen-GRU joint compatibility result (2026-10-07)
+Matched200update T4 geometry+pen versus geometry+pen+frozenGRU OCR; actual VAE
+loss path now has an explicit-length differentiable research adapter. All measured
+curve/pen gates pass, including supplemental original8 CPU20draws and finalB200.
+No OCR improvement: DEV8.6753%→8.7013%; TRAIN-only selector retains B0. No joint
+checkpoint promotion. Sampled point errors improve~30%, but fixed-source-sigma
+control shows overwhelmingly posterior contraction (~39% less XYsigma), not stronger
+fixed-perturbation robustness; KL was off. Mean drawings already near-lossless.
+297 tests pass. Preserve original codec/canonical standaloneGRU. Dedicated research
+polyphase transport, NOT ordinary semantic latents or generative readiness.
+Report: `checkpoints/iam_ocr_joint_study/20261007-114143/report/index.html`; explicit
+finalB/sampled review: `diagnostics/engineering-review/index.html` under same root,
+on Volume `diffink-data` and local `data/`. Exact configs/limits in CONDITIONING_STUDY.
+Next: deliberate bounded KL/prior tradeoff with fixed-sigma control; no InkDiT yet.

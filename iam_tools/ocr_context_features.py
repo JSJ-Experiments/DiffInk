@@ -6,7 +6,7 @@ change. Head-only checkpoints deliberately cannot be loaded as standard VAEs.
 import torch
 
 
-def unpack(x, mask, points_per_frame=8):
+def unpack(x, mask, points_per_frame=8, point_mask=None):
     if type(points_per_frame) is not int or points_per_frame not in (2,4,8):raise ValueError('transport reader supports2,4 or8 points/frame')
     channels=5*points_per_frame
     if x.ndim!=3 or x.shape[1]<channels or mask.shape!=(x.shape[0],x.shape[2]) or mask.dtype!=torch.bool:
@@ -14,6 +14,17 @@ def unpack(x, mask, points_per_frame=8):
     if not mask.any(1).all():raise ValueError('nonempty line required')
     clean=x.masked_fill(~mask[:,None],0.)
     fields=clean[:,:channels].reshape(x.shape[0],points_per_frame,5,x.shape[2])
+    if point_mask is not None:
+        # Joint supervision MUST use known input lengths, not a predicted EOC.
+        # Otherwise moving a pen logit can hide the rest of the line from OCR.
+        if point_mask.dtype!=torch.bool or point_mask.shape!=(x.shape[0],x.shape[2]*points_per_frame):
+            raise ValueError('explicit Boolean point mask must match packed phases')
+        if not point_mask.any(1).all() or ((~point_mask[:,:-1])&point_mask[:,1:]).any():
+            raise ValueError('explicit point mask requires nonempty right-padded prefixes')
+        expected=point_mask.reshape(x.shape[0],x.shape[2],points_per_frame).any(-1)
+        if not torch.equal(expected,mask):raise ValueError('point/frame masks disagree')
+        real=point_mask.reshape(x.shape[0],x.shape[2],points_per_frame).permute(0,2,1)
+        return fields,real
     states=fields[:,:,2:].argmax(2).permute(0,2,1).reshape(x.shape[0],-1)
     temporal=mask.repeat_interleave(points_per_frame,dim=1)
     eos=(states==2)&temporal
@@ -35,9 +46,9 @@ def relative_x(fields):
     return torch.cat((first[:,None],rest),dim=1)
 
 
-def transform(x,mask,mode='global_raw',stats=None,points_per_frame=8):
+def transform(x,mask,mode='global_raw',stats=None,points_per_frame=8,point_mask=None):
     if mode not in ('global_raw','global_scaled','relative_scaled'):raise ValueError('unknown transport OCR mode')
-    fields,real=unpack(x,mask,points_per_frame)
+    fields,real=unpack(x,mask,points_per_frame,point_mask=point_mask)
     xy=fields[:,:,:2].clone()
     if mode=='relative_scaled':xy[:,:,0]=relative_x(fields)
     if mode!='global_raw' and stats is not None:

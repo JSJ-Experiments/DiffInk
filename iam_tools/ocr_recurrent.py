@@ -30,11 +30,16 @@ def make_head(cfg,num_classes,stats,seed=42):
             if valid.dtype!=torch.bool or valid.shape!=(x.shape[0],x.shape[2]) or not valid.any(1).all():
                 raise ValueError('nonempty Boolean right-padded input required')
             if ((~valid[:,:-1])&valid[:,1:]).any():raise ValueError('packed reader requires right-padded prefixes')
-            features=transform(x,valid,'relative_scaled',stats,4).transpose(1,2)
+            features=transform(x,valid,'relative_scaled',stats,4)
+            return self.logits_from_features(features,valid)
+
+        def logits_from_features(self,features,valid):
+            """Already transformed B,C,T fields; shared readout, same weights."""
+            features=features.transpose(1,2)
             projected=self.input_proj(features).masked_fill(~valid[:,:,None],0.)
             packed=torch.nn.utils.rnn.pack_padded_sequence(projected,valid.sum(1).cpu(),batch_first=True,enforce_sorted=False)
             encoded,_=self.rnn(packed)
-            encoded,_=torch.nn.utils.rnn.pad_packed_sequence(encoded,batch_first=True,total_length=x.shape[2])
+            encoded,_=torch.nn.utils.rnn.pad_packed_sequence(encoded,batch_first=True,total_length=features.shape[1])
             return self.output_fc(encoded).transpose(0,1)
 
     with torch.random.fork_rng(devices=[]):

@@ -2331,3 +2331,160 @@ canceled log is preserved separately. Installed CLI help/current Modal docs
 confirm `modal run --detach` for long jobs that must survive disconnects;
 retain bounded function timeouts and monitor completion rather than leaving
 duplicate inputs running.
+
+## Predeclared frozen-GRU joint geometry compatibility test (2026-10-07)
+
+Source codec SHA `9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625`;
+frozen canonical seed42 GRU SHA
+`2ebac71d897920233c8399a38e1f16fce24075cfa722c7d8e588ab14e564100e`.
+Same immutable pool8192TRAIN/128DEV/32report. Planned old8 scope was corrected below:4 in pool, all8 audited separately on CPU.
+Research initialized-polyphase40 contract, NOT generic learned semantic latents.
+
+A: mean geometry +0.1 sampled geometry + bounded pen.
+B: same plus sampled CTC with frozen GRU. Geometry matches target point positions
+and within-true-stroke first differences (inside-G coefficient0.20471838744633777);
+not generic smoothing, physical velocity or curvature. No KL/style/GMM, dropout,
+augmentation, labels, RDP or architecture changes beyond explicit reader adapter.
+
+Actual VAE.forward→get_ocr_loss supports an opt-in point-mask-aware adapter.
+Explicit original real-point lengths—not predicted EOC—determine four-point OCR
+frames. A fake early EOC cannot hide later points. Frozen GRU uses cuDNN training
+reserves with dropout0 only when input backward is needed; GPU preflight checks
+eval-logit parity and finite input gradients before any update. Reader weights
+remain frozen and reader eval/dropout flags are restored. Dedicated research
+checkpoint loader required; standard loader rejects the new contract.
+
+200 updates per arm initially (CLI50–400), restored source AdamW moments, body
+LR1e-7/posterior1e-3, readout and style frozen, existing pen-variance weight/moment
+protection retained. Physical raw batch1 /accumulation8; only OCR latents batch8.
+Seed4042 full TRAIN schedule; seed7042 paired original-shape posterior noise.
+Geometry uses verified eager-equivalent CUDA graphs, same exact minimal lengths.
+A also evaluates sampled CTC without optimizing it. CTC weight initially targets
+10% of TRAIN32-probe aggregate encoder+conv_mu geometry gradient, capped0.1;
+calibration seed6042, fixed across arms, never DEV.
+
+Evaluate every50 updates on TRAIN32probe+DEV128+report32+old8 union, all20 fixed
+posterior draws. Per-line gates: mean axis max(4×reference,0.0005modelunits); each
+sampled axis max(1.2×same-draw reference,0.0001); mean turn/corner/shallow p90
+max(1.5×reference,1degree), sampled max(1.2×same-draw reference,1degree); exact
+pen F1/final EOC, no false internal EOC. TRAIN/old8 gate can stop safely; DEV/report
+only report, never choose or stop. Common selection uses TRAIN32 CER then CTC then
+geometry among gate-passing checkpoints, including step0. Save selected AND final
+metrics/checkpoints, so a baseline-selected result cannot hide later regression.
+
+One T4, sequential arms,1800s loop/eval perarm,5400s function timeout,retries0.
+No new full8352 post-update or generative-readiness claim from this bounded test.
+CPU reports independently reload selected codecs/readers and compare mean XY/pen/
+transcripts; CPU/CUDA posterior noise streams are not bitwise paired.
+
+```sh
+venv/bin/modal run --detach modal_ocr_joint.py --train --steps 200 \
+ --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9
+```
+
+## Completed matched frozen-GRU joint test (2026-10-07)
+
+**Compatibility passed; OCR benefit failed. No joint checkpoint promotion.**
+Both T4 arms completed200updates. Same source codec, restored AdamW moments,
+TRAIN schedule(seed4042), explicit posterior noise(seed7042) and final RNG hashes.
+Physical raw batch1/accum8; only frozen OCR uses latent batch8. BodyLR1e-7,
+posteriorLR1e-3; readout/style frozen, pen variance weights/moments protected.
+No KL/style/GMM/dropout/augmentation. Objective:
+`G(mu)+0.1*G(z)+0.02099049935353879*boundedPen`, where
+`G=pointMSE+0.20471838744633777*within-true-stroke target first-differenceMSE`.
+B additionally uses sampled frozen-GRU CTC. These index differences are neither
+physical velocity nor geometric curvature, and no generic smoothing was added.
+
+Initial TRAIN32probe aggregate encoder+conv_mu gradient norms: geometry
+0.00018073410319630057, CTC0.9888355731964111. Fixed B coefficient
+1.8277467770711117e-5 gives the predeclared10% gradient fraction; cosine0.1178598.
+Reader CUDA logits match eval exactly, input gradient finite(L2~0.043104),
+reader weights/gradients remain frozen. Geometry eager/CUDA gradient relative
+error<1e-12, term difference0. No update hits clip5. Loop+evaluation138.830s(A),
+147.304s(B), excluding startup/capture/CPU reporting/billing.
+
+TRAIN-only selector chooses A200 and B0 (source). B200 is preserved and shown,
+not hidden behind unchanged selected B0. DEV/report never choose or stop.
+DEV128 mean results (X/Y in modelunits, turn = average per-line p90 error degrees):
+
+| Codec | CER | X RMSE | Y RMSE | Turn | Pen F1 |
+| --- | --- | --- | --- | --- | --- |
+| Source | 8.6753247% | 0.000007121 | 0.000005656 | 0.03891 | 1 |
+| A200 geometry | 8.6753247% | 0.000005887 | 0.000006499 | 0.05788 | 1 |
+| B200 + frozen OCR | 8.7012987% | 0.000007077 | 0.000003147 | 0.02533 | 1 |
+
+B adds one DEV character error; these tiny geometry changes are not visibly
+meaningful. All reported mean/every20draw per-line XY/turn/corner/shallow/pen
+compatibility gates pass. Scope correction to the predeclaration above: only
+4original8 curves occur in the immutable reader pool (c08,e08,p08,l10). GPU
+union196lines = TRAINprobe32+DEV128+report32+4curves. Original `a07-421z-02`
+("h in hope"), a07-03,k07,h05 are outside the pool, not silently added to it.
+Supplemental CPU audit reloads all original8 from immutable originaltinyTRAINh5,
+source/Aselected/Bselected/finalB,20paired CPUdraws; never training/selection/stop.
+Independent main CPU reload covers196SELECTEDmeans, not20CPUdraws for all196.
+Mean CPU/GPU XY differences<=9.54e-6, zero pen/transcript differences.
+
+### Sampled improvement is largely posterior contraction, not robustness
+
+DEV20draws: source X/Y0.000582251/0.000584779, turn3.33354degrees;
+A2000.000409145/0.000410972, turn2.14006;
+B2000.000409027/0.000410870, turn2.13892. Approximately30% less point error.
+But KL was OFF. CPU TRAIN32+DEV128 posterior audit finds DEV mean XYsigma
+0.000476659→0.000291562(A)/0.000291467(B), ~39% lower; valid-element KL
+1.092986→1.127987/1.127998 (~3.2% higher).
+
+Controlled legacy8×20 paired CPUnoise, keeping the SAME source sigma in every
+version: source X/Y0.000500623/0.000506794, turn2.53676degrees;
+A2000.000500618/0.000506726, turn2.53704;
+B2000.000500646/0.000506704, turn2.53690. Effectively unchanged. With each
+learned sigma, A/B X/Y~0.0003457/0.0003505, turn~1.559degrees. Thus most
+sampled gain is shrinking posterior uncertainty, NOT a demonstrated stronger
+decoder at the same perturbation or improved prior matching. All pen states exact.
+This fixed-sigma diagnostic is descriptive only, not checkpoint selection.
+
+Selected source/B0/A200 latent-versus-rendered frozen-reader audit on160probe+DEV
+means finds unchanged CER, nearly equal CTC, gradient energy~97.2%XY/2.8%pen/
+unused0. No evidence these SELECTED checkpoints exploit hidden pen amplitudes;
+finalB200 was NOT included, and this is not a general proof against hidden cues.
+
+Manual review: original8 selected mean full-line galleries, finalA200/B200 full
+mean and source-worst20draw galleries, named c/h closeups (means and same-draw
+samples), DEV page7, report page2, learning curves. Target corners/hooks survive;
+no new spikes seen in inspected views. The c/h targets themselves remain polygonal
+from IAM/RDP. All196 are quantified/gallery-generated, not all manually inspected.
+Prior source/codec is already near-lossless; this experiment does not make drawings
+visibly better. Residual reader errors do not establish a bad dataset.
+
+### Implementation, artifacts and limits
+
+19 new tests (297 total, root and fork). Safe opt-in differentiable adapter tested
+through actual VAE.forward→get_ocr_loss→encoder backward; explicit real-point
+lengths mandatory, predicted EOC cannot hide the transcript. Research OCR
+checkpoints rejected by ordinary loaders. Legacy standalone reader behavior,
+ordinary Chinese/English VAE paths and default configs unchanged. Dedicated
+initialized-polyphase40 transport contract, NOT opaque semantic VAE latents.
+
+Study root on Modal Volume `diffink-data` / local ignored `data/` mirror:
+`checkpoints/iam_ocr_joint_study/20261007-114143/`.
+- immutable completed report: `report/index.html`;
+- explicit finalB, sampled galleries, fixed-sigma diagnosis, provenance:
+  `diagnostics/engineering-review/index.html`;
+- sources/configs/per-update logs/selected AND final checkpoints under study root;
+- `diagnostics/posterior-stats-local.json`, `fixed-source-sigma.json`,
+  `latent-vs-rendered-reader.json`, `legacy-eight/summary.json`;
+- original GPU sources preserved. Two reviewed post-GPU changes only: explicit
+  excluded-curve scope metadata, and earlier missing-pointmask rejection. Actual
+  run supplied explicit valid masks; objective/sample set unchanged.
+
+One CPU render was preempted/restarted then deliberately stopped to avoid repeated
+expensive work; a second completed evaluation but failed in diagnostic writing on
+missing `greedy_ctc` import. Final CPU retry succeeded. Source/error logs preserved,
+import fixed with real-reader reporter regression, checkpoint/source/data-bound
+completed CPU-stage cache added; no GPU retraining or overwritten as-run artifacts.
+All four study Modal apps stopped/tasks0 at final audit; do not stop unrelated apps.
+
+Keep original codec and canonical standalone GRU, not jointB. Next useful study:
+bounded deliberate KL/prior-versus-reconstruction tradeoff with fixed-sigma control,
+not blindly increasing OCR weight or unlocking InkDiT. Reused five DEV writers,
+32report lines, prior codec prompt overlap, experimental normalization/EOC and
+initialized transport still prevent paper-reproduction/general generation claims.

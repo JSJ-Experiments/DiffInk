@@ -39,7 +39,7 @@ class VAE(nn.Module):
             num_writers=config.num_writer
         )
         
-    def apply_checkpoint_contract(self, checkpoint, allow_research_conditioning=False):
+    def apply_checkpoint_contract(self, checkpoint, allow_research_conditioning=False, allow_research_ocr=False):
         saved = checkpoint.get('config')
         if saved is None:
             if getattr(self.config, 'language', None) == 'en':
@@ -47,6 +47,8 @@ class VAE(nn.Module):
             return
         if saved.get('conditioning_mode', 'control') != 'control' and not allow_research_conditioning:
             raise ValueError('research conditioning checkpoint requires its dedicated loader and inverse transform')
+        if saved.get('research_ocr_contract') and not allow_research_ocr:
+            raise ValueError('research OCR checkpoint requires its dedicated adapter/reader loader')
         for key in ('model_input_scale', 'trans_dropout', 'use_decoder_padding_mask', 'pen_policy'):
             if key in saved: setattr(self.config, key, saved[key])
         dropout = float(getattr(self.config, 'trans_dropout', .1))
@@ -96,6 +98,8 @@ class VAE(nn.Module):
         return output
 
     def forward(self, data, pad_mask, labels, writer_labels, get_ctc_loss=True, get_style_loss=True, point_mask=None, input_is_model_space=False):
+        if get_ctc_loss and getattr(self.ocr_model, 'requires_point_mask', False) and point_mask is None:
+            raise ValueError('research OCR requires explicit real-point lengths; sentinel inference is not its contract')
         # encoder and decode
         z, mu, logvar = self.encode(data, input_is_model_space=input_is_model_space)
         if getattr(self.config, 'use_decoder_padding_mask', False):
@@ -110,7 +114,7 @@ class VAE(nn.Module):
         # ocr loss and kl loss
         kl_loss = self.kl_divergence_new(mu, logvar, pad_mask)
         if get_ctc_loss:
-            ctc_loss = self.get_ocr_loss(z, labels, pad_mask)
+            ctc_loss = self.get_ocr_loss(z, labels, pad_mask, point_mask=point_mask)
         else:
             ctc_loss = torch.tensor(0.0, requires_grad=False, device=data.device)
         
@@ -146,9 +150,11 @@ class VAE(nn.Module):
         loss = F.cross_entropy(writer_logits, writer_labels)
         return loss
 
-    def get_ocr_loss(self, features, labels, mask=None):
+    def get_ocr_loss(self, features, labels, mask=None, point_mask=None):
         # VAE.forward uses this method, not a standalone OCR helper test.
         # Share the implementation so the two paths cannot drift again.
+        if getattr(self.ocr_model, 'requires_point_mask', False):
+            return self.ocr_model.get_ocr_loss(features, labels, mask, point_mask=point_mask)
         return self.ocr_model.get_ocr_loss(features, labels, mask)
 
     @torch.no_grad()
