@@ -522,3 +522,29 @@ preserves default behavior. A larger TRAIN-only pool is the next generalization
 test; missing labels explain only1/992 held-out characters. Global context
 ablation demonstrates dependence, not a sole-cause diagnosis. No paper-English,
 writer/form-independent benchmark or semantic-generative readiness claim.
+
+### Prompt-guarded OCR supervision expansion — 2026-10-07
+
+Completed two sequential T4 controls,6000 updates each: nested192 versus2048
+TRAIN lines with the same186 writers, identical fresh OCR weights/feature
+moments/LR budgets. DEV128 from five reserved writers selects checkpoints;
+original32 reports only. TRAIN excludes both evaluation prompt families
+(including IAM writer-version variants) and normalized transcripts;25 test
+writers never enter training. Original overfit data and all codec tensors stay
+unchanged. New `iam_tools/ocr_pool.py` prepares a separately pinned pool safely.
+
+DEV CER **75.64%→28.29%**, original32 **74.50%→25.10%**; larger TRAIN2036/2048
+exact/.01925% CER. All2208 observed pool trajectories pass mean curve/pen gates
+(X/Y RMSE7.24e-6/5.70e-6, turn p90.04094°, perfect boundaries/EOCs). No added
+spikes, no geometry optimization. All selected mean predictions agree CPU/GPU.
+Report `checkpoints/iam_ocr_pool_study/20261007-033445/report/index.html` (local
+`data/` mirror) includes all160 evaluation target/shared-reconstruction panels,
+transcript comparisons, learning curves and audits.182 tests pass. See
+`docs/CONDITIONING_STUDY.md` for configs, hashes and strict provenance caveats.
+
+Data starvation/memorization is a major OCR contributor;25–28% unseen CER still
+isn't dependable. This is not a paper/independent-pretraining IAM benchmark or
+a generative latent proof. The frozen codec's earlier geometry training had
+prompt overlap with original32. Research heads remain standalone with explicit
+polyphase feature contracts; no joint VAE/DiT launch. Next useful test is more
+TRAIN-only supervision, not further tiny-set memorization or releasing geometry.

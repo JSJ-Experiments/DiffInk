@@ -1029,3 +1029,140 @@ invariance, tail/unused NaN isolation, train-only statistics, finite local masks
 and backward/padding parity, restricted receptive field, seed/RNG preservation,
 legacy default attention parity and text coverage. Geometry gate stays protected;
 no research head promoted and no InkDiT or joint OCR/KL/style launched.
+
+## Larger prompt-guarded OCR pool (2026-10-07)
+
+Completed `iam_ocr_pool_study/20261007-033445`. This tests data amount while
+**every original codec tensor remains bitwise unchanged**, including its old
+OCR head. Fresh standalone research heads only; no shared encoder/decoder,
+readout, pen, posterior, geometry, KL/style optimization or InkDiT job.
+
+### Split and experiment controls
+
+New independent generated directory `diffink/iam_ocr_pool` (original overfit,
+raw IAM and canonical directories untouched):
+- large TRAIN2048 /62,334 target characters /186 writers;
+- nested small TRAIN192 /5911 characters /the SAME186 writers;
+- DEV128 /3850 characters /five previously reserved writers,24–27 lines each;
+- original report-only32 /992 characters /eight seen writers, four each.
+
+TRAIN excludes all DEV/report **prompt families**, removing IAM writer-version
+suffixes (`a01-000u/w/z` →`a01-000`), as well as normalized exact transcripts.
+DEV/report prompt families and normalized transcripts are disjoint too. DEV
+writers are wholly excluded from TRAIN;25 test writers excluded entirely. Fixed
+81-character vocabulary inherited from the broad prior TRAIN inventory excluding
+test/DEV writers; no evaluation labels expand it. Selection/conversion seeded42,
+round-robin balanced by writer. Height100/RDP.5/input scale.01 and200–2000 point
+loader/exact-CTC filters unchanged. Raw XML/transcript and point fingerprints,
+rejections, IDs, writer/prompt/text checks, HDF5 and vocabulary hashes preserved.
+Atomic replacement safeguards preserve old complete output on build failure.
+
+Dataset manifest SHA256:
+`122a428ad0e549aeec9b9f4b67028f48ac6470123234505cd25ac191b041bd0e`
+HDF5 SHA256:
+`69e937e22567f94b04b5d954b1d536e3f19b2ccde9b08a7e21ef0dea64c94f1d`
+
+Both arms: same fresh seed42 OCR tensor initialization, blankbias0, dropout.1,
+relative-X/global attention, **identical moments calibrated ONLY on nested small
+TRAIN192**, cached means, masked head batch16; raw codec batch1/minimal padding.
+AdamW5e-4→1e-4 at4500, betas.9/.99, wd1e-4, clip5.6000 updates each (~96k
+presentations), eval every1000. Same initial tensors/LR/update budgets verified;
+training sample/dropout realizations differ because datasets differ. GPU
+posterior evaluation noise is paired across arms for each common line; CPU and
+GPU noise streams are NOT paired. DEV-only CER then CTC selects checkpoints;
+original32 never selects/calibrates anything. Both select step6000.
+
+This stricter small control is **not** the earlier8-writer192-line corpus. Compare
+these two matched arms, not raw old percentages. Frozen geometry pretraining
+still used the original192 with prompt overlap against original32, so this is
+OCR supervision isolation, **not** a fully independent pretrained-representation
+IAM benchmark, paper reproduction or proof of semantic/generative latents.
+
+### Results: data amount matters strongly
+
+| Selected arm | TRAIN mean CER /exact | DEV mean/posterior CER /exact means | report32 mean/posterior CER /exact means |
+|---|---:|---:|---:|
+| small192 | 0% /192/192 |75.6364% /75.6247% /0/128 |74.4960% /74.4304% /0/32 |
+| large2048 | **.019251% /2036/2048** |**28.2857% /28.2545% /2/128** |**25.1008% /25.1563% /0/32** |
+
+Common32 TRAIN probes: mean AND all640 posterior draws CER0 in both. Posterior
+OCR evaluation covers128 DEV +32 report +32 common TRAIN =192 lines,20 draws
+per line; **does not pretend every2048 TRAIN line has20 posterior draws**.
+All2208 pool lines pass codec mean checks; the large head evaluates all2208
+means and the small head evaluates its352 TRAIN/DEV/report means. All CPU/GPU
+mean predictions agree:
+352 unique evaluated lines for small and2208 for large. Source buffers restored
+from checkpoints rather than regenerated; max host positional-table difference
+3.05171e-5, random weights match once saved nonrandom buffers restored.
+
+Actual T4 training/evaluation128.760s (small) /131.528s (large), sequential in
+one app, no parallel GPU jobs. Large report32 happened to score24.2944% at5000
+but **we did NOT choose it**: independent DEV preferred6000. Remaining25–28%
+CER is still far too high for a dependable recognizer; nearly perfect TRAIN fit
+is not generalization. Data starvation/line memorization is a major contributor,
+not a lack of faithful curve capacity or missing labels. Single seed remains a
+limitation; no assertion that more data will remove every residual error.
+
+### Geometry remained protected on a much wider corpus
+
+Before ANY OCR update, all2208 real sequences passed all-point packed-coordinate,
+real-phase, actual decoded-mean curve and exact pen/EOC checks:
+- mean per-line X RMSE **7.24164e-6**, Y RMSE **5.69862e-6**;
+- mean per-line geometric turn-angle p90 **.0409361°**;
+- maximum packed-coordinate difference7.91550e-5;
+- every mean pen boundary/final EOC exact; no internal false EOC.
+
+CPU reload repeats the whole corpus codec gate and selected-head checks. Source
+codec9c53f68 is unchanged after each arm; a single shared pre-training
+`geometry-source.h5` stores all decoded means. We do not claim newly saved
+before/after arrays are bitwise compared in this study. Index differences are
+not physical velocity/curvature; angle definitions match the common geometry
+metrics. No smoothing or target-corner removal. Visually inspected all32 original
+report target/reconstruction panels and representative DEV pages1/6/11/16;
+curve/pen fidelity retained, larger OCR much more interpretable but has deletions,
+letter/case/spacing errors. Gallery includes ALL128 DEV lines, not just examples.
+
+One initial GPU preflight failed **before any optimizer update** because its
+new diagnostic supplied the compressed latent mask to the point-resolution
+decoder. Fixed to raw point mask and added an identity-codec regression that
+would catch it. Failed directory033152 is preserved with `failed-preflight.json`
+and excluded from reports. The completed experiment starts fresh; no hidden
+optimizer restart. Future runner snapshots/records even preflight failures.
+
+### Artifacts and next gate
+
+`checkpoints/iam_ocr_pool_study/20261007-033445/report/index.html` on Volume,
+local equivalent under `data/`: all DEV/report marker-free comparisons,
+transcript tables, learning curves, exact configs and hashes, mean/20-draw
+metrics, CPU reload, pairing/split/geometry audits. Full TRAIN mean transcripts
+are in each arm's `ocr-*.json`. `latest/index.html` points to this report.
+
+Selected standalone `head-best.pt` SHA256:
+- small192 `9c7e0b121ad34a949c4551afa05c50a610297d66aeefbd79e2a54803e77c671f`
+- large2048 `073705cc96ae29b3e991fee8820eecca291d20ae57f1b1d597f114c97de5f925`
+
+Build CPU-only: `venv/bin/python -m iam_tools.ocr_pool`. Upload the generated
+pool using Modal Volume `batch_upload().put_directory()` (see
+[official Volume reference](https://modal.com/docs/reference/modal.Volume)),
+without modifying raw/overfit data. Explicit launch:
+`venv/bin/modal run modal_ocr_pool_study.py --train --pool-sha <manifest SHA> --steps 6000`.
+No flag/hash allocates no GPU. Bounded1000–8000 updates, wall900s per arm,
+T4/cpu4, whole function timeout2400s, retries0/maxcontainers1. CPU-only
+`--report-rel checkpoints/iam_ocr_pool_study/20261007-033445`.
+
+182 root/fork tests pass:12 new tests cover prompt variants/reserved writers/
+transcript guards, balanced nesting, unchanged released collation, per-line CTC
+normalization parity, local geometric-angle definitions, partial-posterior
+report honesty, point-versus-latent decoder-mask resolution and safe output
+paths/quotas and immutable dataset-version fallback. No research head is installed into standard VAE training without
+its polyphase feature contract. Next: enlarge TRAIN-only supervision further
+with pinned calibration/selection, before exposing faithful geometry to a still
+25%-CER OCR teacher. Do not spend more updates merely memorizing2048 or enable
+unrestricted joint OCR/KL/style/InkDiT on the strength of TRAIN accuracy alone.
+
+The exact19MB prepared pool is archived under `diffink/iam_ocr_pool_versions/`
+plus the manifest SHA above (local equivalent under `data/`). Future hash-pinned
+reloads prefer this immutable copy, so enlarging the current alias cannot break
+old-study reproducibility. It was archived AFTER the completed experiment; as-run
+configs/source snapshots correctly retain the original unversioned pool path.
+CPU report `--annotate-only` refreshes interpretation without another model reload.
