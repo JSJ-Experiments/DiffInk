@@ -1863,3 +1863,207 @@ prefer explicit4-point experimentalreader. Does NOT prove2-pointcapacityfailure,
 and no new independent-IAM benchmark (sameDEVwriters/prompts/repeated evaluations,
 priorcodec reportpromptoverlap). Do not release handwritinggeometry to imperfect
 OCR. No jointVAE/CTC/KL/style/InkDiT or generation-readiness promotion.
+
+
+## Predeclared4-point OCR affine robustness experiment (2026-10-07)
+
+The remaining11.8961%DEV CER is primarily genuine recognition, not case alone:
+lowercasing only11.6623% (9fewer/458errors), lowercasing plus removingASCII
+punctuation11.3612% on a DIFFERENT denominator. Never change verbatimlabels/CER.
+One descriptive minimum edit path gives279substitutions/126deletions/53insertions,
+with u→n,t→l,a→o,f→t common. Edit tie attribution is NOT character alignmentGT.
+Writer10066 has196/989errors19.818%,10163 33/882 3.7415%,10211107/63716.7975%.
+This suggests writer/shape robustness is a useful hypothesis, not proven cause.
+
+Resume pinned4-point step8000 parent
+`checkpoints/iam_ocr_frame_study/20261007-074413/points4/head-best.pt`, SHA
+`937a09830c15757c0ba9a02982497aff0f88ffbc66ac2b8fb10e72063e367a79`.
+Same8352pool/source/81chars, full8352geometry gate, immutablecodec and rawphysical1;
+same4pointframe grouping, cleanTRAIN192calibrationmoments, parameterarchitecture,
+parent head/buffers/AdamWmoments/counters/CPU+CUDA RNG, LR1e-4/betas.9/.99/wd1e-4/
+clip5/dropout.1/blankbias0. Schedule regenerates original8frame length buckets and
+continues EXACTLY after8000 parentupdates,seed43,batch16;4000additionalupdates,
+evaluatecleanmeans every1000,DEVonly selection includingparentstep0. Same20draw
+posteriorcheck192IDs with original384×T8noise before4frame reindex. NoKL/style/
+trajectorytraining/augmentation or changes to rawIAM/RDP/scaling/contracts.
+
+A=`clean_control`:0.5CTC(clean)+0.5CTC(clean), TWO forwards.
+B=`affine_mix`:0.5CTC(clean)+0.5CTC(affine), TWO forwards.
+Both draw identical per-line parameters with isolatedCPUgeneratorseed901, never
+consume dropout RNG; same shapes/two forwards preserve matcheddropout streams.
+Compare finalRNG hashes AND per-stepbatches/LR/affineparameter fingerprints.
+Perturb ONLY OCRinput realXYphases, in rawmodelcoordinates BEFORE existingreader
+transform: sx,sy independentlyUniform[.9,1.1],shearUniform[-.12,.12],yshift
+Uniform[-.04,.04], x'=sx*x+shear*(y-.5), y'=.5+sy*(y-.5)+shift. Positive scales;
+slant is HORIZONTALshear ofy, NOT rotation producing large sentence-endYdrift.
+Sameaffineperline; all penvalues/strokeorder/finalEOC/syntheticphases/validpoint
+counts preserved. Noresampling/interpolation/genericsmoothing; cachedmu immutable,
+unusedchannels/noise excluded. Labels unchanged. Evaluation NEVER augmented.
+
+T4,cpu4,16GB;1200sperarm/4800sfunction/retries0/maxcontainers1,sequentialarms.
+Ifaugmentationfails, retainfailure and clean/parentreader; do NOT retune onreport.
+No universalexpectation thataugmentationmusthelp or release geometry to11%OCR.
+9newtests:affineformula/identity/pen/EOC/padding/unusedNaN/gradients, independent
+boundedRNG, pairedtwo-forwarddropout/finiteCTC, parent/split/optimizerguards,
+self-containedguardedlauncher, correctminimumedittraces/characterweighting.
+Root/fork237tests passed preflight (lastdedicatedgeneratorguard also rechecked).
+
+```sh
+venv/bin/modal run modal_ocr_augmentation.py --train --steps 4000 \
+ --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9
+```
+
+CPU report will also repeat prefixbeamwidth10/noLM/noLexicon on the SAME clean
+mean logits forparent and selectedarms, verbatim labels, DEV/reportonly. Never
+select a head or tune width/LM usingbeam/report; posteriorbeam NOT evaluated.
+Reportcontrols additionally reject unpairedRNG, affine draws, updateexposure,
+featurecalibration or hyperparameter drift; three additionalreport tests.
+
+AdditionalCPU robustness probe predeclared duringGPUrun:8fixed endpoints, one
+dimension at a time (xscale.9/1.1,yscale.9/1.1,slant±.12,yshift±.04), applied
+ONLY to192eval/probe OCRmeans forparent andbothselectedreaders. No draws/codec
+renderchanges; always label verbatim originaltext. Measures sensitivity toKNOWN
+syntheticaffine perturbations, NOT independentwriter generalization. No tuning
+coefficients/checkpoint choice onprobeperformance, cleanDEV alone stillselects.
+
+
+## Predeclared4-point OCR spatialX cue (2026-10-07)
+
+Affine4000-per-arm run completed: parent11.8961%DEV, selectedclean2000additional
+11.1688%, selectedaffine2000 11.2208% (2more/3850errors); report8.8710 versus
+8.7702% (1fewer/992errors). No meaningful evidence augmentationbeats matchedclean.
+Existingcoordinate signal is invertible up toXtranslation, but Transformermust
+integrate anchor displacements to recover spatiallocation and pointspacing is
+nonuniform. Next hypothesis: give explicit spatialX IN ADDITION tolocalfeatures,
+not re-order points or addlabels/characteralignment. No causalclaim yet.
+
+BOTH arms resume SAME pinned4-point8000 parent/AdamWmoments/counters/RNG,
+LR1e-4 andoriginal8frame schedule suffix8000→12000, physical16, two0.5cleanCTC
+forwards (matcheddropout),4000additionalupdates/cleanDEVselectionincludingparent0.
+No augmentation/CTCresampling/newparameters/labelchanges. Input remains384;
+20current localXY/pen channels unchanged. Treatment `spatial_x` appends4phase
+values `(realX-min_realX)/max(realXspan,.01)` in previously unusedcolumns20:24;
+control `local_control` keeps thoseinputs0. Syntheticphases excluded/zero;
+chronologicalbackwardstrokes remainbackward. Featuresuse onlyobservedcoordinates,
+NOT transcripts/writers or targetcharacterboundaries. Spatialposition is NOTtime,
+velocity, curvature or trueCTCalignment. Original344unusedlatentnoise stillignored.
+
+Common BOTH-arm intervention: zero INPUTprojection weights20:24 and assert their
+parent exp_avg/exp_avg_sq EXACTLY0; parentfunction unchanged because oldfeature
+columns always0. Noreset ofcounter/moments orunrelatedweights; sameheadparamcount,
+head/effectiveinitialstate hashes, cleanstep0 means/draws mustagree exactly. Same
+restoredbuffers/masks/geometry8352gate/CPU192reload/20draw noisecontract. Standalone
+researchreader, not genericlearned-latentVAE/paperreproduction. Fixedsource/data,
+DEV reused/fivewriters, report32only andpriorcodec reportpromptoverlap remain.
+T4,cpu4,16GB,1200sperarm/4800sfunction,retries0,sequentialarms. If fails, preserve
+failure and retainclean-only; no incidentaljointVAE/KL/style/InkDiT updates.
+8tests cover realphase/spatialminmax/order/masking/unusedNaN, positiveaffine
+invariance/backwardstrokes, constantXfloor/gradients, no local/pen featurechange,
+exactbaselineparity aftercommonzeroing withmoments/counterspreserved, previously
+usedcolumnrefusal, newgradient/dropoutpairing, guardedself-containedlauncher.
+
+```sh
+venv/bin/modal run modal_ocr_spatial.py --train --steps 4000 \
+ --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9
+```
+
+## Completed reader robustness/local-position controls (2026-10-07)
+
+Both studies are finished, each with two sequential T4 arms of 4,000 additional
+updates. Same pinned step-8,000 parent, 8,192 TRAIN / 128 DEV / 32 report lines,
+optimizer moments/counters, data schedule, clean calibration and frozen codec.
+Every arm selects +2,000 (total 10,000) using clean DEV alone, not the final step.
+The historical blank bias was initialized at 0; these continuations restore the
+learned parent bias, not reset it. Two half-weighted CTC forwards also average
+training dropout relative to the parent's one-forward training: improvement over
+the parent cannot be attributed to extra updates alone.
+
+| Study / reader | TRAIN mean CER | DEV mean CER | DEV 20-draw CER | report mean CER |
+|---|---:|---:|---:|---:|
+| pinned parent 8,000 | 4.8105% | 11.8961% | see step-0 run records | 10.0806% |
+| affine study / clean control +2,000 | 3.1779% | **11.1688%** | 11.2351% | 8.8710% |
+| affine study / affine mix +2,000 | 3.1940% | 11.2208% | 11.2545% | 8.7702% |
+| spatial study / local control +2,000 | 3.1763% | 11.3506% | 11.3571% | 8.8710% |
+| spatial study / spatial X +2,000 | 3.1554% | 11.2727% | 11.2987% | 8.7702% |
+
+Affine is 2 errors worse than its matched control (432 versus 430 / 3,850 DEV
+characters). Spatial X is only 3 errors better than its own control (434 versus
+437). Each treatment is only 1 error better on the 992-character report split,
+which never selects. These small single-run differences do NOT establish a
+reliable natural-writer robustness or spatial-feature benefit. Keep the clean
+continuation as the best observed experimental reader, not a new production
+contract. Independent controls differ by 7 DEV errors; matched RNG/exposure is
+not bitwise deterministic CUDA optimization, and cross-study rankings are not
+replication. No feature/augmentation/default architecture is promoted.
+
+Late training is not uniformly helpful: affine-study final-step TRAIN CER falls
+to 2.0980% / 2.1587%, while DEV worsens to 11.6883% / 11.5325%. The writer10066
+bottleneck persists (clean 189/989, affine 188/989 errors); writer10192 worsens
+versus the parent in both arms. No claim that simply training longer solves OCR.
+
+CPU diagnostics, never checkpoint selection:
+- Affine study DEV beam-10/no-LM mean-only CER: parent 11.5325%, clean 10.9351%,
+  affine 10.8831%; only modest gains versus greedy. No posterior beam or lexicon.
+- Eight fixed single-axis affine endpoint probes: average DEV CER parent
+  11.9578%, clean 11.4513%, affine 11.3604%. This small synthetic-perturbation
+  benefit is not demonstrated natural writer generalization.
+- Original raw CSR and forms writer map match all 8,352 pool records across
+  1,517 transcription forms, with ZERO text/writer mismatches. A percent-like
+  handwritten mark in f10-558z-03 is absent from the ORIGINAL CSR ('these items
+  were 22 ,'); this is a possible annotation disagreement, not a dropped parser
+  character or a confirmed relabeling. No labels/alphabet/data filters changed.
+
+Exact configuration, source snapshots, per-step IDs/LR/loss/clip records,
+selected/final heads, full pool geometry preflight, CPU reload and galleries:
+- `checkpoints/iam_ocr_augmentation/20261007-085841/report/index.html`
+- `checkpoints/iam_ocr_spatial/20261007-091828/report/index.html`
+All on Modal Volume `diffink-data`; selected heads and reports mirrored under
+local `data/`. Combined reader review is linked from the separate
+`checkpoints/iam_ocr_reader_studies/20261007-093500/index.html`.
+Never overwrite as-run outputs to incorporate later review; diagnostics and
+post-commit provenance live in separate dated review files.
+
+Whole 8,352-line mean geometry/pen gate remains unchanged: mean per-line
+X/Y RMSE 7.2531e-6 / 5.7049e-6, mean turn-error p90 0.0410 degrees, all pen
+boundaries/final EOC perfect. No KL/style/trajectory decoder/InkDiT updates;
+posterior OCR checks cover the same 192 evaluation/probe lines, not a new
+all-pool sampled-trajectory certification. These are initialized polyphase
+transport research readers, NOT the paper's ordinary semantic VAE experiment.
+Repeated use of five DEV writers, only 32 report lines and prior codec report
+prompt overlap remain limitations. Reconstruction pictures do not improve in
+these OCR-only runs: look for reading-caption changes, not smoother curves.
+
+23 new regression tests cover bounded affine parameters, isolated RNG, masking,
+pen/EOC preservation, edit accounting, paired controls, spatial phases, exact
+initial function parity/common unused-column zeroing, optimizer-state guards,
+independent report guards and no-GPU-by-default launchers. Root and fork suites
+both pass all 251 tests. Full reports include independent CPU selected-head
+reload checks and the precise source/checkpoint SHA-256 values.
+
+Next evidence-based question is broader writer/shape generalization, not another
+uncontrolled LR or geometry continuation. Before unlocking geometry to OCR,
+consider a controlled data-coverage or spatially appropriate OCR representation
+study, with writer-stratified DEV metrics and a fresh locked validation set for
+confirmation. Neither small feature change here resolves the ~11% OCR floor.
+
+Independent spatial-study CPU reload has zero mean transcript disagreements for
+parent/control/treatment, and every pairing/complete-budget/frozen-codec guard
+passes. Spatial versus local DEV: 10 lines improve, 110 tie, 8 worsen; report:
+2 improve, 29 tie, 1 worsen. Spatial improves writer10066 by 5 errors but worsens
+10207 by 1 and 10211 by 2; no uniform writer benefit. CPU mean-only beam-10 DEV
+local 11.0909%, spatial 11.0390%; report 8.7702% / 8.6694%, never selects heads.
+Manually inspected spatial learning curve, dev pages7/12 and report page1;
+affine learning curve, dev page7 and report page1. All160 panels generated per
+study, NOT all manually inspected. f05-342z-06 remains misread in its tight
+connected words; drawings are visually unchanged and target corners retained.
+Separate `visual-review.json` records the exact inspected scope.
+
+Training+evaluation loop times (not billing or complete wall time): affine
+clean 242.20s / mix 241.32s; spatial local 270.02s / X 288.48s, excludes startup,
+full-pool preflight and CPU gallery generation. GPU apps:
+`ap-HvBsH5UwnB7FiAW8z1K2TN`, `ap-IESBiDCaliKZgbt5VRMnjY`; CPU reports:
+`ap-M65Jkxm7HMllBIvgqSJCaA`, `ap-IZQhchwiDkBOyxpz3lVIFv`.
+Selected clean SHA256 `f64d79e1ccfbfedaaafdaa365ba0458d9b0b28d2f7b99bca43d56cd86fe14998`;
+affine `6495d2e0bf8e57d6bcfdd8cbadf136809b4e60ad0a9e977795eb84790c44e7f2`;
+local `8b587a92473d08b23e68a19ed5715a3792d651da6b2ee72518c9b3e5f37564b0`;
+spatial `d8e1396859eb2b7c4aee379142a7d17304d62257411daf5931d6969bc14a406e`.

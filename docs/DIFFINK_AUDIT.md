@@ -643,3 +643,22 @@ onVolume `diffink-data`, separate `diagnostics/engineering-review.json` and CPU
 initial-gradient mechanism probe. No bias/LR rescue proved, no universal2-point
 capacity failure claim, no joint geometry/CTC/KL/style/InkDiT update. See
 CONDITIONING_STUDY for exact configs/paired limitations/source and run provenance.
+
+### OCR robustness and spatial-position controls (2026-10-07)
+Four-point reader continued from the identical step-8,000 head/optimizer/data
+schedule, with geometry and pen codec frozen. Two paired 4,000-update T4 studies:
+clean versus modest OCR-only affine mix, and local-only versus appended spatial
+X. All select +2,000 on DEV. Parent DEV CER 11.8961%; clean 11.1688% versus affine
+11.2208%; separate local 11.3506% versus spatial 11.2727% (only 3 errors better).
+Neither treatment demonstrates a reliable benefit; retain clean as best observed
+reader, no default/production contract change. All 8,352 mean geometry/pen gates
+unchanged. 251 tests pass. Raw CSR/writer audit matches every pool record; no
+labels changed. Reports on Volume diffink-data:
+`checkpoints/iam_ocr_augmentation/20261007-085841/report/index.html` and
+`checkpoints/iam_ocr_spatial/20261007-091828/report/index.html`.
+Combined review: `checkpoints/iam_ocr_reader_studies/20261007-093500/index.html`.
+Look at OCR captions, not changed drawings. Initialized transport research,
+reused DEV and report prompt overlap are not independent paper-reproduction
+claims. No joint geometry/KL/style/InkDiT training enabled. Exact configurations,
+small-effect limitations, CPU beam/robustness checks and provenance are recorded
+in CONDITIONING_STUDY. Both failures and selected/final checkpoints preserved.
