@@ -62,7 +62,7 @@ class OCRFrameTests(unittest.TestCase):
             with self.assertRaises(ValueError):evaluate(h,f,{'a':'ab'},groups,['a','b'],tmp,1,['a'],draws=2,posterior_sampler=lambda sid,n:torch.zeros(1,48,1))
     def test_reject_invalid_granularity_and_launcher_no_sibling_import(self):
         import ast
-        for n in (1,2,16):
+        for n in (1,3,16,True,4.):
             with self.assertRaises(ValueError):split_tensor(torch.zeros(1,48,2),n)
             with self.assertRaises(ValueError):unpack(torch.zeros(1,48,2),torch.ones(1,2,dtype=torch.bool),n)
         imports=[n.module for n in ast.walk(ast.parse((ROOT/'modal_ocr_frames.py').read_text())) if isinstance(n,ast.ImportFrom) and n.module]

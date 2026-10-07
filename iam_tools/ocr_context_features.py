@@ -7,7 +7,7 @@ import torch
 
 
 def unpack(x, mask, points_per_frame=8):
-    if points_per_frame not in (4,8):raise ValueError('transport reader supports4 or8 points/frame')
+    if type(points_per_frame) is not int or points_per_frame not in (2,4,8):raise ValueError('transport reader supports2,4 or8 points/frame')
     channels=5*points_per_frame
     if x.ndim!=3 or x.shape[1]<channels or mask.shape!=(x.shape[0],x.shape[2]) or mask.dtype!=torch.bool:
         raise ValueError('polyphase40 features and Boolean latent valid mask required')
@@ -26,7 +26,7 @@ def unpack(x, mask, points_per_frame=8):
 def relative_x(fields):
     """Invertible up to horizontal translation; all within-frame X shape preserved.
 
-    Phase0 is current4/8-point block's firstX minus previous block's firstX (first=0).
+    Phase0 is current2/4/8-point block's firstX minus previous block's firstX (first=0).
     Remaining phases are offsets from current firstX. These are index displacements,
     NOT velocity. Includes pen jumps; separate pen fields tell the head about them.
     """
