@@ -711,3 +711,17 @@ in CONDITIONING_STUDY. Report on Volume diffink-data/localdata:
 `checkpoints/iam_kl_tradeoff/20261007-132418/report/index.html`; actualfailures/probe
 review under same root `diagnostics/engineering-review/index.html`. Next: isolate
 posterior calibration with complete geometry frozen; no incidental style/DiT.
+
+
+### Posterior-only geometry-preserving calibration (2026-10-07)
+
+Matched200update T4 controls confirmed that freezing the **whole codec** (including
+convdecoder, encoder and latent mean), not only Transformer readout, eliminates
+training-induced fixed-noise curve drift. Only posterior head trains; restored
+body optimizer moments/steps remain unchanged. Sampled X/Y error improves~6.3%
+without any mean/fixed-noise geometry changes; own/fixed angle-check failures
+23/8→2/0. Two small DEV own-sigma corner checks still fail; no final promotion or
+semantic/generative-readiness claim.322tests pass in each tree. Full config,
+provenance, exact-array checks and marker-free failed-draw/c/h/all8 comparisons:
+`checkpoints/iam_posterior_isolation/20261007-142410/report/index.html` and
+`diagnostics/engineering-review/index.html`; details in CONDITIONING_STUDY.md.

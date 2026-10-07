@@ -2639,3 +2639,118 @@ Study root on Volume `diffink-data` and local ignored `data/`:
 310 tests root/fork (13new). Same experimental normalization/EOC, reusedDEV5writers,
 report32prior codec overlap and initialized transport limitations remain explicit.
 All200original/heldout means quantified; no new full8352 stochastic certification.
+
+## Preregistered posterior-isolation follow-up (2026-10-07)
+
+Source remains `iam_codec_kl_study/20261007-012331/pen_bias_kl1e-6` SHA
+`9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625`.
+Compare two sequential bounded T4 arms,200 updates each: **joint** restores
+previous bodyLR1e-7/posteriorLR1e-3 behavior; **posterior_only** restores those
+same groups/moments first, then freezes EVERYTHING except `conv_logvar`.
+Clear frozen `.grad=None`, preserve/check frozen Adam moments/steps, all codec
+buffers and weight tensors. Decoder input autograd stays active for posterior
+learning. Pen variance feature-weight rows retain previous moment+gradient
+protection. No latent-channel masking, new architecture or generic smoothing.
+
+Both use betaKL1e-6, mean geometry1 + sampled geometry0.1 + bounded pen
+0.02099049935353879; geometry is XY MSE +0.20471838744633777 within-true-stroke
+first-index-difference matching. Same immutable8192TRAIN schedule(seed4042),
+effective8/physical1, sampled-noise seed7042, restored source AdamW .9/.99,wd0,
+clip5; no GMM/OCR/style/dropout/augmentation. Fixed frozen GRU evaluates only.
+Evaluate0/100/200 on same200unique lines and20paired own/fixedSOURCE-sigma draws.
+TRAIN-only prior-score selector and unchanged per-line/per-draw curve/pen gates;
+DEV/report cannot select or stop. Original8including4outsidepool are evaluation
+only. No automatic production promotion.
+
+Expected isolation control: posterior-only latent-mean AND fixedSOURCEsigma
+reconstructions/reader outputs should be **exactly unchanged**, alongside frozen
+weights/optimizer states. This is NOT an improvement in fixed-perturbation
+robustness. Own-sigma changes may still fail local angle gates; retain failures,
+not just selected checkpoints. Independent CPU reload and all8 marker-free
+comparisons follow. This initialized polyphase40 experiment does NOT establish
+learned semantic latents, English paper reproduction or InkDiT readiness.
+
+
+### Completed posterior isolation: decoder drift removed, two rare variance checks remain
+
+Study `checkpoints/iam_posterior_isolation/20261007-142410/` on `diffink-data`
+and local ignored `data/`. Same preregistered source/reader/pool SHA,200updates,
+TRAIN schedule/noise/restored optimizer/objective as above. Two matched arms:
+joint body+posterior versus full-codec freeze except `conv_logvar`. Restoring
+before freezing is essential; stale gradients are cleared; body Adam moments
+AND per-parameter steps stay unchanged. Frozen decoder still propagates input
+gradients to posterior. Pen variance feature-weight rows retain protection.
+No architecture, raw data, RDP, latent-channel mask, smoothing or OCR/style/GMM
+change. KL is deliberately tested at1e-6, not enabled incidentally.
+
+| DEV, GPU20paired own-sigma draws | Source | Joint200 | Posterior-only200 |
+|---|---:|---:|---:|
+| Corrected KL / valid element |1.0929865|1.0900645|1.0901890|
+| Sampled X RMSE |0.000583650|0.000547099|0.000546790|
+| Sampled Y RMSE |0.000584415|0.000547085|0.000546737|
+| Mean per-line turnp90° |3.325850|3.187912|3.184338|
+| FixedSOURCEsigma turnp90° |3.325850|3.331469|3.325850|
+| All200 own/fixed angle-check failures |0/0|23/8|2/0|
+
+Posterior-only X/Y error improves6.32%/6.45%, turnp90 improves4.25%, corrected
+KL improves0.26%. These are modest uncertainty calibration gains, NOT a new
+mean-geometry visual breakthrough. Frozen-source-sigma outputs are unchanged,
+NOT improved fixed-perturbation robustness. All means, pens and frozen-reader
+mean outputs unchanged. DEV mean CER8.6753%; exact pen F1/EOC under all evaluated
+draws. Neither arm clips any update. Joint own failures23across17lines versus
+posterior-only2across2lines; counts refer to metric checks, not visible defects.
+
+Independent serializer check: all non-logvar checkpoint state tensors and body
+optimizer moments/steps equal. GPU saved-array check compares
+8800 trajectory pairs (all200means+all20fixedσdraws at100/200):
+EXACT equality including pen states. Runtime checks also protect codec buffers,
+frozen gradient=None, reader, source checkpoint and restored group structure.
+800 independent CPU means: source, both finals and joint selected100. Maximum
+CPU/GPU XYdifference 9.53674316e-06; no pen/transcript differences. All8original
+curves independently evaluated20CPU own/fixedσ draws in source/bothfinal; these
+CPU epsilons are NOT GPU-paired. CPU legacy gate results:
+`{'joint-final': False, 'posterior_only-final': True}`.
+
+Actual remaining GPU own-sigma failures (both DEV, original gates unchanged):
+- `j10-499z-04`,draw17: cornerp90 2.044916→2.500154°, bound2.453899°;
+  worst-increase local corner2.116833→2.651301°. Adjacent target lengths
+  0.007143/0.047445model units. Source/final point RMSshift4.92e-5.
+- `p03-331z-04`,draw0: cornerp90 2.912100→3.550630°, bound3.494520°;
+  local6.013837→7.047689°, target lengths0.006249/0.088001;
+  source/final point RMSshift3.98e-5.
+These exceed p90bounds by~0.05°, not large synthetic spikes. Mean geometry is
+unchanged; fixed-sigma is identical, so changed posterior variance is the cause
+of these remaining paired-output differences. Short segments make angular
+metrics sensitive; nonuniform index differences are not physical velocity or
+curvature. Preserve target hooks/corners; no generic blur/RDP change justified.
+Manual marker-free review: both actual failed draws full+worst-increase corner
+closeups, all8full mean comparisons and named c/h mean/source-worst own/fixed
+closeups. Near-lossless mean appearance; no return of obvious old jaggedness.
+All200quantified and gallery generated; not all manually reviewed.
+
+TRAIN selector retains joint100 and posterior200. Posterior200 TRAIN/named
+passes and budget completes, but all200report audit catches2DEV failures.
+**No production promotion**; do not secretly switch to posterior100 using DEV,
+even though its audited gates pass. This establishes full-codec freezing as a
+safer uncertainty-calibration method, not that a384-d semantic/generative prior
+has been learned. Tiny KL improvement does not establish InkDiT readiness.
+Same initialized polyphase40 transport, reused DEV writers/report overlap,
+experimental normalization/line-final EOC and no full8352stochastic certification.
+
+Next justified follow-up is predeclared TRAIN-only short/variance-trust-region
+posterior calibration or a gradient-calibrated relative-segment/tangent
+geometry objective for sampled noise, still freezing full geometry. Avoid
+blindly increasing KL, generic smoothing or incidental CTC/style. Storage is
+near500kVolume inode limit: pack large per-draw artifacts before another study.
+
+Artifacts:
+- `report/index.html`: independent reload, paired guards, all200gallery,
+  all8mean/own/fixed-source-sigma marker-free c/h closeups;
+- `diagnostics/engineering-review/index.html`: causal explanation, actual
+  two failures, full configurations/metrics/provenance links;
+- `joint/` and `posterior_only/`: source/selected/final checkpoints, configs,
+  every-update batches/noise SHAs, graph parity, gradients, per-draw metrics;
+- immutable as-run `source-code/`, source STD tensor/SHA, manifest identities.
+322tests root/fork (12new): actual decoder-input autograd, stale gradients,
+frozen Adam moments/steps/weights, exact mean/fixed-noise arrays, serialized
+checkpoint guards, paired study/report contracts, empty body gradient group.
