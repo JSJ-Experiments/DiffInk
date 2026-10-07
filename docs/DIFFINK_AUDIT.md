@@ -628,3 +628,18 @@ promotion. Next controlled2-vs4 readout question not launched yet. Comparison:
 new galleries in `report/index.html`, Volume `diffink-data`, local `data/` mirror.
 Exact configs/hashes/limitations in `docs/CONDITIONING_STUDY.md`.221 tests pass;
 all jobs finished.
+
+
+### Finer OCR frames:4-versus2-point trial (2026-10-07)
+Completed matched fresh42/8000-update pair on the same8192TRAIN/128DEV/32report
+with frozen initialized transport. Four-point DEV CER11.8961%,two-point74.9091%:
+all128DEV/32reportlines regress;2-point quickly entered a blank-dominated CTC
+regime, still92.8%blank at8000. No trajectory/pen regression; all8352mean gates
+unchanged and independentCPU192reload haszero mean transcript differences.
+Two-point granularity is NOT promoted. Earlier2-seed8/4replication unchanged;
+explicit4-point experimentalreader remains preferred, old8-point default intact.
+228tests pass. Report `checkpoints/iam_ocr_frame_study/20261007-074413/report/index.html`
+onVolume `diffink-data`, separate `diagnostics/engineering-review.json` and CPU
+initial-gradient mechanism probe. No bias/LR rescue proved, no universal2-point
+capacity failure claim, no joint geometry/CTC/KL/style/InkDiT update. See
+CONDITIONING_STUDY for exact configs/paired limitations/source and run provenance.

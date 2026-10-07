@@ -1,6 +1,6 @@
-"""Fresh paired4/8-point OCR frames; initialized transport codec never changes.
+"""Fresh paired4/8 or2/4-point OCR frames; initialized transport codec never changes.
 
-Four-point frames contain the SAME chronological XY/pen fields, split from8-point
+Finer frames contain the SAME chronological XY/pen fields, split from ORIGINAL8-point
 polyphase blocks. No trajectory interpolation/smoothing or semantic VAE claim.
 """
 import hashlib,json,time
@@ -15,29 +15,37 @@ from .writer_expansion import load
 from .pen_ab import file_sha
 
 
+def validate_frame_pair(frame_pair):
+    """Only predeclared paired experiments; old8/4 defaults stay compatible."""
+    if type(frame_pair) is not tuple or any(type(f) is not int for f in frame_pair) or frame_pair not in ((8,4),(4,2)):
+        raise ValueError('frame pair must be (8,4) or (4,2)')
+    return frame_pair
+
+
 def split_tensor(x,frames):
-    """Lossless re-indexing of first40 fields; unused fields cannot enter OCR."""
+    """Lossless chronological re-indexing FROM ORIGINAL8-point/40-field blocks."""
+    if type(frames) is not int or frames not in (2,4,8) or x.ndim!=3 or x.shape[1]<40:
+        raise ValueError('original polyphase40 tensor and2/4/8 frame size required')
     if frames==8:return x
-    if frames!=4 or x.ndim!=3 or x.shape[1]<40:raise ValueError('polyphase40 tensor and4/8 frame size required')
-    b,c,t=x.shape
+    b,c,t=x.shape;factor=8//frames;channels=5*frames
     points=x[:,:40].reshape(b,8,5,t).permute(0,3,1,2).reshape(b,t*8,5)
-    split=points.reshape(b,t*2,4,5).reshape(b,t*2,20).transpose(1,2)
-    return torch.cat((split,x.new_zeros(b,c-20,t*2)),dim=1)
+    split=points.reshape(b,t*factor,frames,5).reshape(b,t*factor,channels).transpose(1,2)
+    return torch.cat((split,x.new_zeros(b,c-channels,t*factor)),dim=1)
 
 
 def frame_cache(cache,frames):
+    if type(frames) is not int or frames not in (2,4,8):raise ValueError('2/4/8 frame size required')
     if frames==8:return cache
-    if frames!=4:raise ValueError('4/8 frame size required')
     result={}
     for sid,c in cache.items():
-        _,real=unpack(c['mu'],c['mask']);n=int(real.sum());t=(n+3)//4
-        mu=split_tensor(c['mu'],4)[:,:,:t];lv=split_tensor(c['lv'],4)[:,:,:t]
+        _,real=unpack(c['mu'],c['mask']);n=int(real.sum());t=(n+frames-1)//frames
+        mu=split_tensor(c['mu'],frames)[:,:,:t];lv=split_tensor(c['lv'],frames)[:,:,:t]
         result[sid]=dict(mu=mu,lv=lv,mask=torch.ones(1,t,dtype=torch.bool,device=mu.device),labels=c['labels'])
-        f,r=unpack(mu,result[sid]['mask'],4)
-        if int(r.sum())!=n:raise AssertionError('four-frame real points changed')
+        f,r=unpack(mu,result[sid]['mask'],frames)
+        if int(r.sum())!=n:raise AssertionError('reader real points changed')
         before=c['mu'][:,:40].reshape(1,8,5,-1).permute(0,3,1,2).reshape(1,-1,5)[:,:n]
         after=f.permute(0,3,1,2).reshape(1,-1,5)[:,:n]
-        if not torch.equal(before,after):raise AssertionError('four-frame point fields changed')
+        if not torch.equal(before,after):raise AssertionError('reader point fields changed')
     return result
 
 
@@ -54,8 +62,8 @@ def validate_seed(seed):
     return seed
 
 
-def run(config,repo,root='/data',pool_sha='',steps=8000,seed=42):
-    validate_seed(seed)
+def run(config,repo,root='/data',pool_sha='',steps=8000,seed=42,frame_pair=(8,4)):
+    validate_seed(seed);validate_frame_pair(frame_pair)
     if not torch.cuda.is_available() or pool_sha!=POOL_SHA or not 1000<=steps<=8000:raise ValueError('CUDA, fixed pool and bounded1000–8000 updates required')
     root=Path(root);torch.set_num_threads(4);pool,m,vocab=load_pool(root,pool_sha)
     base,_,_,cfg,alphabet,prov=load(config,repo,root,SOURCE,SHA,writer_id=None)
@@ -73,10 +81,12 @@ def run(config,repo,root='/data',pool_sha='',steps=8000,seed=42):
     splits=dict(train=train,dev=m['splits']['dev'],held_out=m['splits']['held_out'],common_train_probe=probe)
     schedule=list(bucket_schedule(original,train,steps,batch_size=16,seed=43));schedule_sha=hashlib.sha256(json.dumps(schedule).encode()).hexdigest()
     results={};initial_sha=None
-    for frames in (8,4):
+    for frames in frame_pair:
         arm=f'points{frames}';folder=out/arm;folder.mkdir();cache=frame_cache(original,frames)
         stats=fit_stats(cache,m['splits']['small_train'],'relative_scaled',frames)
         head=make_head(cfg,len(vocab)+1,'relative_scaled',stats,seed=seed,points_per_frame=frames).cuda()
+        maximum_frames=max(c['mu'].shape[-1] for c in cache.values())
+        if maximum_frames>head.pos_encoder.pe.shape[1]:raise ValueError('reader exceeds positional encoding capacity')
         h=tensor_digest(head.state_dict())
         if initial_sha is None:initial_sha=h
         if h!=initial_sha:raise AssertionError('fresh weight pairing failed')
@@ -91,6 +101,7 @@ def run(config,repo,root='/data',pool_sha='',steps=8000,seed=42):
             selection='DEV mean CER then CTC; original32 report-only',
             intervention='points per OCR frame, input grouping, per-resolution TRAIN calibration and positional index granularity; NOT isolated CTC-only capacity',
             checkpoint_contract='standalone OCR feature adapter/head; not a normal VAE checkpoint',torch_version=str(torch.__version__))
+        if frame_pair==(4,2):settings.update(frame_pair=list(frame_pair),maximum_reader_frames=maximum_frames,active_fields=5*frames)
         (folder/'config.json').write_text(json.dumps(settings,indent=2)+'\n')
         parity=batch_parity(head_model(head),cache,probe[:16]);(folder/'batch-parity.json').write_text(json.dumps(parity,indent=2)+'\n')
         optimizer=torch.optim.AdamW(head.parameters(),lr=5e-4,betas=(.9,.99),weight_decay=1e-4)

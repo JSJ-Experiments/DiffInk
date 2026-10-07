@@ -1749,3 +1749,117 @@ another representation feature, keeping source/samples/geometry locked. Not
 implemented/launched in this replication.11–12% DEV CER is not a dependable oracle
 for unrestricted joint geometry training. No semantic-VAE/paper-reproduction/
 independent-IAM-test or generation-readiness claim.
+
+
+## Finer2-point OCR trial (2026-10-07, completed; rejected under this recipe)
+
+A fresh matched4-versus2-point pair tested whether the replicated4-point benefit
+continues monotonically. It does NOT under the current recipe. The completed
+interrupted-session job/report was recovered and verified, not redundantly
+relaunched. Saved as-run GPU/CPU code and existing checkpoints were NOT rewritten.
+
+Runner now accepts ONLY predeclared `(8,4)` or `(4,2)` pairs; old8/4 default and
+factory8-point default are unchanged. `--finer-frames` explicitly selects4/2.
+Original8-point/40-field tensors are split chronologically into20 or10 active
+fields padded to384channels, with valid lengthceil(realN/frameSize); final partial
+frame retained, fully synthetic post-end frames excluded. Whole-line finalEOC and
+all real XY/pen fields checked exactly in BOTH caches. Unused channels cannot enter
+features/noise/calibration. No interpolation, resampling, smoothing or VAE change.
+
+Configuration: SAME immutable8352 pool (8192TRAIN/128DEV/32report), same186TRAIN
+writers/81chars and excluded25testwriters; pool SHA
+`d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9`;
+same frozen source SHA
+`9c53f68e0f3797f837223f60e87de132293fe5b3389fdfd0fe6f2bebccea7625`.
+Initialized polyphase40 transport research codec, NOT ordinary semanticVAE or
+paper reproduction. Same fresh seed42 weights/dropout seed, data-order43 and
+per-update batches/LR/exposure; input/hidden384,3layers/4heads,dropout.1,
+blankbias0, globalattention, physicalOCRbatch16, encoderphysical1, noaugmentation.
+AdamW5e-4 forupdates1–6000 then1e-4 through8000, betas.9/.99,wd1e-4,clip5.
+SameTRAIN192 calibration IDs/69204realpoints, moments refit perresolution:
+4-point XYmean[.0657099915,.5076760165],std[.1689183411,.1962346701];
+2-point mean[.0396493722,.5076760165],std[.1300428191,.1962346701].
+Frame grouping/calibration/localXanchor/position indices change as a PACKAGE, not
+pureCTC-length isolation. Dropout unpaired across unequal shapes. Same original
+384×T8 posterior noise stream drawn before re-indexing,20draws on192eval/probe
+lines, not all8192TRAIN. DEV CER thenCTC alone selects;32report-only neverselects.
+Both completed8000 and selected8000,1800s per-arm cap/4800s GPU job/retries0.
+
+Launch (already completed; do not launch again merely to inspect):
+```sh
+venv/bin/modal run modal_ocr_frames.py --train --finer-frames --seed 42 \
+  --steps 8000 \
+  --pool-sha d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9
+venv/bin/modal run modal_ocr_frames.py \
+  --report-rel checkpoints/iam_ocr_frame_study/20261007-074413
+```
+
+| selected CER |4-point control|2-point trial|
+|---|---:|---:|
+|TRAIN8192 mean|4.8105%|74.2023%|
+|DEV128 mean|11.8961%|74.9091%|
+|report32 mean|10.0806%|74.7984%|
+|DEV20-draw posterior|11.8974%|74.9104%|
+|report20-draw posterior|10.0151%|74.8034%|
+
+DEV errors458→2884/3850chars; all128lines worsen, no ties/improvements.
+Report32 errors100→742/992chars; all32worsen. Four-point exact3154TRAIN,
+12DEV/3report;2-point ZERO exact lines anywhere. All5DEVwriters regress with2.
+This is not a visual trajectory regression: curves are SHARED/frozen. Mean DEV
+output length29.51 versus12.01chars for30.08targetchars. By1000updates2-point
+DEV blank fraction99.7905%,82/128empty outputs; at8000 still92.7872%blank,
+frequent short common-letter strings rather than faithful transcripts. Four-point
+DEV blank56.9453%, meaningful captions. Increased blank fraction alone would NOT
+establish collapse in longerCTC sequences; the huge CER, early empty strings and
+inadequate output lengths establish that reading failed here.
+
+Two-point runs are initially harder to optimize: first100updates clipping53%
+versus16%, maxnorm56.63 versus23.60. Final1000 BOTH0%clipping, median norms
+1.10 versus1.41. Persistent clipping is NOT the endpoint failure explanation.
+CPU no-update initial-gradient probe used SAME32TRAINprobe, exact TARGET fields
+packed into transport (NOT actual saved encoder mu), dropoutoff, fresh42 and
+bias0/-2/-5. Bias0 rawnorm2-point59.8–63.3 versus4-point20.8–21.0, but negative
+blank-bias gradients SIMILAR(-.32–.34 versus-.34–.37), not a3x initialblankpush.
+Negative blank bias reduces blank gradient while increasing loss/totalnorm;
+this does NOT demonstrate a working rescue. No DEV tuning, parameter updates or
+production bias/LR change. See diagnostic source/metrics. Likely optimization and
+framing-package interactions; which mechanism dominates remains unresolved.
+
+Integrity: maximum4/2readerlength204/407, within1000positionalbuffer; no overflow.
+CPU selected192-line reload ZERO mean decode differences in botharms; selected
+fileSHAs verified locally. All8352geometry means repeat X/YRMSE7.2531e-6/
+5.7049e-6, mean per-line geometric turnp90 .041012°, maxpackedXY8.29697e-5,
+perfect pens/finalEOC/no internalEOC. Entire codec parameters/buffers/oldOCR
+bitwise unchanged afterboth. Mean/posterior failure agrees, so samplednoise not
+responsible.4/2 loops+evaluation353.86/554.82s; not billedduration and exclude
+startup/cache/preflight/report. CPU8GB/GPU16GB,4CPUcores, no retries/crashloops.
+
+New4control versus old42/4-control:11.8961 versus11.4286%DEV. Same headinitial,
+source/data/features/calibration/schedule/hyperparameters; newconfig differences
+only metadata. First159gradient and166loss differences, first158gradient and165
+loss values identical. CUDA bitwise determinism NOT enabled; precise firstnumeric
+divergence notisolated. Do not claim cross-run numerical identity. Primary
+comparison is this new WITHIN-run matched4/2pair, not a cherry-picked prior4head.
+Earlier TWOseed8/4replication remains unchanged and supports4-point preference.
+
+Visual review: learning plot/reportpage1/DEVpage6,16varied lines; all160markerfree
+panels saved, NOT all manually re-reviewed. Target/sharedreconstruction remains
+visually matched, correct corners/microstructure not smoothed.2-point captions
+collapse into nonsense;4-point captions broadly readable but names/case/
+punctuation and some words still wrong. No claim new drawing-quality improvement.
+
+Artifacts on `diffink-data` (local ignored `data/` mirror):
+- `checkpoints/iam_ocr_frame_study/20261007-074413/report/index.html`
+- `.../points4/head-best.pt`, `.../points2/head-best.pt`; final heads also onVolume.
+- `.../diagnostics/engineering-review.json`, `initial-ctc-gradients.json`,
+  `initial_ctc_gradients.py`, `paired_reader_review.py`, code-review provenance.
+As-run summary/source/checkpoints not overwritten; diagnostics separate post-run.
+GPU app `ap-LXPseOqedknkz4cqf7rRvC`, CPU `ap-4sqMb5yEyMThQUqk6hQ5aZ` completed.
+Sevennewtests cover2-point allremainders/chronology/finalEOC, gradient/unusedNaN,
+relativefeatures/calibration/padding, pairedoriginalnoise, weight/finiteCTC/
+batchparity, predeclaredpair/defaultcompatibility and generalizedreportlabels.
+228root/forktests pass. Two-point production promotion REJECTED under this recipe;
+prefer explicit4-point experimentalreader. Does NOT prove2-pointcapacityfailure,
+and no new independent-IAM benchmark (sameDEVwriters/prompts/repeated evaluations,
+priorcodec reportpromptoverlap). Do not release handwritinggeometry to imperfect
+OCR. No jointVAE/CTC/KL/style/InkDiT or generation-readiness promotion.
