@@ -5057,3 +5057,72 @@ Scheduled-sampling ambiguity persists; anchor may help teacher drift without
 solving actual own-history or composition. Study launcher `modal_cumulative_xy.py`
 uses stable preprepared path and persistent3-child ledger; coordinator imports
 stdlib-only guard, nonpreemptible. No fullset/DiT scaling from this toy outcome.
+
+### 2026-10-08: cumulative-path control completed; remaining instability and stopping
+
+Actual study `checkpoints/iam_cumulative_xy/20261008-171928`, app
+`ap-08GzrJh3sK6mlZn3uyudMF`, coordinator `fc-01M4E8DYA5BCNS9F3QJ2XVV62H`.
+Three recorded ledger child IDs; all completed1000 normally. App stopped zero
+GPU/CPU tasks at17:25:25UTC, no duplicate. Prepared CPU-only171329 is NOT a GPU run.
+Training source commitbdce369. All3 same source body3000 + trained6000 pen rows,
+fresh AdamW/order/draws/architecture, LR1e-5 batch8 clip5. Actual remote calibration
+coefficient .009549097811244269: .15*.08864796161651611/1.3925079107284546.
+Local preflight coefficient .009551587040335626 is NOT actual training coefficient.
+
+| Final1000 metric | Head-refit parent | Teacher control | Teacher+XY anchor | Rollin+XY anchor |
+|---|---:|---:|---:|---:|
+| True-history X RMSE | .009386 | .004423 | .005029 | .031910 |
+| True-history Y RMSE | .005846 | .006156 | .005926 | .047729 |
+| First-index-difference vectorRMSE | .0083405 | .0056758 | .0062094 | .0080325 |
+| Mean line turn-angle p90 degrees | 23.82 | 16.46 | 17.71 | 22.41 |
+| Minimum true-history penF1 | .98305 | 1.0 | 1.0 | .98305 |
+| Teacher TRUE/predicted-pen readerCER | 0/0% | 0/0% | 0/0% | 0/0% |
+| Genuine freeTRAIN CER | 36.48% | 39.34% | 35.25% | 37.30% |
+| Capacity guard final | PASS | PASS | PASS | FAIL |
+| Selected update | source | 0 | 1000 | 0 |
+
+Anchor helps versus its SAME-protocol control by4.10percentage points (10reader
+errors out244 characters;10.4% relative), but only1.23points /3characters versus
+head6000 source and ties head2000's35.25% aggregate. All zero exact free prompts.
+This is modest, uneven familiar-text improvement, NOT new-text generalization or
+visually clean free sentences. Local teacher geometry slightly worse than teacher
+control but within gates; ALL8 visually inspected, no cherry-picking. Free a01
+improves; k05/k06/p07 still deteriorate/truncate badly. No production promotion.
+Rollin+anchor fails geometry gate at250/500/1000; cumulative anchor does NOT rescue
+this scheduled sampling regime. Applied fraction .148867036; clipping0% allarms;
+loop216.03/272.06/220.13seconds. These findings rule out pervasive clipping as the
+current bottleneck, not all optimization choices. Report keeps final rejected and
+selected0 distinct. GPU low-busy alerts without CPU saturation; no evidence the
+other3CPU cores fix learning or throughput. Retain measured resource summaries.
+
+Additional zero-update CPU counterfactual on trained6000 pen source, ALL8 source
+length: force Gaussian center AND sigma to source-conditioned teacher values.
+Own-XY/true-pen history TRUE-rendering-pen CER17.62→14.34%, Y RMSE .2140→.1521,
+X .1384→.1506. Own-both predicted-pen CER unchanged34.02%, true-pen27.46→28.28%.
+Gross text-clock drift is NOT a complete explanation, but this does NOT exonerate
+new-text alignment or make teacher clock a verified glyph-boundary oracle.
+Clock source/packed outputs preserved under head6000 `clock-interventions/` and
+copied into NEW cumulative report (older published reports remain immutable).
+
+Fresh actual target-free stop audit, all3final models x8TRAIN: CPU reloaded stop
+counts match all24 savedGPU free rows. Selected anchor p07 stops134points with
+clockcenter10.53 for30-character text, EOS attention nearly0; k09 stops208 with
+center18.31 for28characters; k05 stops247 with18.24 for29. Premature EOC compounds
+own-coordinate drift. Teacher F1=1 / finalEOC8/8 is NOT evidence generation knows
+when the requested text is complete. Some legitimate teacher endings also precede
+text-clock completion (current window is NOT verified glyph alignment), so a blind
+EOS-attention stop gate may invalidate correct source trajectories. No such gate
+adopted. Next research priority: deliberate generated-prefix/stopping-content
+consumption training, preserving teacher capacity, not indefinite teacher-only
+polish, another smoothing coefficient, automatic fullset scale-up or incidental
+CTC/KL/style enabling. New text composition remains the active overall objective.
+
+624tests PASS root and fork. Cumulative helper covers true absolute-path equivalence
+including jumps/origin, padding zero gradient, cancellation behavior, validation
+and modest gradient calibration. Protocol/report tests enforce same model scope,
+fresh optimizer disclosure, actual objective coefficient, stochastic transition
+policy, ledger and capacity-guarded selection. Report:
+`/mnt/diffink-data/checkpoints/iam_cumulative_xy/20261008-171928/report/index.html`.
+Selected checkpoint `teacher_anchor/checkpoint-best.pt`, final sameweights inlast.
+Previous report verified published255files,207newuploads,171localHTMLrefs,
+ZEROoverwrites, allbyte-readback (bdce369). New report publication follows.
