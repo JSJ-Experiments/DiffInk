@@ -22,10 +22,22 @@ def research(arm:str,relative:str):
  try:return run(arm,relative,'/app')
  finally:volume.commit()
 
+@app.function(image=image,volumes={'/data':volume},cpu=0.125,memory=512,timeout=7200,retries=0,max_containers=1)
+def coordinate():
+ # Keep BOTH GPU calls under one durable remote input. A detached local
+ # entrypoint can retain only its last call when it disconnects mid-spawn.
+ relative=prepare.remote();print(dict(study=relative),flush=True)
+ calls=[research.spawn(a,relative) for a in ['noncausal','causal']]
+ results=[call.get() for call in calls]
+ volume.reload()
+ import json
+ from pathlib import Path
+ (Path('/data')/relative/'orchestration.json').write_text(json.dumps(dict(study=relative,results=results,policy='detached remote coordinator retains BOTH spawned GPU calls'),indent=2)+'\n')
+ volume.commit()
+ return dict(study=relative,results=results)
+
 @app.local_entrypoint()
 def main(train:bool=False):
  if not train:
-  print('No job allocated. --train runs two matched48000-update T4 arms in parallel.');return
- relative=prepare.remote();print(dict(study=relative),flush=True)
- calls=[research.spawn(a,relative) for a in ['noncausal','causal']]
- for call in calls:print(call.get(),flush=True)
+  print('No job allocated. Use modal run --detach modal_generation_prefix_contract.py --train for two matched48000-update T4 arms.');return
+ print(coordinate.remote(),flush=True)

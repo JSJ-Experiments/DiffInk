@@ -4094,12 +4094,16 @@ intervention; neither gate can substitute for the other. No production promotion
 
 ## Causal-query timing isolation + weak alignment probe —2026-10-08 IN PROGRESS
 
-Fresh paired study `checkpoints/iam_generation_prefix_contract/20261008-112323`.
+Fresh paired study `checkpoints/iam_generation_prefix_contract/20261008-113817`.
+Initial attempt `.../20261008-112323` interrupted by launcherSIGTERM; preserved
+metrics/checkpoints/resources plus `interruption.json`, last logged19735/19543,
+last saved16000, NOT a matched completed result. No partial candidate promotion.
+Restart is fresh same weights/order/settings, NOT a checkpoint continuation.
 Both arms use absolute query PE/soft Gaussian prior/full text cross-attention,
 identical fresh weights/empty Adam/RNG,256TRAIN/32writers/batch8/order/shared
 losses and the same48000-update schedule. ONLY hidden-query self-attention becomes
 causal. This is parallel zero-input prediction, NOT teacher-forced autoregressive
-stroke generation. Own app `ap-s37F9omYjDbIVjSsn9WZeO`, two bounded T4 calls,
+stroke generation. Detached remote coordinator owns both bounded T4 calls,
 2CPU/8GiB each, threads2; no other app stopped or performance helper overwritten.
 Causal module adds no parameter keys; noncausal arm delegates exactly the prior
 absolute model. CPU tests use nonzero readouts (avoid vacuous zero-init passes):
@@ -4141,3 +4145,16 @@ supervised alignment separately from timing, not treating attention means as
 true character boundaries. No model updated/selected, no held source opened,
 no KL/CTC/style training enabled. GPU outcomes/budget galleries pending; no
 production promotion or claim of unseen-text improvement yet.
+
+Infrastructure correction: initial local launcher exited143(SIGTERM, source
+unconfirmed); Modal logs explicitly stopped the ephemeral app after client
+heartbeat/disconnect loss. Hardened launcher uses `--detach` with ONE durable
+remote coordinator which spawns AND waits for BOTH GPU calls. This avoids the
+detached-local-entrypoint "retain only last triggered call" hazard. Deliberately
+terminated only our own new local CLI to test disconnection; cloud parent and
+both GPU children must remain active and complete. Never stopped unrelated apps.
+Added two AST launcher regression tests without submitting jobs. Neither initial
+nor restarted confirmation reservation has been opened; same still-unexposed
+metadata safely re-reserved for the restart before final freeze. Study/model
+source from initial as-run archive kept unchanged; infrastructure/report helpers
+are separately versioned. Initial partial file upload/readback preserved.
