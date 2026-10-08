@@ -4013,3 +4013,81 @@ The paired confirmation gallery includes source plus each arm's oracle/estimated
 output; the synthetic gallery has only generated outputs and requested text,
 not an invented reference. All32prompts are rendered, with correct/swapped/null
 controls tabulated separately and source-reader ceiling retained.
+
+## Fresh positional-contract results — completed2026-10-08
+
+`checkpoints/iam_generation_position_contract/20261008-101747`.
+Both48000budgets completed, both TRAIN-selected best=final48000, clipping0%.
+Control reproduces the earlier soft Gaussian48000TRAIN CER **exactly**.
+
+| Matched-final evaluation | Relative100 control | Absolute-only queries |
+|---|---:|---:|
+| TRAIN native/oracle CER |2.406%|3.199%|
+| TRAIN native exact |152/256|119/256|
+| TRAIN estimated-duration CER |61.217%|37.976%|
+| Native X/Y RMSE |.032951/.003198|.035523/.003722|
+| Target-segment RMSE |.024456|.026913|
+| Native pen min F1 |1.000|1.000|
+| Exposed development8 native CER |83.128%|81.070%|
+| NEW16paired/oracle CER |82.998%|82.998%|
+| NEW16paired/estimated CER |81.879%|83.445%|
+| NEW16synthetic/estimated CER |81.470%|81.470%|
+
+**Real but limited improvement:** familiar-text estimated-duration CER decreases
+23.241percentage points (38.0%relative reduction), without collapse of native
+fit or pens. Native curve/segment errors slightly worsen; do not call this a
+free improvement or claim expected-duration writing is now usable.
+On220changed-duration TRAIN lines, common-prefix mean X/Y drift
+.590288/.165055→.500932/.071849; pen changes5937→912 (84.64%reduction), changed-
+duration CER70.567→43.637%.36exact-duration lines preserve every pen state and
+reader string; XY differences~1e-6 from batching. Longer-duration requests still
+fail: CER70.198→44.910%, not just early truncation. Shorter requests include both
+prefix distortion and truncation, so do not interpret CER alone.
+
+**Composition still FAIL:** ALL16paired and ALL16synthetic produce no exact
+transcripts and visually scribble-like trajectories. The identical aggregate
+CERs above are coincidences, NOT duplicated inference: all16paired and all16
+synthetic reader strings differ between arms, with different per-line edit
+counts/trajectories. Source reader15/16exact,2errors/447characters=0.447%CER;
+that line is retained, not excluded to inflate the ceiling. Known writers,
+corpus-familiar reader, one seed and small confirmation remain limitations.
+These prompts are now exposed and must not be reused as fresh blind tests.
+No candidate update, checkpoint reselection or prompt selection after opening.
+
+Independent native CPU reload of8fixed TRAIN samples/arm: maxXY1.91e-5,
+zero pen mismatches, all16reader strings equal GPU. Actual weights/empty initial
+Adam/RNG/order/LRs/48000rows, fresh regeneration, all256selection and source/
+output hashes checked by reporter. T4 loop times1572/1690seconds (32minute
+parallel app including evaluation), own app `ap-Wa944EDRtMGIt3rOFje6Ft` stopped,
+zero tasks. No user/other app stopped. Telemetry reports low GPU activity without
+CPU saturation: not evidence that adding CPU cores would help this tiny batch.
+
+Full marker-free TRAIN/development report: `.../report/index.html`.
+New one-shot composition report: `.../confirmation/report/index.html`.
+Manually inspected12fixed TRAIN lines (including k04/c03/d08/p10/n05) across
+oracle/estimated outputs, and ALL16new paired +ALL16new synthetic outputs.
+All264native+256TRAIN estimated and8development estimated saved; not every
+TRAIN gallery manually inspected. Original p08-936z-05/a07-421z-02 remain outside
+this264scope; do not claim they were retested.
+
+An initial CPU confirmation watcher was interrupted with exit143(SIGTERM,
+source unknown) partway through the final synthetic arm. No GPU/training job or
+checkpoint lost. Partial directory preserved as
+`confirmation-interrupted-sigterm-20261008-105336`; diagnostics rerun with EXACT
+same frozen candidates/prompts, no tuning or reselection. Five completed partial
+HDF5files (all policy arrays/reader rows) repeat bitwise identically, checked in
+`confirmation/repeated-cpu-verification.json`. Original partial outputs/log kept.
+
+**What is established:** the high-frequency, target-length-dependent relative
+PE is a major causal familiar-text timing vulnerability; omitting it from fresh
+initialization improves robustness, unlike the failed retrospective jitter fix.
+It is NOT the sole generation/composition problem. Absolute query features do
+not change with length, but unrestricted self-attention context still changes;
+its remaining prefix/context dependence is the next timing hypothesis to test,
+not something this ablation isolated independently. Better contextual character
+representations/learned compositional alignment, a genuinely semantic codec/
+generative objective, and more data under a converged regime remain untested
+alternatives. Do not enable KL/style/CTC incidentally, blame IAM, call this TrInk/
+released InkDiT reproduction, or spend another long run polishing known-line
+RMSE alone. Separate a prefix-invariant timing test from a content-composition
+intervention; neither gate can substitute for the other. No production promotion.
