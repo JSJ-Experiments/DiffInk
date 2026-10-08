@@ -4292,3 +4292,62 @@ objective, and more data under a converged schedule remain alternatives, not rul
 out. Do not assume attention means establish causality; test the intervention.
 A NEW composition seal must exclude all THREE opened confirmation sets. No fullIAM,
 KL/style, releasedInkDiT launch, or production handwriting promotion from this run.
+
+### 2026-10-08 — controlled TRAIN weak-alignment intervention (in progress)
+
+New paired T4 run: `checkpoints/iam_generation_weak_alignment/20261008-130852`
+(app `ap-Xgdja664202IegAcVTjAZY`, durable coordinator
+`fc-01M4DT25ZDKAA4P33A9WJKD7ZQ`). Fresh causal absolute-query control vs the
+SAME architecture with weak forced-reader character-attention supervision. Same
+256TRAIN/32writers, seeds28142/29142/39142, batch8,48000updates, schedule/base
+losses/codec/reader as completed causal-query experiment. No incidental KL,
+OCR reconstruction CTC or style objectives. Still the standalone deterministic
+mapper, NOT released InkDiT or semantic InkVAE.
+
+Teacher is immutable TRAIN probe `.../iam_generation_alignment_probe/20261008-112944`
+(`alignment.h5` SHA2cc1fc2c9c9c1856f238fe18fbb746ab2c73aa96242091298ce2aa6e625f1205).
+Its source reader reads256/256TRAIN exactly. Each packed8point query receives its
+two4index forced-CTC token emissions: omit blanks, include spaces, average the two
+labels if both occur; no invented interpolation across blanks or exact glyph
+boundaries. Median65.6% queries supervised;1010queries contain two distinct tokens.
+Use CE on final block's3local heads only; fourth/global head remains unconstrained
+for delayed marks. Bidirectional lookahead/irregular spacing/delayed marks remain
+limitations; this timing is weak, NOT exact IAM segmentation or an independent
+reader benchmark.
+
+A separate differentiable QK/log-softmax readout retains the original
+`need_weights=False` SDPA forward. Regression tests compare against MHA weights,
+prove nonvacuous routing gradients, exact unchanged main outputs/state/RNG, no
+supervision on held/padded queries, no global-head/V-row gradients, and unchanged
+causal prefix/checkpoint contracts. Actual CPU3update preflight also has ZERO
+capture-induced output change; it is NOT initialization/selection for GPU runs.
+
+Calibration at fresh step0 would be WRONG: zero-initialized final readout makes
+base body gradients zero. Both arms instead receive identical1000base-only updates;
+on the shared state measure first8TRAIN minibatches without updates or RNG/state
+changes. Fixed coefficient `0.0015943569375687838` gives auxiliary10% of median
+base-objective body gradient norm, excluding final readout. Control computes the
+same diagnostic but uses weight0; intervention activates at1001. Both calibrations
+and warmup state digests are identical in actual cloud logs. No claims about new
+text yet: decreasing teacher CE is not evidence of composition.
+
+**Metadata-only reservation correction:** the third exposed synthetic set reused
+`contract-synthetic-*` keys from the second. Plain `history.update()` erased16old
+transcripts; initial new synthetic reservation accidentally repeated2exposed texts.
+Detected BEFORE any confirmation sources/output scoring or final candidates.
+Namespaced synthetic history now preserves all48exposed synthetic texts. Same
+seeds46144/46145; paired IDs unchanged,2synthetic texts replaced. Original
+config/archive/reservation are byte-immutable; repair/provenance in
+`reserved-confirmation-corrected/`. Actual training/RNG/targets/order/selection
+UNCHANGED. Corrected evaluator reproduces full three-set metadata union. This is
+not performance-based reselection. Original as-run preparation helper is preserved;
+training sources remain unchanged. Regression test explicitly reuses synthetic IDs
+across all three sets. No mass extraction/new inode pressure beyond packed files.
+
+Final evaluation must first freeze all256TRAIN-selected candidates and pass native
+TRAIN CER<=5% in BOTH arms. Otherwise do NOT consume the corrected fresh gate.
+Report native geometry/pen/CER and TRAIN weak timing separately; generous256blocks
+(first learnedEOC, no oracle/predictor) must be the target-free composition control.
+Open the new16paired/16synthetic prompts once only, with swapped/NULL text controls
+and source-reader preflight; render ALL prompts marker-free, no exclusions. Do not
+infer English composition from familiar reconstruction or attention means alone.
