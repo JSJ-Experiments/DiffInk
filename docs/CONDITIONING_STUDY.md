@@ -5625,3 +5625,14 @@ geometry40loss.67323/unused344loss.92688, rawgrad.14992/no clipping,
 Own-delta report and raw artifacts verified onv2:266files/191newuploads,
 ZEROoverwrites. OriginalVolume mirror is still being verified separately;
 no claim of complete publication there yet.
+
+Own-delta final publication COMPLETE (supersedes pending mirror note above):
+266files byte-readback verified on BOTHdiffink-experiments-v2 anddiffink-data,
+191v2/266v1 newuploads, ZEROoverwrites,179HTMLreferences checked. Manifest itself
+uploaded/readback verified on both. Report/provenance publication commit12532a7;
+original experiment4ced4d1. Final report:
+`/mnt/diffink-data/checkpoints/iam_own_delta/20261008-220815/report/index.html`.
+No duplicate eight-line GPU follow-up. Corpus pilot remains the active experiment;
+by750 updates, finite x0loss.51059/geometry40loss.36462/unused344loss.52757;
+57.73TRAIN-seconds, rawgrad.36/unclipped. These shuffled losses only establish
+optimizer progress, not new-text readability. Wait for DEV/confirmation galleries.
