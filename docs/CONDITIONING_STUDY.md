@@ -5418,8 +5418,12 @@ own-history pen/stop classification from loss of content-aligned local geometry;
 a frozen-body pen/stop refit is a clean possible control, but changes in predicted
 hardpens can still change future free geometry even with frozen body weights.
 Any inference-time token-clock stop gate remains unjustified: clock values are
-not verified glyph alignment. A source-alignment audit is also warranted before
-claiming reusable character composition; avoid polishing familiar8 indefinitely.
+not verified glyph alignment. Any autoregressive cursor follow-up must build on the EXISTING archived TRAIN
+forced-reader probe and completed weak-attention intervention (sections above):
+its routing fitted near-perfectly yet fresh-text CER stayed ~81%. Do not rerun
+that same supervision or claim a sharper clock guarantees composition. The new
+autoregressive own-history failure is a distinct mechanism; avoid polishing
+familiar8 indefinitely without a test of reusable character composition.
 
 Reports: primary generated-prefix publication was byte-verified on diffink-data:
 273files/198newuploads/181HTMLreferences/ZEROoverwrites, provenancef2ce3ce.
@@ -5428,3 +5432,23 @@ Recovered paired report currently local under
 `data/checkpoints/iam_continuous_prefix/20261008-183348-v2-recovery/report/index.html`;
 raw recovered outputs/checkpoints also persisted on diffink-experiments-v2.
 Its final report publication verification follows, not yet claimed here.
+
+Recovered report publication COMPLETE:225files verified byte-for-byte on BOTH
+`diffink-experiments-v2` and existing `diffink-data`; ZEROoverwrites. V2 finalization
+added2publication-recovery evidence files; original v1 mirror added225files.
+All119local HTML references verified. Initial mirror's missing-directory response
+was Modal NotFoundError rather than FileNotFoundError; fixed the publication
+finalization separately, preserving already-published report/source bytes and
+retaining that error log. Manifest itself uploaded/readback verified on both.
+Report provenance/verification commit492efd6; recovery implementationf2ce3ce,
+original interrupted implementation0c1bf66.645tests PASS BOTHmirrors, including
+recovery selection/order/RNG/optimizer and no-restart reporting guards. Both
+original failed and recovered apps stopped/zero tasks; no paid training left idle.
+
+Primary all-eight marker-free report AND raw checkpoints/outputs now available at:
+`/mnt/diffink-data/checkpoints/iam_continuous_prefix/20261008-183348-v2-recovery/report/index.html`.
+The local mirror is the same relative path under `data/`; full config, logs,
+selected/final checkpoints, HDF5 outputs, source archives, interrupted snapshots,
+CPU Jacobian/allocation audits and publication hashes accompany it. Active overall
+English new-text composition goal remains incomplete. These are familiar8 capacity/
+robustness controls, NOT a lowered unseen-text82% result or paper reproduction.
