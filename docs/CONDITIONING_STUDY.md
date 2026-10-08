@@ -4487,3 +4487,85 @@ this is a descriptive decomposition, NOT a causal masked-loss experiment. No mod
 update, new held-source access, or selection. Supplemental artifact:
 `diagnostics/engineering-review/unused-channel-diagnostic.json` under the same
 continuation run. Published original review/index/manifest remain immutable.
+
+## Text-only monotonic progress: TRAIN-form-held CPU diagnostic (2026-10-08)
+
+Run `checkpoints/iam_character_progress/20261008-145649` on `diffink-data` and
+local `data/`; `index.html` has plots, `summary.json` all256 rows, `predictions.h5`
+all256 packed clock outputs, `fold-*-models.json` five fitted sets, and
+`full-train-model.json` the reusable but NOT promoted text-only clock.
+
+**Question:** can an explicit compositional text/writer clock predict transferable
+left-to-right progress, unlike the earlier almost-perfect TRAIN attention that
+failed on new prompts? Use precisely established256TRAIN forced paths, no new
+reader run, trajectory extraction, neural checkpoint update or GPU. Eight exposed
+DEV and all FOUR opened confirmations untouched. Reader corpus-familiar; this is
+NOT independent unseen-text recognition or generated-writing evidence.
+
+Five fixed form-held folds (seed57142), with normalized-transcript duplicates
+connected across forms before splitting. Every256line evaluated exactly once on
+a model never fitted to its form or normalized text; all32 writers represented in
+each fit. Unknown fold characters (e.g. digits/capitals/punctuation) use category
+fallbacks; no examples excluded. Frozen source reader256/256exact. Complete
+form/text TRAIN/evaluation disjointness guarded. Exploratory CPU pilot on these
+same TRAIN sources preceded the fixed probe; do NOT call it preregistered/blind.
+
+Teacher center = mean((four-index emission-frame+.5)/2) for each transcript token;
+positive intervals between origin/centers/ceil(realpoints/8). These are processed
+index-block coordinates, NOT physical time, actual character borders or pen phase.
+Blanks are omitted from labels, not converted to invented glyph boundaries.
+Positive log-gap ridge regression, fixedL2=10, equal line weight, one TRAIN-only
+arithmetic smearing factor. Features: writer intercept, simple position/length,
+optional character/category and optional left/right neighbor identity. No sample
+ID, source length, held path, whole-text neural embedding or trajectory input at
+primary inference. Monotonic interpolation between centers is an explicit weak
+phase scaffold; prefixes are invariant to the caller's output-budget length.
+
+|Out-of-form clock|Pooled median index error|p90|p99|Mean linep90|Nearest token index accuracy|
+|---|---:|---:|---:|---:|---:|
+|Static TRAIN-average blocks/character|1.404|4.097|7.315|3.224|21.84%|
+|Existing text/writer duration + uniform progress|1.193|3.127|6.454|2.529|23.05%|
+|Same gap model, no glyph identity|1.094|3.331|6.382|2.569|25.62%|
+|Shared character-gap coefficients|1.000|3.109|5.975|2.442|30.46%|
+|Left/right neighbor coefficients|0.985|3.057|5.710|2.425|31.47%|
+|Uniform spacing, same predicted first/last centers|1.111|3.049|5.600|2.481|25.21%|
+|**Oracle** first/last centers + uniform|0.669|1.911|3.355|1.594|40.02%|
+|**Oracle** first/last centers + neighbor spacing|0.412|1.359|2.663|1.188|56.74%|
+
+Metrics compare weak progress token INDEX to forced nonblank token index; nearest
+index accuracy is NOT character recognition accuracy or CER. Half-frame convention
+differs from prior attention probe's floor(frame/2), so don't directly compare the
+old attention numbers. Neighbor durationMAE=3.586blocks vs existing duration3.574;
+full256 in-sample neighbor p90=2.780, not tiny memorized timing error. All256 stored;
+manually inspected12plots: six worst neighbor linep90 and six around its median.
+
+Descriptive2000resample form-cluster bootstrap, seed57143, mean linep90 differences
+neighbor-minus-baseline: static -0.799[-1.043,-0.576]; duration-uniform
+-0.104[-0.252,+0.053]; no-glyph -0.144[-0.309,+0.015]; same-endpoints-uniform
+-0.056[-0.137,+0.029]. Models/folds are NOT refitted per bootstrap; intervals omit
+reader/fold/seed uncertainty and multiplicity adjustment. Current256 has no
+cross-form identical normalized texts, explicitly checked for bootstrap grouping.
+
+**Established:** cheap local identity information transfers somewhat, particularly
+median/index assignment, but fixed predicted pacing still accumulates substantial
+error against source emission clocks. Worst plots show estimated progress reaching
+the last token while source emissions are several tokens behind, or vice versa.
+Oracle-endpoint controls expose much stronger reusable local spacing information;
+global delay/span uncertainty dominates much of its metric advantage. A fixed
+clock alone is not a demonstrated generation fix, and evidence over the simpler
+text/writer duration model is weak. Different legitimately generated handwriting
+can have a different clock from this one source: these numbers do NOT prove that
+source timing mismatch caused the ~81%CER failure or that text-only generation is
+impossible. The reader's delayed emissions/lookahead remain confounds. No generated
+trajectory, pen policy, curve-quality or new CER improvement claimed.
+
+**Next research:** do not silently replace production attention by a hard frozen
+schedule or spend another48k run merely sharpening it. Test an adaptive monotonic
+progress mechanism tied to generated stroke history (a genuine autoregressive
+index-displacement/pen baseline), with teacher-forced vs free-running evaluation
+separated, explicit learned stopping, and marker-free novel-text visual gates.
+A TRAIN-derived phase scaffold/target reparameterization or deliberate generated
+semantic-reader objective remains viable; the diagnostic alone does not rule them
+out. Continue to exclude all FOUR opened gates plus all future training prompts
+when reserving a fresh confirmation. Original semanticInkVAE/releasedInkDiT are
+still NOT tested by this standalone mapper. No incidental KL/style/fullIAM.
