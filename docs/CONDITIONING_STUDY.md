@@ -4955,3 +4955,105 @@ of the earlier original coordinator restart. Lightweight subprocess import test
 ensures torch/numpy not loaded. Actual-container-reentry test still unperformed;
 ledger transitions/attach/ambiguity guarantees covered by unit simulations.
 Docs: https://modal.com/docs/guide/functions and /reference/modal.FunctionCall.
+
+### 2026-10-08: completed roll-in rejection and causal pen/XY-history separation
+
+Authoritative matched history run `checkpoints/iam_history_rollin/20261008-164616`:
+app `ap-kohA65UZyyZdxtfaOPPmqJ`, coordinator `fc-01M4E6H9QXYYNGT8P30RA2Z7PB`.
+Ledger records exactly teacher `fc-01M4E6HK14PFFMFX7PRGSZ7VR9` and rollin
+`fc-01M4E6HPN1H4SMHCB3RM7523CN`; both completed1000, app stopped/zero tasks.
+No unrequested repeat in this run. Model AND optimizer/order/random draws matched.
+
+| Outcome | Original3000 | Teacher+1000 | Rollin+1000 |
+|---|---:|---:|---:|
+| True-history normalized displacementMSE | .003452 | .001617 | .004335 |
+| True-history X/Y RMSE | .009386/.005846 | .004044/.004063 | .063429/.042902 |
+| First-index-difference vectorRMSE | .0083405 | .0056716 | .0091825 |
+| Mean line turn-angle p90 deg | 23.82 | 16.60 | 24.75 |
+| Minimum teacher penF1 | .8444 | .9032 | .8308 |
+| Internal falseEOC / correct finalEOC | 0/8 | 0/8 | 1/8 |
+| Teacher TRUE-rendering-pen readerCER | 0% | 0% | 0% |
+| Teacher predicted-pen readerCER | 2.46% | .82% | 1.64% |
+| Genuine freeTRAIN CER | 45.90% | 43.85% | 47.54% |
+
+Teacher selected update500 at43.03% freeCER; final1000 shown separately. Rollin
+selected update0: all later evaluations fail declared capacity guard. Reject it,
+not silently promote final or hide rejected outputs. Applied rollin fraction
+.15033518; loop211.49/216.83seconds, clipping0%/.1%. Pervasive clipping does NOT
+explain this failure. Teacher improvements do not solve free-running history.
+No new DEV/blind prompts or unseen-text improvement claim. All8TRAIN across7writers.
+
+CPU-only causal intervention: freeze ORIGINAL3000 body and XY readout, refit only
+three pen logits rows/bias against all2932 real TRAIN points. Same bounded focal
+weights1/3.876680262/8 gamma2, Adam default(.9,.999), LR1e-3 clip5, seed61142.
+2000 head steps: minimum teacherF1 .8444→.94915, teacher predicted-pen CER2.46→.41%,
+genuine freeTRAIN CER45.90→35.25%, no exact prompts; teacher XY CPU bit-identical.
+Continuation from saved2000 head+optimizer to6000: teacher minimumF1 .98305,
+predicted histogram2718/206/8 versus true2719/205/8, teacher predicted-pen CER0%,
+zero internal falseEOC and final8/8. Genuine freeCER36.48% (slightly WORSE than2000),
+no exact prompts. All nonpen parameters independently verified against ORIGINAL.
+No further pen-head polishing justified as a free-geometry solution.
+
+The first6000 attempt received SIGTERM/exit143 after last printed5800 (actual logged5957), with NO saved checkpoint;
+retain incomplete `pen-readout-refit-continued/{config.json,metrics.jsonl}`.
+Recovery deterministically restarted from saved2000 (not from nonexistent5800),
+completed6000 under `pen-readout-refit-continued-recovered/`; its loop16.40CPUseconds.
+Cloned evaluator filenames `eval-2000.json/evaluation-2000.h5` still label2000;
+metadata explicitly records actual6000 head steps. Preserve as-run source unchanged.
+
+Four ALL8 source-length selective-history interventions on head6000:
+
+| History | TRUE rendering penCER | Predicted rendering penCER | X/Y RMSE |
+|---|---:|---:|---:|
+| true both | 0% | 0% | .00939/.00585 |
+| own XY, true pen history | 17.62% | 19.26% | .1384/.2140 |
+| true XY, own pen history | 0% | 0% | .01552/.01478 |
+| own both | 27.46% | 34.02% | .2049/.2448 |
+
+Oracle-history and SOURCE-LENGTH interventions are NOT genuine free generation;
+all-own prefixes match actual target-free generation exactly up to common/learned
+stop prefix. Refitted pens eliminate the pen-history reading failure in this
+oracle-XY diagnostic. Continuous own-XY feedback still disrupts geometry. This
+is causal evidence of exposure/error amplification, NOT proof the adaptive text
+clock is correct, a dataset defect, or inevitable82% unseenCER.
+
+All8 sources/teacher/free/final rejected-rollin/head6000 outputs manually inspected:
+source-conditioned handwriting remains readable, free paths still distort letters,
+joins and drift, sometimes stop early. Contacts are fit-to-panel diagnostics ONLY;
+primary report uses marker-free100px/model-unit exact-aspect SVG with correctY.
+Report `checkpoints/iam_history_rollin/20261008-164616/report/index.html`, supplemental
+`report/pen-history/index.html`. CPU sources/outputs/checkpoints under original
+point-feedback run `history-interventions/`. No production model promotion.
+614tests passed both mirrors before new cumulative helper;623passed both including
+five cumulative-XY, three study protocol and one pen-history report test. The
+recovered run exactly reproduces all3957 logged updates from the interrupted
+attempt, then completes4000 continuation updates. Publication readback follows.
+
+### Next bounded control: target cumulative-path anchor, not smoothing
+
+Source: ORIGINAL3000 body/XY plus trained6000 pen rows, checkpoint SHA256
+`38102f10d4d42d33171bcd53124771587ead94d79899eadcf25af28c2c1efdaf`.
+Three matched arms: teacher displacement baseline, teacher+XY anchor, rollin+XY
+anchor. SAME initial model, fresh AdamW(.9,.99) allarms (head-only optimizer is NOT
+compatible with whole-model; reset is explicit, so not optimizer-matched to previous
+roll-in study), LR1e-5 wd0 clip5, batch8,1000updates/1800trainseconds cap perT4.
+Order seed62142/draw62143. Same blockwise graph. Rollin arm only uses joint detached
+ownXY/hardpen p=.2*min(update/500,1); normal hidden BPTT. No intra-pointfeedback.
+
+Anchor = mean squared CUMSUM of normalized displacement error times TRAIN axis std,
+on prefix-valid real points. Equals absolute rendered-path XY error in model
+units; includes pen-up jumps and origin-to-firstpoint. No target smoothing,
+endpoint correction, length prediction, KL/style/OCR objective or inference
+changes. Auxiliary weight frozen from initial full-model true-history gradients,
+15% of displacement gradient norm (same coefficient bothanchorarms). Controls
+report accumulated position AND local geometry/pen, not RMSE alone. Padding has
+zero loss/gradient; source-index differences are not physical velocities.
+
+Same all8 perline preserved-capacity guard, now relative to head6000 parent pen,
+TRUE-rendering-pen CER0. Select minimum genuine freeTRAIN CER only among eligible
+checkpoints; baselineeligible. No new DEV/blind source and no visual reselection.
+Free inference remains text/writer only, common2048point cap, learned firstEOC.
+Scheduled-sampling ambiguity persists; anchor may help teacher drift without
+solving actual own-history or composition. Study launcher `modal_cumulative_xy.py`
+uses stable preprepared path and persistent3-child ledger; coordinator imports
+stdlib-only guard, nonpreemptible. No fullset/DiT scaling from this toy outcome.
