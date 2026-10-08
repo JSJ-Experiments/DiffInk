@@ -22,7 +22,7 @@ class AutoregressiveReportTests(unittest.TestCase):
         with self.assertRaises(ValueError):verify_selection(r)
     def test_marker_free_svg_stroke_breaks_no_smoothing_or_width_fit(self):
         points=np.c_[np.array([[0.,0.],[1.,1.],[2.,0.],[3.,1.]]),np.eye(3)[[0,1,0,2]]]
-        s=svg(points);self.assertEqual(s.count('<path'),2);self.assertNotIn('<circle',s);self.assertNotIn(' C ',s);self.assertIn('width="312.000"',s)
+        s=svg(points);self.assertEqual(s.count('<path'),2);self.assertNotIn('<circle',s);self.assertNotIn(' C ',s);self.assertIn('width="312.000"',s);self.assertIn('M 6.0000,106.0000 L 106.0000,6.0000',s)
         translated=points.copy();translated[:,:2]+=15.;self.assertEqual(s,svg(translated))
         with self.assertRaises(ValueError):svg(points[:0])
 

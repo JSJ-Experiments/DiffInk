@@ -4622,3 +4622,47 @@ app authoritatively stopped/zero tasks. No research result or cost comparison fr
 that attempt. Include`utils` in image/archive and probe the eager import in CPU
 prepare BEFORE spawning GPUs; added launcher regression. Preserve failed attempt,
 start fresh directory rather than overwriting/retrying partially trained state.
+
+**Pilot actually launched:** corrected app`ap-dkblx956dzT6Vk7wD4S33F`, durable
+coordinator`fc-01M4E1WGH61XSZHZFV6PQ0XNDE`, output
+`checkpoints/iam_autoregressive_study/20261008-152547`. Same initial weights and
+step0 outputs, minibatch order and gradient coefficient botharms verified. Common
+penweight=.037631938059517804. Source-reader8fixedTRAIN exact in localpreflight;
+sourceSHA/readerSHA pinned.570tests passed bothtrees before launch/report changes.
+Progress is committed at fixed evaluations, without changing training/RNG.
+
+Completed1000update interim diagnostic (NOT final outcome): fixed/adaptive
+all256 teacheroffsetMSE=.816244/.815346, cumulative XRMSE=.9556/.9793,
+YRMSE=.6805/.6791; minpenF1=0, finalEOC10/256vs14/256. FreeTRAIN8CER97.95%/134.02%,
+exposedDEV104.12%/349.38%; both miss4TRAIN EOCs, all8DEV EOCs and can run to cap.
+Every16freecorrect output manually inspected: flat drifts/periodic small waves,
+NOT readable handwriting. Regression/coordinates/teacher-vs-free separation hold;
+poor outputs must not be presented as improvement. Teacher forcing itself is still
+underfit, so this is NOT yet a clean isolation of exposure bias or text composition.
+Jobs continue on their original bounded schedule; no interim tuning or newgate.
+`progress-1000/index.html` is a clearly labeled completed-step interim report.
+
+A useful objective diagnostic: real target pen-up jumps are5829/93687=6.22%points,
+but account for59.97%normalized displacement variance (zero-normalized prediction
+baseline). Origin256points5.21%; drawn within-stroke87602points34.82%. Atfixed1000,
+actual all256teacher displacement squared error is62.92%pen-up jumps,36.08%within
+stroke,.996%origin. Jumps per-axisMSE8.2548vs.3150within strokes. This is descriptive
+error accounting, NOT evidence downweighting them causally helps; resume locations
+matter and must not be erased. `offset-error-decomposition.json` coversbotharms in
+report; new tested reusable helper uses PREVIOUS truepen state, correctly assigning
+the move after a lift rather than the stroke's final inked segment. Possible next
+objective hypotheses include robust/stratified penalties or a multimodal jump head,
+AFTER checking the completed matched pilot, not an unannounced mid-run change.
+
+Interim telemetry: fixed32.96%GPUbusy,~.97CPUtreecores/~.53hottest on2CPU, alert
+`gpu_low_no_cpu_saturation`. No evidence3more cores solves this. Small sequential
+GRUCell kernels/recurrent dispatch are plausible throughput limit, not proved yet.
+Measured loop at1000: fixed115.4s/adaptive194.6s. Do not restart or alter optimization
+solely because a GPUbusy alert fires. Volume98.3%inodes; all outputs/checkpoints packed.
+
+New SVG report initially used down-positive display for up-positive modelY; caught
+by comparing source letters to existing matplotlib/preprocess convention BEFORE
+publication, corrected with explicit Y flip and renderer regression. This was a
+new report-only bug, NOT training/data mirroring or an explanation of generation
+failure. Unpublished local diagnostic drafts retained under clearly named paths;
+only correctly oriented progress report is published. No training code changed.
