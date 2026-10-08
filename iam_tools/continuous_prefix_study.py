@@ -83,7 +83,7 @@ def prepare(repo,root='/data'):
     return str(out.relative_to(root))
 
 
-def run(arm,relative,root='/data',on_checkpoint=None):
+def run(arm,relative,root='/data',on_checkpoint=None,resume_source=None):
     if arm not in ARMS or not torch.cuda.is_available():raise ValueError('explicit T4 arm required')
     root=Path(root);out=checked_path(root,relative);cfg=json.loads((out/'config.json').read_text());data=json.loads((out/'dataset.json').read_text());parent=json.loads((out/'parent-eval.json').read_text());validate(cfg,data)
     for p,sha in [(out/'as-run-source.tar.gz',cfg['source_archive_sha256']),(root/cfg['parent_checkpoint_relative'],PARENT_SHA),(root/DATA/'source.h5',SOURCE_H5_SHA)]:
@@ -103,14 +103,28 @@ def run(arm,relative,root='/data',on_checkpoint=None):
         with monitor.in_phase('eval/'+arm):r=evaluate(model,pool,targets,reader,data,cfg,folder,step,parent)
         history.append(dict(step=step,teacher=r['teacher'],free=r['free'],source_rollout=r['source_rollout'],reading=r['reading'],capacity_gate=r['capacity_gate']))
         return (r['free']['correct']['cer'],r['teacher']['offset_mse']) if r['capacity_gate']['passed'] else None
+    resume_step=0
+    if resume_source is not None:
+        from .continuous_recovery import snapshot_info,validate_checkpoint,copy_snapshot
+        info=snapshot_info(resume_source,cfg,data,arm,parent)
+        recovered=torch.load(Path(resume_source)/'checkpoint-last.pt',map_location='cpu',weights_only=False)
+        validate_checkpoint(recovered,cfg,arm,info['step'])
+        model.load_state_dict(recovered['model_state_dict']);opt.load_state_dict(recovered['optimizer_state_dict'])
+        for group in opt.param_groups:group['lr']=cfg['lr']
+        torch.set_rng_state(recovered['rng_cpu']);torch.cuda.set_rng_state_all(recovered['rng_cuda'])
+        copy_snapshot(resume_source,folder);resume_step=info['step'];history=info['history'];best=info['best'];best_step=info['best_step'];seconds=info['seconds'];clipped=info['clipped']
+        print(dict(arm=arm,resumed_exact_step=resume_step,remaining_updates=cfg['max_updates']-resume_step,restored_model_optimizer_rng=True),flush=True)
+    elif 'recovery' in cfg:raise ValueError('recovery study must resume, never restart from parent')
     with ResourceMonitor(folder,cpu_request=2,memory_request_mib=8192,gpu=True,interval=2,sustained_seconds=45) as monitor:
-        best=assess(0,monitor)
-        if best is None:raise ValueError('restored initial capacity gate must PASS')
-        save('checkpoint-initial.pt',0);save('checkpoint-best.pt',0)
-        if on_checkpoint:on_checkpoint()
+        if not resume_step:
+            best=assess(0,monitor)
+            if best is None:raise ValueError('restored initial capacity gate must PASS')
+            save('checkpoint-initial.pt',0);save('checkpoint-best.pt',0)
+            if on_checkpoint:
+                with monitor.in_phase('persist/'+arm):on_checkpoint()
         model.train();monitor.set_phase('train/'+arm)
-        with (folder/'metrics.jsonl').open('w') as log:
-            for step,batch in enumerate(schedule,1):
+        with (folder/'metrics.jsonl').open('a' if resume_step else 'w') as log:
+            for step,batch in enumerate(schedule[resume_step:],resume_step+1):
                 start=time.monotonic();f,o,p,m,t=pool.select(batch);terms=paired_feedback_losses(model,f,t,writer_ids(batch,data,cfg,'cuda'),o,p,m,cfg,arm=='continuous_xy');wx,wp=arm_weights(arm,cfg)
                 loss=terms['base']+wx*terms['own_xy']+wp*terms['own_pen'];opt.zero_grad(set_to_none=True)
                 gradient_check={}
@@ -126,9 +140,11 @@ def run(arm,relative,root='/data',on_checkpoint=None):
                 if step in cfg['eval_steps'] or limit:
                     score=assess(step,monitor);save('checkpoint-last.pt',step)
                     if score is not None and score<best:best=score;best_step=step;save('checkpoint-best.pt',step)
-                    if on_checkpoint:on_checkpoint()
+                    if on_checkpoint:
+                        log.flush()
+                        with monitor.in_phase('persist/'+arm):on_checkpoint()
                 if limit:stop='wall_limit';break
         save('checkpoint-last.pt',step)
     if tensor_digest(reader.state_dict())!=rd or any(p.grad is not None for p in reader.parameters()):raise ValueError('frozen reader drift')
-    result=dict(arm=arm,continuous_feedback_gradient=arm=='continuous_xy',last_step=step,parent_body_step=4000,parent_head_updates=6000,best_step=best_step,best_train_score=list(best),history=history,stop=stop,train_seconds=seconds,clip_fraction=clipped/step,initial_state_sha256=initial,initial_optimizer_tensor_digest=optimizer_initial,schedule_sha256=hashlib.sha256(json.dumps(schedule).encode()).hexdigest(),selected_sha256=file_sha(folder/'checkpoint-best.pt'),last_sha256=file_sha(folder/'checkpoint-last.pt'),reader_unchanged=True,not_promoted=True)
+    result=dict(arm=arm,continuous_feedback_gradient=arm=='continuous_xy',last_step=step,parent_body_step=4000,parent_head_updates=6000,best_step=best_step,best_train_score=list(best),history=history,stop=stop,train_seconds=seconds,clip_fraction=clipped/step,initial_state_sha256=initial,initial_optimizer_tensor_digest=optimizer_initial,schedule_sha256=hashlib.sha256(json.dumps(schedule).encode()).hexdigest(),selected_sha256=file_sha(folder/'checkpoint-best.pt'),last_sha256=file_sha(folder/'checkpoint-last.pt'),reader_unchanged=True,not_promoted=True,resume_step=resume_step,recovery=cfg.get('recovery'))
     (folder/'result.json').write_text(json.dumps(result,indent=2)+'\n');return dict(output=str(folder),arm=arm,best_step=best_step,final=history[-1])

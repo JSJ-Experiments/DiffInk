@@ -5297,3 +5297,51 @@ Measured train GPUbusy32.75–33.66%, process-tree CPU .959–.964cores and hott
 thread .575–.581 on2requestedCPU. No CPU saturation evidence; simply assigning
 moreCPU does not address small sequential kernel overhead. No grad clipping
 occurred in these three continuations.
+
+### Infrastructure interruption, preserved updates and deliberate exact-checkpoint recovery
+
+Continuous-gradient study181151 did NOT complete: observed first500detached/
+250continuous updates, then GPUs0% and CPU~.005cores for many minutes. Read-only
+container exec plus py-spy shows MainThread waiting in research.finally VolumeCommit,
+NOT computing model gradients or saturating a CPU. Modal eventually returned
+`DataLossError: failed to publish commit to server`; independent direct API uploads
+to original v1 returned `ResourceExhaustedError: too many layers in volume`.
+This is a concrete persistence failure. Near98.5% inode occupancy is an additional
+risk, but it is NOT proven to be the cause of the layer-limit error. No raw IAM
+files were deleted. Do not blame the dataset or claim the missing run finished.
+
+Before stopping the app, captured actual worker files without relying on a mounted
+v1 commit: read-only container exec creates tar archive, direct API uploads to new
+`diffink-experiments-v2`, then local download verifies archive AND every file hash.
+Detached capture16files SHA64313d1798f5550a19e041c65f9e04e0675c3d3b151f81888d5daee48c51645c;
+continuous capture13files SHAef9314be96c69d25db7b08e3c91c107b781e115d41cd4e99f73d8107d70e3067.
+Archives remain under `checkpoints/iam_continuous_prefix/20261008-181151/interrupted-snapshots/`
+on v2 and locally; preserve failed v1 run/evidence, never overwrite it with completion.
+
+Recovery prepared at `checkpoints/iam_continuous_prefix/20261008-183348-v2-recovery`:
+restore detached step500 and continuous step250 checkpoints, WHOLE optimizer AND
+CPU/CUDA RNG. Preserve executed metric prefix/order, initial/selected checkpoints,
+all prior evaluations and original guarded selection. Continue ONLY missing500/750
+updates to the same original1000 cap, same coefficients/config/data/order; elapsed
+TRAIN budget includes previously executed215.935/142.081seconds, not long commit
+idle time. No new parent restart, no duplicate counted optimizer updates. Record
+both original archive/ledger and new archived recovery implementation.
+
+Original diffink-data is mounted for inputs only. New small Volume v2 holds outputs;
+bounded120second `sync /runs` checkpoints with explicit persist phase and begin/end
+logs replace unbounded retry chains against the crowded v1. Primary training errors
+are printed before attempting final persistence, so a secondary storage error
+cannot conceal them. No original raw-data migration/destruction or schema/model
+change. V2 storage is an infrastructure mitigation, not a measured handwriting fix.
+Resume guards reject altered config, wrong arm/step, empty optimizer, missing RNG,
+changed checkpoint hashes, incomplete/duplicated/reordered prefix, output/gate drift
+and artifact overwrite. Regression tests include prior-best selection preservation.
+New guarded launcher: `modal_continuous_recovery.py`; default invocation allocates
+no GPU. The recovery result/publication remains pending until actual completion.
+
+Recovery prelaunch:645tests PASS BOTHmirrors. Original app stopped naturally at
+18:31:15UTC before explicit stop command (already stopped); zero tasks verified.
+Both byte-verified worker snapshots survived even though their final v1 commits
+did not.35prepared recovery files uploaded to v2; config/dataset/source archive
+byte-readback verified before launch. New CPU preflight validates captured hashes,
+executed order, preserved guards/selection and exact original config before GPUs.

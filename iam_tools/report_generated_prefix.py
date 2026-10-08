@@ -16,9 +16,10 @@ def study_module(relative):
     if relative.startswith('checkpoints/iam_continuous_prefix/'):return continuous_prefix_study
     raise ValueError('declared paired own-prefix or continuous-feedback study required')
 
-def core_files(relative):
+def core_files(relative,recovery=False):
     core=['generated_prefix.py','generated_prefix_study.py','history_rollin.py','point_feedback_strokes.py','point_feedback_study.py']
     if 'iam_continuous_prefix/' in relative:core+=['continuous_prefix.py','continuous_prefix_study.py']
+    if recovery:core.append('continuous_recovery.py')
     return core
 
 def verify_log(cfg,data,result,rows,module):
@@ -35,6 +36,7 @@ def verify_log(cfg,data,result,rows,module):
         check=r['gradient_check']
         if check:
             if not np.isclose(check['weighted_xy_ratio'],wx*check['own_xy_norm']/check['base_norm'],rtol=1e-10,atol=1e-12) or not np.isclose(check['weighted_pen_ratio'],wp*check['own_pen_norm']/check['base_norm'],rtol=1e-10,atol=1e-12):raise ValueError('actual current gradient ratios required')
+    if cfg.get('recovery') and (result.get('resume_step')!=cfg['recovery']['arms'][result['arm']]['step'] or result.get('recovery')!=cfg['recovery']):raise ValueError('declared exact interrupted prefix must be resumed, not retrained')
     verify_selection(result)
 
 def verify_pairing(cfg, results, logs, module):
@@ -61,7 +63,7 @@ def generate(relative,root='data'):
     root=Path(root);module=study_module(relative);ARMS=module.ARMS;p=module.checked_path(root,relative);cfg=json.loads((p/'config.json').read_text());data=json.loads((p/'dataset.json').read_text());module.validate(cfg,data);parent=json.loads((p/'parent-eval.json').read_text())
     if file_sha(p/'as-run-source.tar.gz')!=cfg['source_archive_sha256'] or file_sha(root/cfg['parent_checkpoint_relative'])!=PARENT_SHA or file_sha(root/DATA/'source.h5')!=SOURCE_H5_SHA:raise ValueError('pinned source/archive/checkpoint drift')
     with tarfile.open(p/'as-run-source.tar.gz') as archive:
-        for name in core_files(relative):
+        for name in core_files(relative,bool(cfg.get('recovery'))):
             if archive.extractfile('iam_tools/'+name).read()!=(Path(__file__).parent/name).read_bytes():raise ValueError('as-run implementation drift')
     results={a:json.loads((p/a/'result.json').read_text()) for a in ARMS};logs={a:[json.loads(s) for s in (p/a/'metrics.jsonl').read_text().splitlines()] for a in ARMS}
     for a,r in results.items():
@@ -108,6 +110,6 @@ def generate(relative,root='data'):
             for j,(label,q) in enumerate(entries):
                 name=sid+f'-{j}.svg';(out/name).write_text(svg(q));chunks.append('<p>'+html.escape(label)+'</p><div class="strip"><img src="'+name+'"></div>')
             galleries.append('<h2>'+html.escape(sid+' | '+data['records'][sid]['text'])+'</h2>'+''.join(chunks))
-    (out/'summary.json').write_text(json.dumps(dict(arms=summary,parent=PARENT_SHA,same_initial_model_restored_optimizer=True,auxiliary_calibration=cfg['auxiliary_calibration'],matched_actual_order_initial_forward_terms=True,scope='ALL8 establishedTRAIN/7writers; capacity-preserving history robustness, NOT newtext generalization or final model promotion',no_new_confirmation=True,not_promoted=True),indent=2)+'\n')
+    (out/'summary.json').write_text(json.dumps(dict(arms=summary,parent=PARENT_SHA,recovery=cfg.get('recovery'),same_initial_model_restored_optimizer=True,auxiliary_calibration=cfg['auxiliary_calibration'],matched_actual_order_initial_forward_terms=True,scope='ALL8 establishedTRAIN/7writers; capacity-preserving history robustness, NOT newtext generalization or final model promotion',no_new_confirmation=True,not_promoted=True),indent=2)+'\n')
     (out/'index.html').write_text('''<!doctype html><meta charset="utf-8"><title>Own-prefix supervision and gradient controls</title><style>body{font:16px system-ui;max-width:1400px;margin:30px auto}.strip{overflow:auto;border:1px solid #ddd;max-height:600px}.strip img{display:block;max-width:none}td,th{padding:8px;border:1px solid #ccc}table{border-collapse:collapse}</style><h1>Controlled own-history trajectory supervision</h1><p>'''+html.escape(cfg['profile']+' | '+cfg['training']+' | '+cfg['loss']+' | '+cfg['caveats'])+'''</p><p>Same pinned source model AND whole-model AdamW state, order and architecture. LR1e-5, clip5, all8 familiarTRAIN/7writers. Source-length own rollouts continue after predictedEOC ONLY for supervised training/diagnostics; do NOT call them actual free generation. No smoothing, endpoint correction, posthoc inference gate, KL/style/OCR training loss. Fixed auxiliary coefficients calibrated from initial full-model gradients; original own-prefix study uses stopped-feedback reference; continuous-feedback contrast uses FULL-feedback reference, SAME scalar loss coefficients botharms. The two studies therefore do NOT have the same coefficients. Predicted hardpen feedback remains argmax/nondifferentiable.</p><p>GENUINE free output uses own history and only requested text/writer plus common2048point cap, learned firstEOC, no oracle source length. Source-conditioned rows are NOT generation. All8 evaluated/displayed, no blind prompt opened. Select freeTRAIN CER only among perline preserved teacher-capacity checkpoints; final results displayed even when rejected. Reader is corpus-familiar; this toy does NOT prove unseen-text composition or clean multi-example-per-writer learning.</p><table><tr><th>Arm</th><th>Final update</th><th>Selected update</th><th>Final freeTRAIN CER</th><th>Selected freeTRAIN CER</th><th>Final teacher X RMSE</th><th>Final teacher Y RMSE</th><th>Teacher TRUE-PEN CER</th><th>Capacity guard</th></tr>'''+''.join(table)+'''</table><p><a href="summary.json">Complete metrics/guards</a>. Swapped conditioning error against original target is a control, not the requested-text score; teacher-reading JSON also logs CER against actually supplied swapped text. Marker-free SVG uses fixed100px/model-unit, exact aspect, proper up-positiveY display and actual singleton ink taps; no smoothing/clipping/width fitting. Scroll divergent outputs rather than rescaling them to look normal.</p>'''+diagnostics_html+''.join(galleries))
     return str(out)
