@@ -5345,3 +5345,86 @@ Both byte-verified worker snapshots survived even though their final v1 commits
 did not.35prepared recovery files uploaded to v2; config/dataset/source archive
 byte-readback verified before launch. New CPU preflight validates captured hashes,
 executed order, preserved guards/selection and exact original config before GPUs.
+
+### Recovered continuous-feedback comparison COMPLETE — genuine but uneven improvement
+
+App `ap-cf28RblFs8fChtNq5E9VSP`, coordinatorfc-01M4ECTTZEK49N81EJQG2YZQT4,
+completed BOTH originally bounded1000-update arms; app STOPPED18:42:34UTC/zero tasks.
+Recovery executed only remaining500detached/750continuous updates; combined logs
+retain exact1..1000 schedule, original evaluations and preserved source/model,
+AdamW/RNG, no duplicate updates. Original failed app remains separately archived.
+V2 checkpoint flushes ~.57–4.82seconds instead of many-minute failed v1 commits.
+Research completed without further persistence error; original data untouched.
+
+Same initial model/optimizer, scalar objectives and coefficients in BOTHarms:
+ownXY5.006895593114276e-5, ownpen3.159880562284457e-6, teacher pen
+.024860149190817294, teacher cumulativeXY .009549097811244269. Same8TRAIN/7writers,
+order64142/trainseed64143, LR1e-5 batch8 AdamW(.9,.99) wd0 clip5. Only continuous
+XY feedback derivative differs; hardpen feedback remains nondifferentiable.
+Source lengths only supply supervised TRAIN unroll/masks, not free inference.
+No new loss/stop gate/architecture, KL/style/OCR objective or blind text introduced.
+
+| Metric | Parent | Detached final1000 | Continuous final1000 |
+| --- | ---: | ---: | ---: |
+| Actual free familiarTRAIN CER | 35.25% | 27.87% | 24.59% |
+| Reader-exact lines | 1/8 | 2/8 | 1/8 |
+| Swapped control CER (against original text) | 86.48% | 89.75% | 90.57% |
+| Teacher X/Y RMSE | .00503/.00593 | .00260/.00406 | .00620/.00695 |
+| Teacher penF1 / true-pen CER | 1 / 0 | 1 / 0 | 1 / 0 |
+| Source-length own-rollout X/Y RMSE | .22563/.27412 | .15026/.10200 | .15587/.15224 |
+| Source-length first-index-difference RMSE | .05402 | .03288 | .04029 |
+| Mean perline source-rollout turn p90 (deg) | 76.56 | 57.27 | 66.00 |
+| Min source-rollout penF1 | .4333 | .6400 | .6250 |
+| Source-rollout false internal EOC | 6 | 7 | 2 |
+| Source-rollout predicted-pen CER | 31.97% | 17.62% | 21.31% |
+
+Both finals pass original perline teacher geometry/pen/CER guard and are selected.
+Continuous step500 temporarily FAILS m02 X/Y guard; retain it in report, do not
+hide intermediate regressions. No clipping in either arm. Total actual TRAIN time
+including pre-interruption433.785/464.910seconds. Recovery-only measuredGPUbusy
+35.49/36.40%, CPUtree .980cores, hottestthread .596/.609 on2requestedCPU. No CPU
+saturation evidence. Small sequential kernels remain a throughput limitation, not
+an excuse to add four reservedCPU cores or scale the training set automatically.
+
+ALL8 final marker-free source/parent/free/source-length-own/teacher images inspected.
+Full feedback rescues h09 from143-point early stop (`of our tast`) to466points/
+2reader errors, and k06 becomes reader-exact. But it worsens a01 (spurious suffix),
+k09 local letter shape, m02/m04 tails; k05 still stops247points and p07 stays distorted.
+24.59% versus27.87% is a modest3.28percentage-point gain in this matched contrast,
+NOT universal visual improvement. Own source-length position/local metrics are
+actually worse under full feedback despite better freeCER and fewer false stops.
+The parent-to-full30% relative CER improvement includes ordinary teacher learning;
+it cannot all be credited to retaining feedback gradients. The earlier teacher-only
+2000 result23.36% and ownXY selected1000 result25.00% have different schedules/
+weights/budgets; do NOT present cross-study ranking as another controlled result.
+
+Additional zero-update CPU gradient-allocation audit (pinned34474c6b, ALL8 scheduled
+order, model/RNG unchanged): direct pen-readout gradient .58518 from ownpen is
+IDENTICAL under detached/continuous feedback, because hardpen choices detach.
+Teacher objective pen-head norm4.56696e-6; current weighted ownpen/teacher-head ratio
+.40489 in BOTHarms (earlier generated-prefix coefficients imply22.19 on this batch).
+Continuous ownpen's much larger full norm mainly reaches XY rows321.15/body1726.58,
+not stronger direct pen-head gradients. OwnXY yields zero pen-head gradient both.
+Thus retaining continuous feedback credit is consequential and modestly helps this
+freeCER contrast, but is not a magic pen-classifier fix or established solution to
+new-text composition. Full-model gradient calibration is not per-head calibration.
+Audit: `checkpoints/iam_continuous_prefix_cpu/20261008-184110-gradient-allocation`
+(actual directory timestamp may be checked in publication supplemental provenance).
+
+Main unresolved issue remains robust own-history composition/termination, not a bad
+IAM decoder or inability to represent handwriting. Do not restore incidental KL/
+CTC/style or declare fullset/InkDiT ready. Next investigation should distinguish
+own-history pen/stop classification from loss of content-aligned local geometry;
+a frozen-body pen/stop refit is a clean possible control, but changes in predicted
+hardpens can still change future free geometry even with frozen body weights.
+Any inference-time token-clock stop gate remains unjustified: clock values are
+not verified glyph alignment. A source-alignment audit is also warranted before
+claiming reusable character composition; avoid polishing familiar8 indefinitely.
+
+Reports: primary generated-prefix publication was byte-verified on diffink-data:
+273files/198newuploads/181HTMLreferences/ZEROoverwrites, provenancef2ce3ce.
+`/mnt/diffink-data/checkpoints/iam_generated_prefix/20261008-175309/report/index.html`.
+Recovered paired report currently local under
+`data/checkpoints/iam_continuous_prefix/20261008-183348-v2-recovery/report/index.html`;
+raw recovered outputs/checkpoints also persisted on diffink-experiments-v2.
+Its final report publication verification follows, not yet claimed here.

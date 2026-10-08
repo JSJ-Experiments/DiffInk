@@ -10,6 +10,10 @@ class OwnPrefixReportTests(unittest.TestCase):
         for key,value in [('own_xy_weight',1.),('base_loss',2.),('loss',1.),('continuous_feedback_gradient',False)]:
             bad=copy.deepcopy(row);bad[key]=value
             with self.assertRaises(ValueError):verify_log(cfg,data,result,[bad],continuous_prefix_study)
+        cfg['recovery']=dict(arms=dict(continuous_xy=dict(step=1)));result['resume_step']=1;result['recovery']=copy.deepcopy(cfg['recovery']);verify_log(cfg,data,result,[row],continuous_prefix_study)
+        result['resume_step']=0
+        with self.assertRaises(ValueError):verify_log(cfg,data,result,[row],continuous_prefix_study)
+        result['resume_step']=1
         bad=copy.deepcopy(row);bad['gradient_check']['weighted_pen_ratio']=.5
         with self.assertRaises(ValueError):verify_log(cfg,data,result,[bad],continuous_prefix_study)
         result['initial_optimizer_tensor_digest']='reset'
