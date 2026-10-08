@@ -5197,3 +5197,46 @@ had ONE exact familiar reader transcript (a01), not zero; rollin/source hadzero.
 Authoritative eval JSONs/summary already had correct counts. Documentation claim
 fixed; immutable prior published report not overwritten. This does NOT establish
 unseen-text composition or make the other seven degraded free outputs acceptable.
+
+### Parallel CPU finding: own-input detach omits a consequential XY-feedback Jacobian
+
+Zero-update gradient audit on SAME selected cumulative source34474c6b (ALL8):
+`checkpoints/iam_continuous_prefix_cpu/20261008-175850/metrics.json`. Replace ONLY
+ownXY input detach with differentiable continuous feedback. Forward XY ANDpen
+logits CPU bit-identical, model/RNG unchanged; hard argmax pens remain discrete.
+Full feedback gradient cumulativeXY norm is11.18times stopped-feedback gradient,
+cosine .2263 and relative difference10.99. Ownfocalpen gradient norm is54.65times,
+cosine .7340. This is NOT merely a change of scalar loss value. Old training
+intentionally uses a surrogate gradient: it cannot credit an early XY prediction
+for its influence on future recurrent inputs, even though ordinary hidden BPTT
+and direct cumulative-position gradients remain. This does not prove retaining
+those paths will improve handwriting; it motivates a controlled test.
+
+New two-arm test: SAME original selected34474c6b model+optimizer, full paired
+teacher+ownXY+ownpen scalar objective SAME botharms; detached_xy versus continuous_xy
+differs ONLY continuous predicted-XY feedback gradient. Hardpen choices discrete
+botharms; all teacher/architecture/data/inference unchanged. Source-length own
+training continues after falseEOC as before, NOT a new free benchmark. NO smoothing
+or posthoc stop gate, OCR/style/KL objective added. Common1000updates LR1e-5 batch8
+clip5/1800TRAINseconds perT4, order64142/trainingseed64143, same8TRAIN/7writers.
+
+IMPORTANT: use shared coefficients calibrated on the FULL continuous-feedback
+surrogate (25% ownXY/10% ownpen relative to complete teacher gradient). Botharms
+get SAME weights; do NOT recalibrate separately or reuse larger stopped-feedback
+weights. Stopped control will therefore start at smaller gradient fractions,
+which is part of the causal derivative contrast, not a hidden objective change.
+Initial forward losses must match; log current norms/ratios. This new control is
+not directly coefficient-matched to the ongoing three-arm generated-prefix study.
+Same perline teacher capacity gate and TRAINfreeCER-only guarded selection,
+all8 visual/stop/source-length diagnostics, no new DEV/blind/promotion.
+
+Ownfuture-offset derivative tests: zero feedback gradient into earlier readout XY
+under detached policy, nonzero under continuous policy; zero into argmax pen rows
+in both. Tensor-stack paths may materialize zero gradients rather than None:
+regression test explicitly checks zero-or-unused instead of mistaking zero for an
+active path. Forward/paired losses equal and invalid models/budgets rejected.
+
+Continuous-feedback control prelaunch:639tests PASS BOTHmirrors; CPUprepare180733
+restores source model/optimizer and checks calibration invariants before any GPU.
+Prepared full-feedback norms .0556281/277.7305/1756.3994 yield approx
+5.00738e-5 ownXY /3.16716e-6 ownpen; actual cloud prepare defines actual coefficients.
