@@ -4680,3 +4680,29 @@ Represent them with a round-capped zero-length SVG ink segment, not a marker at
 every sampled point; regression added. Published progress1000 stays immutable and
 omits those isolated taps. This is visualization-only, no loss/model/evaluation
 metric change and no explanation of the current flat free-running failures.
+
+Fixed arm finished8000 with terminal`budget_completed` (adaptive still running at
+this observation). Full256teacherMSE=.350894, X/YRMSE=.6102/.5649, turnp90 mean134.50deg,
+minpenF1=.2, finalEOC54/256, internalfalseEOC244. FreeTRAIN8CER91.80%, exposedDEV86.83%
+(0exact each), oneTRAIN cap/noEOC and zeroDEV cap. Not a usable quality improvement.
+No conclusion on paired adaptive intervention until it finishes. Parameter463786,
+actual loop936.4s,0%clipping; no numerical explosion or clip ceiling excuse.
+
+All16 fixed freecorrect8000 independently CPU-reloaded from pinned final weights:
+same16lengths/EOC decisions/pen states/reader transcripts, maxXYdrift2.861e-5modelunits,
+model/readerstate unchanged. `fixed-cpu-reload-8000.json`. This rules out a simple
+GPU/readout reload discrepancy for those16 outputs, NOT all scopes/readers.
+
+New observation from all256teacher errors: jump error improves substantially by
+8000 (variance share42.31%now vs62.92%at1000); remaining drawn-segment share56.70%.
+So do not claim jumps alone cause the continuing failures or blindly erase them.
+More importantly, eight-point forecast horizon has rising error even WITHIN true
+strokes: normalized per-axisMSE phases0..7=.1464/.1845/.2104/.2210/.2324/.2307/.2272/
+.2496. Allpoints=.1969→.4450 fromphase0to7. Phase0 is the next point after supplied
+truehistory; phase7 the eighth future point. `fixed-8000-block-horizon-error.json`.
+This is observational, not proof of irreducible uncertainty or an architecture
+ablation, but motivates intra-block point feedback/one-point conditional prediction
+rather than asking a deterministic regression head for eight unsupplied future
+moves at once. A multimodal conditional head remains another viable hypothesis.
+The earlier InkVAE/transport reconstruction capacity result does NOT establish
+capacity/free-running stability of this NEW small autoregressive architecture.
