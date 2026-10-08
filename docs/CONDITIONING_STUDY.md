@@ -3991,3 +3991,21 @@ termination and CPU/GPU reload; no invented aligned RMSE on unequal trajectories
 Root/fork479tests pass (six additional fail-closed paired-report guard tests).
 Completed timing/jitter reviews are separately preserved under each experiment's
 `diagnostics/review/index.html`; immutable original report sources retained.
+
+New16paired/16synthetic confirmation reserved with metadata-only seeds26144/26145
+before final training completes. Excludes all1032 historical generator IDs/texts,
+opened16paired/16synthetic; paired forms also exclude earlier opened paired forms,
+current256TRAIN and exposed development8. Archive:
+`.../20261008-101747/reserved-confirmation/seal.json` plus exact reservation sources.
+The old `seal_synthetic` seed changes writer assignment, NOT prompt text; a trial
+reuse correctly failed the duplicate-text guard. New helper selects16hash-ordered
+unseen grammatical recombinations from a fixed256candidate inventory, filtering
+only transcript duplication/TRAIN character coverage; no model output selection.
+This is a small known-writer/corpus-familiar-reader gate, not a broad arbitrary-
+text or independent-writer benchmark. No fake oracle lengths/references for
+unpaired synthetic prompts. `generation_position_confirmation.confirm` opens
+these ONLY after both frozen TRAIN-selected candidates reach native TRAIN CER<=5%,
+verifies reserved metadata/exposure/source/checkpoint fingerprints, and never
+excludes a reader/source failure from the denominator. No post-confirmation
+candidate tuning/reselection. If either remains underfit, keep the seal unopened.
+Four additional reservation/fit-gate tests; root/fork483tests pass.
