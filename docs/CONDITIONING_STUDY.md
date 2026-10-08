@@ -4009,3 +4009,7 @@ verifies reserved metadata/exposure/source/checkpoint fingerprints, and never
 excludes a reader/source failure from the denominator. No post-confirmation
 candidate tuning/reselection. If either remains underfit, keep the seal unopened.
 Four additional reservation/fit-gate tests; root/fork483tests pass.
+The paired confirmation gallery includes source plus each arm's oracle/estimated
+output; the synthetic gallery has only generated outputs and requested text,
+not an invented reference. All32prompts are rendered, with correct/swapped/null
+controls tabulated separately and source-reader ceiling retained.
