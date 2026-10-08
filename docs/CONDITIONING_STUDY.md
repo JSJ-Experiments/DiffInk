@@ -4569,3 +4569,47 @@ semantic-reader objective remains viable; the diagnostic alone does not rule the
 out. Continue to exclude all FOUR opened gates plus all future training prompts
 when reserving a fresh confirmation. Original semanticInkVAE/releasedInkDiT are
 still NOT tested by this standalone mapper. No incidental KL/style/fullIAM.
+
+## Genuine autoregressive offset pilot — prepared (2026-10-08)
+
+The fixed clock diagnostic motivates testing feedback-based progress, not claiming
+it already solves composition. Added a separate small recurrent research model;
+original mapper/InkVAE/checkpoints remain unchanged. This is NOT semanticInkVAE or
+releasedInkDiT. Two same-weight arms: fixed TRAIN-average positive text advance
+versus a learned positive advance/sigma driven by previous stroke history. Single
+Gaussian text window; character embeddings + explicit textEOS, no whole-text neural
+summary or absolute query identity. Both two192-wide GRUCells,64-wide text vectors,
+16-wide writer embeddings. Chronological8-point outputs are normalized XY index
+DISPLACEMENTS (including pen jumps and origin-to-firstpoint) and8three-state logits.
+They are not physical velocities. Normalization exclusively established256TRAIN.
+
+Training receives only PREVIOUS true blocks, rigorously shifted: target blockj
+cannot enter predictionj. Free generation starts zero/BOS and feeds back ONLY its
+own predicted offsets and hard pen states. It accumulates offsets, stops at first
+learnedEOC, and uses the same2048point safety cap for every prompt. Source lengths,
+timing teachers, reference strokes and duration predictors never enter generation.
+Teacher-forced cumulative output can still use true history; it is NOT generation.
+
+Fixed seed58142, order58143, batch16,8000updates/arm,3600loop-second wall cap,T4,
+2CPU/8GiB,2torchthreads. LR2e-4,200update warmup,5e-5 from6000; AdamW(.9,.99),
+weightdecay1e-4,clip5. Normalized offsetMSE plus bounded English focalpen(gamma2,
+continue-normalized square-root frequency cap8), with common frozen pen coefficient
+calibrated to25%initial full-model coordinate gradient on first8TRAIN minibatches.
+Calibrate adaptive surrogate for fixed control to retain identical objective scale.
+All weights fresh; no sampler randomness/dropout/noise/scheduled sampling. This is
+an initial deterministic AR comparison, not a claim that MSE captures all possible
+handwriting continuations. Exposure bias and offset accumulation are explicit risks.
+
+Evaluate all256teacher-forced geometry/pen and fixed8TRAIN + already-exposedDEV8
+free outputs at0/1000/2000/4000/8000; swapped text at8000. TRAIN-only selection:
+fixed8TRAIN freeCER then all256 teacheroffsetMSE. Reader frozen/corpus-familiar;
+no new blind gate opened, no KL/style/OCR training loss, no production promotion.
+Durable Modal coordinator owns both GPUchildren. Checkpoints include fullAdam/RNG,
+metrics/outputs packedHDF5, as-run source archive and resource telemetry retained.
+
+Launch (guarded; without `--train` no GPU):
+`venv/bin/modal run --detach modal_autoregressive_study.py --train`.
+Regression checks include no current/future teacher leakage, identical initial
+fixed/adaptive forwards, monotonic center, partialblock/jump/backtrack roundtrip,
+padding exclusion, target-free budget-invariant prefixes, learned-vs-capped stopping,
+TRAIN-only calibration and durable boundedlaunch. Results NOT YET established.
