@@ -1,6 +1,12 @@
 """Fresh causal-contract composition gate; excludes BOTH earlier opened sets."""
 import math
+import hashlib
 from .generation_position_confirmation import reserve_synthetic
+
+def verify_source_points(points, record):
+    if hashlib.sha256(points.tobytes()).hexdigest()!=record['points_sha256'] or len(points)!=record['points']:
+        raise ValueError('confirmation source fingerprint drift')
+
 
 def fit_gate(cfg, results):
     """Do not spend blind confirmation on underfit or still-changing candidates."""
@@ -74,7 +80,7 @@ def confirm(directory, repo, root='data'):
         from model.losses import mixture_expectation
         for sid in ids:
             points=f[sid]['point_seq'][:];r=records[sid]
-            if hashlib.sha256(points.tobytes()).hexdigest()!=r['points_sha256'] or len(points)!=r['points']:raise ValueError('confirmation source fingerprint drift')
+            verify_source_points(points,r)
             raw,pm,_=single_batch(points,r['text'],vocab);target,mu,_,_=encoded(codec,raw,pm);n=len(points)
             truth=torch.cat((target[0,:n],raw[0,2:,:n].T),1).numpy();z=mu[0].T.detach();decoded=codec.decode(mu,padding_mask=~pm)
             xy=mixture_expectation(decoded)[0,:n];pens=decoded[0,:3,:n].argmax(0);text=read_sequence(reader,torch.cat((xy,torch.nn.functional.one_hot(pens,3).float()),1),vocab)

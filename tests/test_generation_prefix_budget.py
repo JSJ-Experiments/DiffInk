@@ -41,3 +41,7 @@ class PrefixBudgetTests(unittest.TestCase):
             row=result['lines'][0];self.assertTrue(row['no_paired_target']);self.assertEqual(row['budget_blocks'],256)
             self.assertTrue(all(key not in row for key in ['oracle_window_decoded','window_errors','oracle_points','internal_eoc_count']))
             self.assertEqual(result['aggregate']['generous_correct']['missing_eoc'],1)
+
+    def test_bad_device_rejected_before_loading_or_creating_artifacts(self):
+        from iam_tools.generation_prefix_budget import audit
+        with self.assertRaisesRegex(ValueError,'available explicit'):audit('missing','missing',device='tpu')

@@ -46,26 +46,28 @@ def aggregate(rows):
 
 
 @torch.no_grad()
-def audit(directory, repo, root='data'):
+def audit(directory, repo, root='data', device='cpu'):
+    if device not in ('cpu','cuda') or (device=='cuda' and not torch.cuda.is_available()):raise ValueError('available explicit CPU/CUDA evaluation device required')
     p=Path(directory);root=Path(root);cfg=json.loads((p/'config.json').read_text());data=json.loads((p/'dataset.json').read_text())
     out=p/'budget-audit';out.mkdir(exist_ok=False);(out/'audit-source.py').write_bytes(Path(__file__).read_bytes())
     torch.set_num_threads(2)
     codec,_,_,cc,_,_=load(Path(repo)/'configs/engineering_english.yaml',repo,root,cfg['source_rel'],cfg['source_sha256'],writer_id=None)
-    codec.eval().requires_grad_(False);reader,_=load_reader(root,cc);stats=torch.load(root/DATA/'whitening.pt',weights_only=True)
+    codec=codec.to(device).eval().requires_grad_(False);reader,_=load_reader(root,cc,device);stats=torch.load(root/DATA/'whitening.pt',weights_only=True)
+    stats={k:v.to(device) if torch.is_tensor(v) else v for k,v in stats.items()}
     ids=sorted(data['records']);results={};allrows=[]
     for arm in ['noncausal','causal']:
         result=json.loads((p/arm/'result.json').read_text());checkpoint=p/arm/'checkpoint-best.pt'
         if file_sha(checkpoint)!=result['selected_sha256']:raise ValueError('immutable TRAIN-selected checkpoint guard')
         saved=torch.load(checkpoint,map_location='cpu',weights_only=False)
-        model=PrefixContractWriter(**cfg['models'][arm]).eval();model.load_state_dict(saved['model_state_dict']);references={};rows=[]
+        model=PrefixContractWriter(**cfg['models'][arm]).to(device).eval();model.load_state_dict(saved['model_state_dict']);references={};rows=[]
         with h5py.File(out/(arm+'.h5'),'w') as f:
             for policy in POLICIES:
                 for start in range(0,len(ids),8):
                     batch=ids[start:start+8];records=[data['records'][sid] for sid in batch]
                     lengths=[budget(policy,r,cfg['duration_model']) for r in records]
-                    x,mask,text=inputs([r['text'] for r in records],lengths,cfg['vocab'],'cpu')
-                    wi=writer_tensor(batch,data['records'],cfg['writers'],'cpu')
-                    pred=model(x,torch.ones(len(batch)),text,mask,writer_ids=wi);z=transform(pred,stats,True)
+                    x,mask,text=inputs([r['text'] for r in records],lengths,cfg['vocab'],device)
+                    wi=writer_tensor(batch,data['records'],cfg['writers'],device)
+                    pred=model(x,torch.ones(len(batch),device=device),text,mask,writer_ids=wi);z=transform(pred,stats,True)
                     for j,sid in enumerate(batch):
                         latent=z[j,:lengths[j]];points,m=decode_sample(codec,reader,latent,records[j],cfg['vocab'])
                         if policy=='native':references[sid]=(latent.clone(),points.copy(),m['free_decoded'])
@@ -76,7 +78,7 @@ def audit(directory, repo, root='data'):
                             xy_prefix_max_abs=float(np.abs(diff).max()),x_prefix_rmse=float(np.sqrt((diff[:,0]**2).mean())),
                             y_prefix_rmse=float(np.sqrt((diff[:,1]**2).mean())),pen_changes=int((points[:n,2:].argmax(1)!=xy[:n,2:].argmax(1)).sum()),
                             reader_equal_to_native=m['free_decoded']==decoded)
-                        rows.append(row);g=f.create_group(policy+'/'+sid);g.create_dataset('points',data=points,compression='gzip');g.create_dataset('latent',data=latent.numpy(),compression='gzip');g.attrs['row']=json.dumps(row)
+                        rows.append(row);g=f.create_group(policy+'/'+sid);g.create_dataset('points',data=points,compression='gzip');g.create_dataset('latent',data=latent.cpu().numpy(),compression='gzip');g.attrs['row']=json.dumps(row)
                 print(dict(arm=arm,budget_policy=policy,all264=aggregate([r for r in rows if r['policy']==policy])),flush=True)
         groups={split:{policy:aggregate([r for r in rows if r['policy']==policy and r['sample_id'] in scope]) for policy in POLICIES}
                 for split,scope in [('train256',data['splits']['all_train256']),('exposed_dev8',data['splits']['unseen_prompt'])]}
@@ -84,7 +86,7 @@ def audit(directory, repo, root='data'):
                              packed_h5_sha256=file_sha(out/(arm+'.h5')))
         allrows.extend(rows)
     summary=dict(arms=results,lines=allrows,policy='Frozen native-TRAIN-selected weights. All264 prompts evaluated; dev is already exposed, NOT a blind test. Constant256 output budget uses only text/writer and learned firstEOC stop; no target length/forced EOC. ±1 uses oracle solely as a timing intervention; shorter outputs may truncate. Latent and decoded prefix drift reported separately.',
-        not_promoted=True,codec_sha256=cfg['source_sha256'],reader_sha256=cfg['reader_sha256'])
+        not_promoted=True,evaluation_device=device,codec_sha256=cfg['source_sha256'],reader_sha256=cfg['reader_sha256'])
     (out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');return summary
 
 

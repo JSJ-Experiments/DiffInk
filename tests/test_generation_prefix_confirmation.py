@@ -33,3 +33,12 @@ class PrefixConfirmationTests(unittest.TestCase):
         for cer in [.051,float('nan'),float('inf'),-.01]:
             q=copy.deepcopy(r);q['causal']['history'][0]['aggregate']['all_train256']['correct']['free_cer']=cer
             with self.assertRaises(ValueError):fit_gate({'max_updates':48000},q)
+
+    def test_actual_source_fingerprint_guard(self):
+        import hashlib,numpy as np
+        from iam_tools.generation_prefix_confirmation import verify_source_points
+        x=np.zeros((8,5),dtype=np.float32);r=dict(points=8,points_sha256=hashlib.sha256(x.tobytes()).hexdigest())
+        verify_source_points(x,r)
+        with self.assertRaises(ValueError):verify_source_points(x,dict(r,points=7))
+        y=x.copy();y[1,0]=1
+        with self.assertRaises(ValueError):verify_source_points(y,r)

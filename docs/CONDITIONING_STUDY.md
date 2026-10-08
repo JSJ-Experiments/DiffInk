@@ -4179,3 +4179,116 @@ unit test asserts fixed mask/window and omitted unpaired target metrics.
 Protocol amendment recorded in `reserved-confirmation/budget-protocol.json`,
 source snapshots accompany the CPU opening. No new prompt scored/loaded and no
 model/loss/data/schedule/checkpoint-selection change due to this amendment.
+
+## Causal-query results — completed2026-10-08
+
+`checkpoints/iam_generation_prefix_contract/20261008-113817`.
+Both48000updates complete; both best=final48000 selected on all256nativeTRAIN
+geometry, clipping0%, frozen codec/reader unchanged. Noncausal control reproduces
+prior absolute48000TRAIN CER **exactly**. Fresh restart's step16000 model,
+FULL Adam state and CPU/CUDA RNG match the interrupted run bitwise for BOTH arms;
+serialization SHAs differ because metadata/archive provenance differ, not weights.
+Restart verification saved under `diagnostics/restart-verification`.
+
+| Matched evaluation | Absolute noncausal | Absolute causal queries |
+|---|---:|---:|
+| TRAIN/native oracle CER |3.199%|4.318%|
+| TRAIN/estimated-duration CER |37.976%|7.140%|
+| TRAIN/constant256budget CER |107.543%|4.318%|
+| TRAIN/native exact |119/256|89/256|
+| TRAIN/generous exact |0/256|89/256|
+| Native X/Y RMSE |.035523/.003722|.041753/.004554|
+| Target-segment RMSE |.026913|.029846|
+| Second-index-difference RMSE |.035694|.038096|
+| Mean line tangent p90(degrees) |45.946|50.350|
+| Mean line turn p90(degrees) |66.766|71.650|
+| Native pen minimumF1 |1.000|1.000|
+
+**Causal timing gate PASS:** every TRAIN line uses the SAME constant256-block
+(2048point) window, then stops at the first learnedEOC. No requested source length,
+length predictor, target trajectory, sample-ID neural input, or forced finalEOC.
+All256causal TRAIN reader strings AND pen states remain unchanged versus native,
+all stop successfully. Max common-prefix latent difference6.68e-6, decodedXY
+4.20e-5 (FP32/kernel/codec roundoff), zero pen changes. Noncausal extension deforms
+all256reader strings and6134pen states, meanX/Y prefix drift.756/.177.
+±1block audit further isolates deformation: noncausal TRAIN CER18.975%shorter /
+18.247%longer, versus causal6.451%shorter /4.318%longer. Causal shorter has no
+prefix pen changes but256missingEOCs: these windows genuinely truncate the learned
+line, not a broken stop classifier. Estimated windows similarly truncate107TRAIN
+lines; CER7.140% is mostly a remaining duration-budget problem, not prefix warping.
+All264(including8exposeddev) policies/latents/decoded outputs saved. In dev,
+roundoff/changed post-window content can alter reader strings, so do NOT claim
+bitwise readout equality or identical readers for every unseen line.
+
+**Not a free geometry improvement:** native point/segment/direction errors mildly
+worsen, and native exact count falls119→89. This change fixes an inference contract,
+not the residual native local-curve error. No generic smoothing, target resampling,
+new KL/CTC/style training, or semantic-codec claim. Index differences are not
+physical velocities/curvature; turn/tangent metrics use geometric directions.
+
+**NEW composition remains FAIL**, despite eliminating length identity from latent
+prefixes and providing a genuinely target-free generous budget:
+
+| NEW frozen one-shot gate | Noncausal | Causal |
+|---|---:|---:|
+|16paired/oracle CER |81.059%|80.652%|
+|16paired/estimated CER |80.652%|81.263%|
+|16paired/constant256 CER |110.794%|81.670%|
+|16synthetic/estimated CER |79.522%|79.522%|
+|16synthetic/constant256 CER |90.273%|79.352%|
+
+Zero exact prompts in EVERY arm/policy. Source reader16/16exact,0errors/491chars,
+zero source exclusions. Manually inspected ALL16paired and ALL16synthetic outputs
+across native/estimated/generous arms: scribbles/false joins/flattened angular
+geometry, not readable requested handwriting. All16source trajectories are plainly
+handwritten. Timing is now robust on familiar texts; it does NOT solve composition.
+There is no reason to call80%CER inevitable or blame IAM. Nor does this establish
+causal attention is the right architecture for released diffusion InkDiT.
+All32new prompts are now exposed: exclude them from future fresh gates, never tune
+or reselect these candidates on them. One seed,32known writers,256TRAIN, small
+confirmation and corpus-familiar reader remain limitations.
+
+Reports:
+- `.../report/index.html`: full264matched-final native/estimated gallery, guards,
+  all256TRAIN selection, CPU reload8fixed lines/arm (maxXY1.53e-5, pens/readers equal).
+- `.../budget-audit/report/index.html`: full264TRAIN/dev native versus constant
+  target-free budget, all5budget policies/latent versus decoder drift.
+- `.../confirmation/report/index.html`: ALL16new paired and16synthetic outputs,
+  correct/swapped/NULL controls, estimated AND fixed budgets, no fake references.
+- Weak TRAIN alignment: `checkpoints/iam_generation_alignment_probe/20261008-112944/report/index.html`.
+
+Manually reviewed12fixed TRAIN examples (including k04/c03/r07/a02/d08/p10/e07/n05)
+in3generous-budget pages, plus ALL32new prompts. All264galleries saved, not every
+TRAIN line manually inspected. Original p08-936z-05/a07-421z-02 outside this264scope,
+NOT retested. Native causal renders remain close but not pixel-identical to source;
+this test is not a new smooth-curve/lossless reconstruction promotion.
+
+Infrastructure: initial ephemeral app stopped after unknown localSIGTERM;
+partial19735/19543logs,16000checkpoint, source archive/resources preserved.
+Detached restart survives local disconnect for BOTH spawned GPU children; its
+remote() coordinator input was canceled by the deliberate disconnect test, but
+both child calls independently collected after completion. Future launcher now
+uses durable `spawn().get()` parent call (AST tests; not a second training rerun).
+Own restart app stopped automatically12:14:14UTC; additional frozen-budget T4
+app stopped12:19:34UTC, zero tasks. No unrelated app stopped. Train loops
+1900/1839seconds, each2CPU/8GiB; budget-only GPU~2.5minutes including load/audit.
+Telemetry: low GPU activity WITHOUT CPU saturation, not a reason to add more cores.
+
+First CPU confirmation attempt failed immediately on a missing `hashlib` import,
+before ANY generated output; empty source/attempt/source-code saved as
+`confirmation-failed-missing-import-20261008-121814`. Fixed import + unit test on
+the actual source fingerprint guard, then ran EXACT SAME frozen candidates/prompts,
+with no tuning/selection/exclusions. This was not a GPU or dataset failure.
+510tests pass root/fork; guarded GPU-budget evaluator and synthetic no-fake-target
+contracts tested. Reusable code pushed to existing `english-iam` branch.
+
+**Next recommendation:** retain this prefix-invariant mapper timing contract as a
+controlled research baseline, but stop spending long runs polishing its familiar
+TRAIN RMSE. Investigate actual character composition: test TRAIN-only weak forced-
+CTC alignment supervision (explicitly not exact IAM segmentation) versus the same
+causal control, with a small gradient-calibrated auxiliary and identical data/
+order/budgets. Contextual text encoding, an autoregressive offset/semantic-codec
+objective, and more data under a converged schedule remain alternatives, not ruled
+out. Do not assume attention means establish causality; test the intervention.
+A NEW composition seal must exclude all THREE opened confirmation sets. No fullIAM,
+KL/style, releasedInkDiT launch, or production handwriting promotion from this run.

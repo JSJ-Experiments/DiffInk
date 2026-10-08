@@ -24,3 +24,12 @@ class PrefixLaunchTests(unittest.TestCase):
         self.assertIn('prepare.remote()',code);self.assertIn('research.spawn(a, relative)',code)
         self.assertIn("['noncausal', 'causal']",code);self.assertIn('call.get()',code)
         self.assertIn('volume.reload()',code);self.assertIn('volume.commit()',code)
+
+    def test_evaluation_launch_is_guarded_spawned_and_not_training(self):
+        source=Path(__file__).resolve().parent.parent/'modal_generation_prefix_evaluation.py'
+        nodes={n.name:n for n in ast.parse(source.read_text()).body if isinstance(n,ast.FunctionDef)}
+        main=nodes['main'];self.assertEqual(ast.unparse(main.body[0].test),'not run')
+        self.assertTrue(any(isinstance(n,ast.Return) for n in main.body[0].body))
+        self.assertIn('evaluate.spawn(relative)',ast.unparse(main));self.assertIn('call.get()',ast.unparse(main))
+        self.assertIn("device='cuda'",ast.unparse(nodes['evaluate']))
+        self.assertNotIn('backward',ast.unparse(nodes['evaluate']))
