@@ -5126,3 +5126,12 @@ policy, ledger and capacity-guarded selection. Report:
 Selected checkpoint `teacher_anchor/checkpoint-best.pt`, final sameweights inlast.
 Previous report verified published255files,207newuploads,171localHTMLrefs,
 ZEROoverwrites, allbyte-readback (bdce369). New report publication follows.
+
+Final publication verified:212files,155newuploads,134localHTMLreferences,
+ZEROoverwrites, byte-readback for every included artifact plus manifest. Report
+provenance/reusable reporter commit7b236d0; training implementationbdce369.
+App is stopped with zero tasks; all3 recorded children terminal, no repeated run.
+Measured TRAIN GPU busy35.86/32.76/35.96%, CPUtree .955/.908/.959cores and hottest
+thread .572/.546/.577 on2requestedCPU: low GPU utilization without CPU saturation.
+Do not claim adding3CPU cores fixes this small sequential recurrent experiment.
+Full tests624 PASS BOTHmirrors; branch clean after final documentation commit.
