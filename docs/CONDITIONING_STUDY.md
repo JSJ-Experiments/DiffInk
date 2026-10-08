@@ -4775,3 +4775,24 @@ All587tests pass root/fork. CPUpreflight artifacts localonly:
 `data/checkpoints/iam_point_feedback/20261008-160649/local-preflight.json`.
 Launch`venv/bin/modal run --detach modal_point_feedback.py --train`;
 durableCPUcoordinator owns exactlytwoT4 arms. Results NOT YET established.
+
+Point-feedback pilot launched from d3d67b5 at
+`checkpoints/iam_point_feedback/20261008-160806`, app
+`ap-4zJk5byKhsXu5bWGFN5JXT`, durablecoordinator
+`fc-01M4E4A5F71M77JYWRY942E380`. SharedactualGPUpenweight=.024860149190817294
+verified identical botharms. At500updates, all8truehistory/truepen and all8free
+correct outputs perarm inspected. Teacher geometry shows partial familiar letter
+structure but remains distorted; allfree outputs drift/repeat to2048cap without
+EOC, NOT usable. No early promotion or protocol change; both3000update runs remain
+bounded. FusedpointGRU equivalence/causality confirmed, not an inference fix claim.
+
+Additional TRAIN-only descriptive CPUcontrol: linear next-move regressor using
+previous2normalized displacements, previous2penclasses, indexphase andbias; five
+form-held folds across existingTRAIN256, no futurepoint/currentpen/text/writer.
+AllnormalizedMSE .7009 vs zero-normalized1.0; drawn-segment .3186 vs.3723;
+interior with previous2points inside stroke .2944 vs.3729. Simply copying previous
+move gives .3550 onthatinterior, but1.129 onalldrawnsegments due to contamination
+from preceding pen-upjumps. Thus local history has useful but limited *linear*
+predictability; no irreducible-error lowerbound or reason to erase jumps. Preserved
+`target-local-predictability.json` and script as supplemental evidence, not a new
+blind generalization gate or learned neural intervention.
