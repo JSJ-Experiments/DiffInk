@@ -3539,3 +3539,131 @@ conditioning remain separate likely needs for composition: a weak uniform hint's
 failure did not rule them out. Do not indefinitely polish32lines or claim this
 polyphase prototype is the authors' architecture. Existing clean pool is ample;
 IAMonDo archive remains immutable/not merged.424tests pass root/fork (21new).
+
+## Matched learning-rate convergence audit (2026-10-08)
+
+Continue from the completed target-XY+segment parent, **absolute step24000**:
+`checkpoints/iam_generation_anchor_refresh/20261008-061315/refresh_xy_segment/checkpoint-last.pt`,
+SHA `eff1181fcf6edeb953b8bd5c3501363b74bb66470fa5ccba7a480ba31a432081`.
+This remains the standalone deterministic zero-input **text+writer mapper**, with
+frozen initialized polyphase40 codec and corpus-familiar reader; **NOT** a learned
+semantic InkVAE, released InkDiT, stochastic generator or paper reproduction.
+
+New immutable study: `checkpoints/iam_generation_lr_polish/20261008-070802/`.
+Three matched8000-update continuations: `control`1e-4, `midpoint`5e-5,
+`polish`1e-5. Same256TRAIN,32writers,8held form prompts; width256/depth6,
+7,073,408parameters; batch8, AdamW(.9,.99),wd.01,eps1e-8,clip1,dropout0.
+Restore **all model weights, Adam moments and CPU/CUDA RNG**, then explicitly
+change LR in **every actual optimizer group**. No reset/recalibration. Fixed
+XY coefficient .0048289833417749835 and target-index-difference coefficient
+.018978251569199526, same original32 whitening. Schedule seed21142 gives
+identical minibatch order across arms; each line receives250 extra exposures.
+AdamW decay magnitude also follows LR; this is not an isolated decay experiment.
+No KL/CTC/style, new data, positional edits, smoothing or inference filtering.
+Evaluate0/2000/4000/8000, plus matched swapped-input controls only at final;
+selector uses EVERY256 actual TRAIN line, never held prompts. Final comparisons
+are equal-budget checkpoints, not independently cherry-picked best aliases.
+
+New reusable CPU diagnostic: `packed_error_audit.block_error_statistics`.
+Decompose coordinate residual into a per-eight-point-block mean and zero-mean
+shape residual. This uses **target positions**, so is diagnostic only, NOT a
+legal generation correction or postprocessing trick. Squared vector energies
+must retain the signed cross term; do not claim separate seam-energy fractions
+sum to100%. Partial real blocks count, padding does not. Stroke-ending jumps
+are excluded from derivative windows; unequal RDP spacing is retained, and
+index differences are NOT physical velocity or geometric curvature.
+At the step24000 XY+segment parent,54.61% of pooled point-error energy is in
+the block means; seam error energy .005150 versus within-block .001690.
+Seam block-mean/shape-difference energies .003902/.004154, cross term−.002906.
+Uncentered adjacent-error correlation .600 at seams versus .844 within blocks.
+Thus both block-location drift and local shape residuals contribute; this does
+not causally identify a layer bug or make generic smoothing appropriate.
+Segment errors persist across target-length quartiles, not just sparse long
+RDP segments. Exact source and parent audit scripts/JSON are preserved with
+the review. All264 source preflights still require faithful codec/pens and
+reader transcripts; the extra IAMonDo archive remains immutable/not merged.
+
+### Completed results: substantial convergence improvement, not composition
+
+All three8000-update budgets completed (absolute step32000), zero clipped steps.
+Loop266.8/275.6/272.3seconds respectively; full evaluations/readbacks are separate.
+Equal-final-budget results, mean per-line geometry except explicitly pooled seams:
+
+| Arm/LR | TRAIN CER/exact | X/Y RMSE | segment / second-index-difference | mean tangent/turn p90 | mean corner/shallow-turn p90 | mean/min penF1 |
+|---|---|---|---|---|---|---|
+| control1e-4 |14.514% /16/256|.084691/.009375|.040300/.054615|71.93°/98.85°|133.64°/58.16°|.999630/.967742|
+| midpoint5e-5 |3.095% /120/256|.087416/.007268|.027500/.039185|49.28°/73.67°|114.38°/41.84°|1/1|
+| polish1e-5 |**2.367% /145/256**|**.029026/.001479**|**.025095/.034325**|**41.70°/61.61°**|107.64°/35.17°|**1/1**|
+
+Against matched1e-4 control,1e-5 reduces X65.7%,Y84.2%,segment37.7%,second
+index-difference37.2%; TRAIN CER drops12.15percentagepoints. Against the
+step24000 parent, CER19.586→2.367%, X.074082→.029026,Y.013152→.001479.
+Midpoint shows why CER alone is insufficient: large X drift remains despite
+much more readable output. Full-TRAIN geometry selector chooses control0,
+midpoint4000,polish8000; tables/galleries still compare matched FINAL8000, not
+mixed best aliases. Polish is the new TRAIN-fidelity candidate, **not promoted**
+to a production generator. Last checkpoint SHA
+`c4ffb8fb93c0008ef88645eeb3ba41ad45c13b728e342c0a39b7f7a141065890`.
+
+**Important hypothesis update:** the every-eighth-link excess is NOT persistent
+in the polished model. Pooled TRAIN phase7 segment error is control.059206,
+midpoint.039260,polish**.016840**. Polish phases0–6 are.022959–.032580:
+the seam is now **better**, not worse, than within-block links. Against control,
+seam error drops71.6%; versus parent.071766 it drops76.5%. Target segment RMS
+at phase7 is.086951 and remains identical across arms. This rules out an
+irreducible packed-block/8× capacity barrier for this TRAIN scope and weakens
+the case for a dedicated seam upweight or architectural upsampling replacement.
+It does NOT identify a universally bad layer or prove all future scales solved.
+The prior off-source codec audit already excluded decoder/GMM as the primary
+source of the large seam errors. In this matched setup the LR/AdamW update
+policy has a strong causal effect; the exact optimization/readout interaction
+behind its earlier periodicity remains unknown. No clipping/explosion explanation.
+
+Polished pooled point-error energy now20.22% block means, versus54.61% at parent.
+Remaining error is predominantly within-block **shape** residual, not simply a
+common location drift. Source/RDP nonuniform spacing is preserved; no resampling,
+blur, curve fitting or generic smoothing was used to obtain these improvements.
+
+Held8 CER83.951/84.774/82.305%, still visually unreadable and no composition
+improvement. Text swaps against original TRAIN targets remain controls, not
+new-prompt quality. Corpus-familiar reader, one parent, oracle duration,
+repeatedly inspected held form and TRAIN memorization all limit interpretation.
+No new data/held statistics were used, and no full IAM/production InkDiT launch.
+
+### Visual review and remaining artifacts
+
+Full report: `.../20261008-070802/report/index.html`, all264 marker-free lines,
+predicted pens and actual first-EOC stopping; all final pens correct for both
+lower-LR arms, no non-final false EOC or stopping differences. Independently
+reviewed4retained+4new128+4expansion+4held whole lines, not every264 gallery.
+Independent CPU reload8stratified lines/arm: maxXY1.1444e-5, zero pen or reader
+transcript mismatches. Report verifies source SHA, exact initial model/Adam/RNG,
+all actual param-group LRs, full TRAIN selectors,250 exposures/line, packed
+output SHA and bitwise identical initial decoded trajectories.
+
+Additional `diagnostics/curve-focus/index.html`:12 difficult TRAIN closeups,
+selected **only from immutable step24000 parent errors**, not whichever final arm
+looks good. Same physical axes, target/parent/control/midpoint/polish, no markers
+or filtering. Each crop is8 sampled points within a true stroke, every target
+turn≤45°, total absolute sampled turn≥25°. True pens deliberately isolate geometry
+**in these crops only**; full gallery uses predicted pens. This is a targeted
+failure diagnostic, NOT an unbiased benchmark. Source script/metrics preserved.
+All12 crops manually inspected. Rounded/roof-shaped distortions improve clearly
+in `k04-309z-09`, `k04-309z-04`, `a02-130z-03`, `e07-425z-02`, `l08-922z-06`.
+But visible pointed/flattened bends remain in `d08-586z-01`[77:85],
+`p10-249z-01`[156:164], `n05-514z-02`[309:317]; even a correctly read transcript
+can have an unnaturally changed curve. Original `p08-936z-05`/`a07-421z-02` are
+NOT in this264-line mapper study: do not claim these experiments retested them.
+Their faithful source-codec reconstruction remains a separate earlier result.
+
+**No visually-lossless gate claimed.** Smooth-curve TRAIN fidelity is much better,
+but not uniformly faithful; novel text still fails completely. Do not incidentally
+enable KL/CTC/style or increase model/data scale on the strength of low CER alone.
+Next localized fidelity diagnostic should target the remaining within-block shape
+errors (e.g. modest gradient-calibrated target-relative segment/tangent matching,
+with a finite short-segment floor, preserving target corners), NOT an obsolete
+phase7 penalty or generic curvature smoothing. A controlled contextual/learned
+text-alignment study is separately needed for composition; more tiny-set polishing
+alone will not establish that. Existing data are sufficient for these diagnostics.
+440 tests pass root/fork (16new); sources, moments/RNG, logs, metrics and galleries
+preserved. Own GPU/CPU apps completed; user Modal shell was not touched.
