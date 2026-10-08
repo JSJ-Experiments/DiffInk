@@ -4091,3 +4091,53 @@ alternatives. Do not enable KL/style/CTC incidentally, blame IAM, call this TrIn
 released InkDiT reproduction, or spend another long run polishing known-line
 RMSE alone. Separate a prefix-invariant timing test from a content-composition
 intervention; neither gate can substitute for the other. No production promotion.
+
+## Causal-query timing isolation + weak alignment probe —2026-10-08 IN PROGRESS
+
+Fresh paired study `checkpoints/iam_generation_prefix_contract/20261008-112323`.
+Both arms use absolute query PE/soft Gaussian prior/full text cross-attention,
+identical fresh weights/empty Adam/RNG,256TRAIN/32writers/batch8/order/shared
+losses and the same48000-update schedule. ONLY hidden-query self-attention becomes
+causal. This is parallel zero-input prediction, NOT teacher-forced autoregressive
+stroke generation. Own app `ap-s37F9omYjDbIVjSsn9WZeO`, two bounded T4 calls,
+2CPU/8GiB each, threads2; no other app stopped or performance helper overwritten.
+Causal module adds no parameter keys; noncausal arm delegates exactly the prior
+absolute model. CPU tests use nonzero readouts (avoid vacuous zero-init passes):
+extend/truncate budget, add padding/batch peers/NULL text, disturb future inputs,
+and assert gradients from prefix cannot reach future input. No claim about a
+trained decoded prefix until frozen-budget audit completes. Codec-only CPU test
+on8fixed source latents, three extensions/zero OR random future latents: maxXY
+prefix drift1.13e-4, zero pen changes. So decoder independence is approximate,
+not bitwise; record latent and decoded drift separately.
+
+NEW16paired/16synthetic metadata reserved before final freezing with seeds
+36144/36145, excludes BOTH previous opened sets plus all1032historical generator
+IDs/texts, currentTRAIN/dev/previous opened paired forms. Published/readback
+verified. Keep sealed unless BOTH nativeTRAIN-selected candidates finish48000
+and achieve<=5%nativeTRAIN CER. No new confirmation tuning/reselection; do not
+reuse previous confirmations as blind gates. Completed source archives untouched.
+
+Separately, TRAIN-only CPU weak-alignment probe:
+`checkpoints/iam_generation_alignment_probe/20261008-112944/report/index.html`.
+Frozen prior absolute48000candidate, all256source lines, frozen corpus-familiar
+BiGRU. Source reader256/256exact,CER0. Added forcedCTC Viterbi implementation
+checked against exhaustive small-path enumeration including repeated-label blank
+constraints. Forced timing is NOT IAM segmentation: bidirectional reader lookahead,
+delayed marks, blank frames and nonuniform processed spacing all matter.
+On forced nonblank emissions (four processed indices/frame), compare character
+TOKEN index to static Gaussian center at floor(frame/2) packed8queries:
+
+| Absolute token-index mismatch | median |p90|p99|
+|---|---:|---:|---:|
+| Static prior |1.338|4.093|7.541|
+| Final3local attention conditional-character mean |1.545|4.004|7.485|
+
+26.886%of forced nonblank frames lie outside the prior's2.5-character sigma.
+All256line paths/attention arrays/statistics and all32writer summaries saved.
+Eight fixed declared TRAIN source/timing/attention galleries generated; k04
+manually inspected. Means/heatmaps do NOT establish causal character routing or
+rule out useful per-head alignment. This supports investigating learned/weakly
+supervised alignment separately from timing, not treating attention means as
+true character boundaries. No model updated/selected, no held source opened,
+no KL/CTC/style training enabled. GPU outcomes/budget galleries pending; no
+production promotion or claim of unseen-text improvement yet.
