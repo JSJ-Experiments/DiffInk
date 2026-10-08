@@ -4158,3 +4158,13 @@ nor restarted confirmation reservation has been opened; same still-unexposed
 metadata safely re-reserved for the restart before final freeze. Study/model
 source from initial as-run archive kept unchanged; infrastructure/report helpers
 are separately versioned. Initial partial file upload/readback preserved.
+
+The deliberate disconnect test revealed a second SDK distinction: local
+`coordinate.remote()` cancellation canceled the coordinator input, even on a
+detached app. BOTH spawned GPU children nevertheless continued (same loss/weight
+trajectory, tracked input IDs), so no training restart. Future launcher now uses
+`coordinate.spawn().get()` and prints its durable call ID before waiting, matching
+Modal's long-training example. The current run's canceled coordinator cannot
+write its final orchestration.json: separately retrieve BOTH saved FunctionCall
+results and then stop only our detached app once both are complete. Do not claim
+the current remote parent remained active; only children survived the test.

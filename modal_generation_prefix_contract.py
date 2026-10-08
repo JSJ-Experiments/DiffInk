@@ -40,4 +40,5 @@ def coordinate():
 def main(train:bool=False):
  if not train:
   print('No job allocated. Use modal run --detach modal_generation_prefix_contract.py --train for two matched48000-update T4 arms.');return
- print(coordinate.remote(),flush=True)
+ call=coordinate.spawn();print(dict(coordinator_call=call.object_id),flush=True)
+ print(call.get(),flush=True)

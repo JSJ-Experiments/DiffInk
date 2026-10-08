@@ -13,7 +13,8 @@ class PrefixLaunchTests(unittest.TestCase):
         nodes=self.fixture();main=nodes['main']
         calls=[n for n in ast.walk(main) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr in ['remote','spawn']]
         self.assertEqual(len(calls),1)
-        self.assertEqual(ast.unparse(calls[0].func),'coordinate.remote')
+        self.assertEqual(ast.unparse(calls[0].func),'coordinate.spawn')
+        self.assertIn('call.get()',ast.unparse(main))
         self.assertIsInstance(main.body[0],ast.If)
         self.assertEqual(ast.unparse(main.body[0].test),'not train')
         self.assertTrue(any(isinstance(n,ast.Return) for n in main.body[0].body))
