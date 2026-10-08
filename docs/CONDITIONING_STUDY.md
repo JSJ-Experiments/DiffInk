@@ -3971,3 +3971,23 @@ length-independent absolute query features (NOT full output invariance), padding
 NULL/finite gradients, config round trip and exact bounded schedule. Root/fork
 473tests pass (465existing +8new). Guarded launcher:
 `modal run --detach modal_generation_position_contract.py --train`.
+
+Fresh run path: `checkpoints/iam_generation_position_contract/20261008-101747`,
+Modal app `ap-Wa944EDRtMGIt3rOFje6Ft`. An initial CPU-only preparation guard
+rejected the independently refitted duration coefficients at~1e-14 BLAS roundoff
+before allocating a GPU; refit now uses1e-10 numerical tolerance while requiring
+EXACT metadata/scope and rounded prediction counts on all264records. The pinned
+original duration coefficients are retained after that independent check.
+No data/train-policy change was made to get past the guard.
+The first8000update comparison is underfit (native TRAIN64.3%/69.5%CER for
+relative/absolute), so no remedy/generalization verdict is inferred yet.
+
+`report_generation_position_contract.py` verifies actual48000updates, empty
+initial Adam, regenerated fresh initialization, bitwise paired initial neural
+states/RNG, exact minibatches/LRs, frozen evaluators, all256native TRAIN selection,
+as-run bytes/hashes, and all estimated-duration packed outputs before rendering.
+It reports shorter/longer/unchanged-duration bins, common-prefix XY/pen drift,
+termination and CPU/GPU reload; no invented aligned RMSE on unequal trajectories.
+Root/fork479tests pass (six additional fail-closed paired-report guard tests).
+Completed timing/jitter reviews are separately preserved under each experiment's
+`diagnostics/review/index.html`; immutable original report sources retained.
