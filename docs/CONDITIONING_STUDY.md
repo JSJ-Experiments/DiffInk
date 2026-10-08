@@ -5751,3 +5751,22 @@ not certification for arbitrary out-of-distribution latent vectors.
 No KL/CTC/style/codec training. No semantic or writer-style control claim. If all
 arms remain unreadable, do NOT continue toy loss/head polishing: the semantic
 representation/conditioning design remains a larger unresolved direction.
+
+
+Corpus factorial LAUNCHED ONCE: `checkpoints/iam_compact_dit/20261008-232330`, implementation commitd6fd806,
+698 tests PASS root+fork. Prepared sources/config/CPU gates byte-readback verified
+onv2, ZEROoverwrites. CPUcloud preflight verified8144lines/186writers;
+full/compact parameters23,231,424/22,966,888.
+App `ap-HIbYRSdt848mDz6YzINbjT`, coordinator
+`fc-01M4EXDWM0HBGEMVY6ZVNRW01E`; durable four-child ledger:
+- full_x0: `fc-01M4EXE0H7RYHE6K9TPMTCJD29`
+- compact_x0: `fc-01M4EXE1GP3FYT2H5EBQ5ZQSEG`
+- full_v: `fc-01M4EXE3FF1G27NJZ9RA31GR40`
+- compact_v: `fc-01M4EXE4RCNF2FVC9AAHAYD3VF`
+At most TWO T4 workers, remaining arms queued; not duplicate apps. Allold GPU
+apps stopped/zero tasks, completed corpus calls both independently confirmed
+terminal. New x0 arms passed source-coupling gates and step0 eval (CER100%,
+expected untrained zeros, not a new learned failure). No successor quality gain
+claimed yet. Follow these SAME calls; polling timeout is pending, not restart.
+Corpus baseline final report66files byte-verified onv2 (32new,zerooverwrites);
+original-volume mirror/readback still in progress at this documentation point.
