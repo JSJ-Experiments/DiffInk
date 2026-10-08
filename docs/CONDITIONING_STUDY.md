@@ -4293,7 +4293,7 @@ out. Do not assume attention means establish causality; test the intervention.
 A NEW composition seal must exclude all THREE opened confirmation sets. No fullIAM,
 KL/style, releasedInkDiT launch, or production handwriting promotion from this run.
 
-### 2026-10-08 — controlled TRAIN weak-alignment intervention (in progress)
+### 2026-10-08 — controlled TRAIN weak-alignment intervention (completed; not promoted)
 
 New paired T4 run: `checkpoints/iam_generation_weak_alignment/20261008-130852`
 (app `ap-Xgdja664202IegAcVTjAZY`, durable coordinator
@@ -4351,3 +4351,127 @@ Report native geometry/pen/CER and TRAIN weak timing separately; generous256bloc
 Open the new16paired/16synthetic prompts once only, with swapped/NULL text controls
 and source-reader preflight; render ALL prompts marker-free, no exclusions. Do not
 infer English composition from familiar reconstruction or attention means alone.
+
+#### Completed weak-alignment result — training routing learned, composition FAIL
+
+Fresh48000updates completed with nativeTRAIN CER4.318%control /6.438%supervised.
+The latter failed predeclared5% fit gate; no confirmation source was opened.
+Matched12000update continuation (BOTH arms, own48000weights/FULLAdam/CPU+CUDA RNG,
+constant1e-5, new shared schedule seed49142, original fixed coefficients unchanged):
+`checkpoints/iam_generation_weak_continuation/20261008-134416`.
+Both selected final60000 by ALL256TRAIN geometry; nativeCER2.289% /3.811% passes
+fit gate. Original48k run remains immutable; continuation records and verifies its
+parent configs/data/results/checkpoints and full moment/RNG restoration. No held
+performance triggered the extension or selection. Initial weights/emptyAdam/RNG,
+1000warmup weights/fullAdam/RNG, actual schedules/LRs/losses/source archive/data
+and frozen codec/reader independently verified. Shadow-readout control48k model
+is BITWISE equal to previous causal48k model: the separate attention readout did
+not secretly change forward kernels, optimization, RNG or results.
+
+|60000 native TRAIN metric|Control|Weak alignment|
+|---|---:|---:|
+|CER|2.289%|3.811%|
+|Exact reader strings|140/256|117/256|
+|X RMSE(model space)|0.037070|0.037435|
+|Y RMSE(model space)|0.004105|0.004396|
+|target first-index-difference vector RMSE|0.025613|0.027973|
+|target second-index-difference vector RMSE|0.034792|0.037294|
+|mean per-line tangent p90(deg)|44.406|47.936|
+|mean per-line turn p90(deg)|66.023|70.372|
+|min pen-up F1|1.000|1.000|
+|non-final false EOC / missing EOC|0 /0|0 /0|
+|TRAIN forced-timing CE|3.391034|0.095536|
+|TRAIN target-weighted label probability|0.124335|0.931956|
+|mean line attention-index p90|3.358333|0.420982|
+
+**Important metric definition:** stored `target_mass` is target-distribution-
+weighted label probability E_target[p(label)], NOT probability summed over the
+set of all correct labels.1010/7669supervised queries have two distinct emissions,
+each weight.5. Therefore irreducible teacher CE is0.091287 and weighted-probability
+ceiling0.934150. SupervisedCE0.095536 is very near that floor, not an inadequately
+trained head with7%remaining ordinary accuracy error. Blanks are not interpolated;
+all timing is processed INDEX timing, not physical time/velocity or true borders.
+This correction makes increasing the existing auxiliary's weight a weak next bet.
+
+**One-shot NEW16paired/16synthetic, constant256blocks/2048points, first learnedEOC:**
+no source/oracle length, predictor, target/prefix trajectory or forced finalEOC at
+inference. Corrected pre-training metadata seal excludes all THREE earlier opened
+sets. Source reader16/16exact,0/509character errors; codec preflight passed every
+line; no source/reader exclusions. Both frozen60000candidates opened only once.
+
+|Fresh confirmation CER|Control|Weak alignment|
+|---|---:|---:|
+|Paired/native oracle budget|80.354%|78.193%|
+|Paired/TRAIN-estimated budget|79.568%|80.550%|
+|Paired/constant256 correct text|81.729%|80.943%|
+|Paired/constant256 swapped text|84.872%|83.104%|
+|Paired/constant256 NULL text|112.181%|99.804%|
+|Synthetic/TRAIN-estimated budget|78.224%|80.570%|
+|Synthetic/constant256 correct text|78.894%|80.067%|
+|Synthetic/constant256 swapped text|79.899%|81.072%|
+|Synthetic/constant256 NULL text|93.970%|100.000%|
+
+ZERO exact prompts in every arm/policy. Constant-budget correct/swapped all32
+successfully stop; NULL can missEOC. Native paired15control /16supervised windows
+missEOC: oracle source length can genuinely truncate a different generated line,
+not an excuse for composition failure. Paired point-index geometry/pen alignment
+is only a reference-index diagnostic: a legitimate new generated trajectory need
+not match the source's point spacing, boundaries or duration. Primary metrics are
+free-stop CER and actual marker-free visuals, not unseen pointRMSE.
+Manually inspected ALL16paired and ALL16synthetic constant-budget outputs for BOTH
+arms, plus12fixedTRAIN lines across3galleries. Familiar writing looks close with
+some local shape changes/truncation under estimated budgets. New outputs remain
+angular scribbles/false joins/flattened shapes, NOT requested readable handwriting.
+The tiny paired0.79percentage-point change is not a useful quality win; synthetic
+worsens1.17points. One seed/small known-writer gate, not a statistical reproduction.
+Not all256TRAIN inspected manually. Original p08-936z-05/a07-421z-02 NOT retested.
+
+**Frozen mechanism controls, not another training run:**
+- `attention-usage/`: all256TRAIN latent-field XY/pen drift, actual frozen-codec
+  decode/reader on8fixedTRAIN. Rotate ONLY character-embedding VALUES in last3local
+  heads, leaving BOS/positional values/keys/queries/all earlier layers/correct text
+  unchanged. Fixed8CER2.165%→59.307%control /46.753%supervised. Zero local contexts:
+  77.489% /84.416%. Global value rotation:32.468% /40.693%. Manual same-weight
+  readout maxlatent drift3.81e-6/4.29e-6, no pen/reader changes, state/RNG unchanged.
+  This rules out the simplistic claim that those heads or character values are
+  merely ignored/decorative. It does NOT establish per-character composition, nor
+  remove text from earlier layers. Local token rotation causes2030control versus
+  only2supervised raw pen changes across256; learned pen timing can remain memorized
+  while glyph geometry changes. This is an ablation, not valid new-text output.
+- `confirmation-timing-probe/`: AFTER opening, same frozen models/full256query
+  budgets versus source forced-reader timing on ALL16paired, no updates/selection.
+  ControlCE3.2953 /supervised7.3882; mean line indexp90=3.3259 /3.8152, p99=4.0023 /
+  6.4349. SupervisedTRAINp90=.421 does NOT carry to new source timing. Attention is
+  sharper but often confidently wrong relative to the weak reference; means alone
+  obscure this. Source-reader directlatent16/16exact. Different legitimate output
+  timing could differ from source, and BiGRU/delayed marks confound true borders:
+  do NOT call this exact generated-glyph alignment ground truth or claim alignment
+  has been ruled out. Current actual outputs are nevertheless plainly unreadable.
+
+**What this establishes:** data/reader/codec checks remain healthy; learned text
+conditioning and familiar capacity are real. Budget deformation was fixed earlier,
+and the same causal architecture is retained. Supervision can fit TRAIN routing
+near-perfectly, but has not produced transferable timing/letter-to-stroke behavior.
+The generalization bottleneck remains; no evidence82%CER is inevitable or IAM bad.
+This is NOT evidence released semanticInkVAE/InkDiT fails. No KL/style/new OCR loss,
+fullIAM or production handwriting promotion. Both48k and12k apps stopped normally,
+zero tasks; no unrelated apps stopped. Loops1609.65/1662.17sec plus507.15/570.48sec,
+0%clipping; each T4/2CPU/8GiB, threads2. Continuation GPUbusy~35–36%, treeCPU~.95core,
+hottest~.55core: lowGPU alerts WITHOUT CPU saturation, no evidence more cores help.
+Volume98%inodes: packed targets/checkpoints, no mass extraction.
+
+Review: continuation `diagnostics/engineering-review/index.html`; full264matched
+native/estimated `report/index.html`; fresh ALL32 `confirmation/report/index.html`;
+mechanism `attention-usage/index.html`; post-opening weak timing
+`confirmation-timing-probe/index.html`.48k parent report also retained.
+
+**Next recommendation:** do not keep sharpening this near-floor TRAIN attention
+loss or polishing familiarRMSE. Test explicit text-derived monotonic progress /
+within-character phase (and/or genuine autoregressive offset prediction) so timing
+and stroke primitives must transfer instead of identifying a familiar whole line.
+Start with TRAIN-form-held CPU timing diagnostics before a fresh controlled GPU
+comparison. A deliberate generated-trajectory semantic reader objective and more
+data under a CONVERGED regimen remain alternatives, not ruled out; contextual
+encoding alone may increase memorization. No incidental KL/style milestone.
+A NEW blind gate must exclude all FOUR now-opened confirmation sets, including the
+CURRENT corrected seal; namespace synthetic history to avoid ID collisions.

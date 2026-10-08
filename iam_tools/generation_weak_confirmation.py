@@ -66,10 +66,13 @@ def resolved_seal(directory,cfg,data,root):
 def fit_gate(cfg, results):
     """Do not spend blind confirmation on underfit or still-changing candidates."""
     from .generation_weak_alignment_study import ARMS
-    if set(results)!=set(ARMS) or cfg['max_updates']!=48000:
+    expected_step=60000 if cfg.get('continuation_of') else 48000
+    if cfg.get('continuation_of') and (cfg.get('continuation_updates')!=12000 or cfg.get('parent_step')!=48000):
+        raise ValueError('explicit bounded matched12000update continuation required')
+    if set(results)!=set(ARMS) or cfg['max_updates']!=expected_step:
         raise ValueError('matched bounded final positional candidates required')
     for r in results.values():
-        if r['stop']!='budget_completed' or r['last_step']!=48000:
+        if r['stop']!='budget_completed' or r['last_step']!=expected_step:
             raise ValueError('both candidates must finish before opening confirmation')
         selected=[h for h in r['history'] if h['step']==r['best_step']]
         cer=selected[0]['aggregate']['all_train256']['correct']['free_cer'] if len(selected)==1 else float('nan')
@@ -104,7 +107,8 @@ def confirm(directory, repo, root='data'):
     out=p/'confirmation'
     if out.exists():raise ValueError('refuse overwrite/reselection/tuning on opened confirmation')
     seal_path,seal=resolved_seal(p,cfg,data,root)
-    cutoff=datetime.datetime.strptime(p.name,'%Y%m%d-%H%M%S').replace(tzinfo=datetime.timezone.utc)
+    reservation_study=Path(cfg['continuation_of']).name if cfg.get('continuation_of') else p.name
+    cutoff=datetime.datetime.strptime(reservation_study,'%Y%m%d-%H%M%S').replace(tzinfo=datetime.timezone.utc)
     if datetime.datetime.fromisoformat(seal['reserved_utc'])<cutoff:raise ValueError('reservation must belong to current study')
     # Reproduce metadata-only reservation, including ALL three opened sets.
     if seal!=reserve(root,cfg,data,reserved_utc=seal['reserved_utc']):
