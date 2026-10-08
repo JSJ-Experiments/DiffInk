@@ -3184,3 +3184,210 @@ KL/OCR/style incidentally, or declare generation ready based on memorization.
 Launcher-only closure hygiene: corrected copied module descriptions and the
 NULL launcher's no-GPU help text (two dropout arms, not three denoising arms).
 As-run launchers archived in engineering-review; no training semantics changed.
+
+## Preregistered broader text-coverage diagnostic (2026-10-08)
+
+Nested scope from immutable pool SHA
+`d9546704f5debd83b79ab45d6218f76c18b39e29f7e5e907c3d7b3d6a21778f9`:
+A original32 writer10160; B all41 usable same-writer TRAIN lines; C1024 lines
+across32 explicitly conditioned writers. Eight g09-301 lines held throughout;
+ALL matching form families/normalized transcripts excluded globally, reserved
+TEST/DEV writers excluded. Fixed reporting32retained+9added samewriter+24added
+otherwriters+8held; checkpoint score uses ONLY reporting lines actually TRAIN
+for each arm. Broad arm changes both textcoverage and writerdiversity;32→41
+isolates samewriter addition. This is not a claim data is the sole bottleneck.
+
+Identical no-drop step18000 parent model/Adam moments, SHA
+`a63c20b70f7167680d391a6d07650879eb965a072b5d3f11e76b99aa12205439`.
+One minimal style adaptation: zero-initialized learned writer bias before shared
+blocks, ALLarms same architecture; zero initialization tested exactly equivalent
+to old mapping. Base model unchanged, subclass explicit writer ID; new optimizer
+parameter group, old moments retained. All384targets, originalTRAIN32whitening
+fixed acrossarms, zeros/t999, textdrop0, batch8, LR1e-4, betas.9/.99, wd.01,
+clip1, inherited XY/within-stroke targetsegment coefficients. Frozen polyphase40
+codec and recurrentreader. No KL/CTC/styleclassifier/augmentation enabled.
+
+Bounded8000updates/arm,900sTRAINcap; evaluate0/2000/4000/8000; final swappedtext/
+swappedwriter controls. Different datasets imply different minibatches; don't
+claim matched per-example gradients/RNG exposure. Same schedule algorithm/seed9142
+and budget; no stochastic input (stored parent RNG not consumed). Oracle duration
+still supplied; no reference/target at inference. Corpus-familiar reader plus
+marker-free visual audit; unseen writing is nonunique. Save packedHDF5, source/
+config/initial/best/last/optimizer state/logs/resource telemetry. No promotion.
+
+New user archive `IAMonDo-db-1.0.tar.gz` inspected without extracting into Volume:
+SHA `a71d647ffcbb76b5a1e77c65dac375be6ffd61ca1ba8d18a7f6a596d7cb9102f`;
+941InkMLdocuments,193authorIDs,356189traces,5setfiles. It has hierarchical
+Word/Textline/Structure annotations with transcriptions, affine canvas transforms
+and compressed first/second-difference InkML trace notation—not existing IAM-OnDB
+lineXML. Potentially useful, but needs its own canonical parser/coordinate and
+split audit; do not silently mix datasets or assume writer IDs are shared.
+No archive contents extracted into inode-constrained Volume. Existing clean pool
+is sufficient for this first coverage experiment; preserve archive unchanged.
+
+## Preregistered follow-up: soft local text hint (2026-10-08)
+
+Coverage broad1024 failed both TRAIN and held readability at8000updates. Cross-
+attention inspection of2retained/2held lines shows largely vertical token bands,
+no obvious left-to-right path, even when original32memorization is excellent.
+Attention is descriptive, NOT causal proof or true alignment measurement.
+
+Two matched4000update continuations from broad1024step8000 (absolute26000), SHA
+`f527a73d15576fba26a3c1af5fe787382a12b25d761f25d4834327019c3714b1`:
+control0 versus small localcharacterembedding hint0.1. Hint linearly interpolates
+ALLrequestedcharacterembeddings along normalized latent-duration fraction;
+NOreference/target/characterboundaries provided, no char truncation, no smoothing.
+Global cross-attention remains unrestricted (important for late dots/crossbars).
+Same1024TRAIN/32writers/splits/whitening/modelweights/Adamgroups/moments/minibatches
+(schedule9142offset8000), zero input/t999, textdrop0, batch8/LR1e-4/clip1, sameXY/
+within-stroke targetsegment losses. No newparameters; zero hint tests exactly
+recover source forward mapping. Hint excluded when NULL text is requested.
+Report initial hint RMS vs hidden RMS; not an arbitrary large loss coefficient.
+This approximate position prior may be wrong for nonuniform character durations;
+retain a matched control and inspect genuine corners/strokes and held readability.
+900sTRAINcap/arm, evaluate0/2000/4000, sameTRAIN65probe selector, final swappedtext/
+writer controls; frozen codec/reader, packed outputs and provenance. No promotion.
+
+## Completed text-coverage diagnostic (2026-10-08)
+
+Artifacts `checkpoints/iam_generation_coverage/20261008-045818/`; all73marker-free
+comparisons `report/index.html`, source1032linepackedHDF5, 3arms initial/best/last,
+per-update logs, independentCPUreload, telemetry and text-attention maps.
+All3arms8000updates, loop188.5/194.2/197.2seconds,900sTRAINcap not reached.
+Zero-initialized writer adapter starts ALLarms with bit-identical trajectories;
+all source1032codec RMSE<=2.626e-5, all73reporting source-reader transcripts exact.
+Thus corrupt data/codec or inadequate source-reader recognition do NOT explain
+this study's failure. This doesn't establish allrawIAM or newInkML is clean.
+
+Actual optimizer groups: restored base beta(.9,.99), new writer embedding beta
+(.9,.999) from AdamWdefaults, bothLR1e-4/wd.01/eps1e-8. Serialized top-level
+`betas` describes restored base only; report records both actual groups. Policy
+identical acrossarms. Preserve as-run config/code; no retroactive modification.
+
+Final matched-update correct-text results (unique deterministic observations):
+
+| Arm | retained32 CER | added9samewriter CER | added24otherwriter CER | held8 CER |
+|---|---:|---:|---:|---:|
+| small32 | **0.000%** | 81.356% (untrained) | 84.783% (untrained) | 83.128% |
+| writer_all41 | 1.068% | **2.373%** (TRAIN) | 84.783% (untrained) | 83.539% |
+| broad1024/32writers | 72.222% | 82.034% (TRAIN) | 82.754% (TRAIN) | 83.128% |
+
+Do not average untrained added lines into small-armTRAIN or claim biggerdataset
+comparison is a pure text-only intervention: broad adds writerdiversity too.
+Original32sourcebeforecontinuation CER0.962%,X/YRMSE.025967/.001492; small32
+final0CER/32of32exact,X/Y.008551/.000877,segment.010791,secondindexdifference
+.017608,tangentp90mean22.14°,turnp90mean34.33°,cornerturnp90mean60.29°.
+Perfectpen on small32 and all41 writer_all lines. LowCER still doesn't establish
+visuallylossless localcurves. Broaddataset training doesn't pass basic fidelity:
+retained32X/Y.338425/.070849, minimumpenF1.88; added24X/Y.346378/.117459,
+minimumpenF1zero. All broad TRAINprobe lines stop, no nonfinalfalseEOC, and
+free/oraclewindowCER are identical: prematurestopping is NOT the main TRAIN
+failure. Heldfree/oraclewindow83.128/82.305% also remains bad.
+
+Reader/codec frozen; independentCPUreload2retained/2heldperarm maxXY3.100e-5,
+zero pen/transcript discrepancies. Initialmodelweights/moments match pinned
+no-drop parent; initialwriterparameters zero. Coverage TRAIN minbatch schedules
+differ by design; source/EOC controls preserved. Finalreadout budgets match;
+bestcheckpoint selection TRAIN-only, neverheld. No failedbroadweight promotion.
+
+Marker-free representative4retained/4added samewriter/4added otherwriter/4held
+comparisons inspected: small32 improved natural readable shapes; writer_all
+learned addedsentences, some hooks/ends stilldistort; broad even TRAIN becomes
+flattened/zigzagged scribbles. Held scribbles in ALLarms. Other galleries saved,
+not all73manually inspected. This result rules out “just add this1024-linepool
+atthisbudget/policy” as a sufficient cure, NOT broaderdata generally. Could be
+optimization, capacity, mean-regression ambiguity, writerheterogeneity or text
+composition/alignment. Don't call the source dataset bad or corecodec broken.
+
+Descriptive attention audit2retained/2held,4layers/4heads/arm: vertical token
+bands rather than obvious monotonic writing/text mapping. Even perfectsmall32
+memorization shows this. Head-mean time/tokenbarycenter correlations roughly
+-.52to+.32 across inspected layers, not ground-truth alignmentaccuracy. Observer
+requiresneed_weights=True, so kernel changes only in debug; maxstandardized
+outputdrift<=1.824e-5, original sampling/CPUreload remain optimized path. Tests
+confirm hooks removed, weights unchanged, NULL/padding preserved. No causal
+claim from attention alone; motivates explicitly controlled localtext-hint test.
+
+Archive furtherinventory:24,637Textline annotations (33blank),67,504Word,
+493Formula groups, plus documents/drawings/tables/diagrams. These are annotation
+counts, NOT acceptedline/formulatraining counts or verifiedLaTeX targets.
+InkMLcompressedtraces, canvasrotation, hierarchy/trace references, splits, writer
+namespace and possible duplicates/OOV need audit before import. Existing archive
+unchanged; not merged into this study; no per-stroke files created on97.9%inode
+Volume. Potentially useful later for word-level alignment and document/math work.
+
+## Completed soft local text-hint comparison (2026-10-08)
+
+Artifacts `checkpoints/iam_generation_text_anchor/20261008-051702/`; both arms
+4000updates from identical broad8000 modelweights/Adam moments. Same1024TRAIN,
+all4000minibatchIDs/order match, all65TRAINprobe/8held outputs saved, zero-input
+same targetloss, no training randomness. Hint coefficient.1 gives initialRMS
+**8.07%** of sharedhiddenRMS on first8retainedTRAIN; no newparameters. Uniform
+interpolation is NOT actual character alignment and could be a poor durationprior.
+This intentionally small intervention isn't an exhaustive alignment investigation.
+
+Final matchedbudget correct-text results:
+
+| Arm | retained32CER | added9samewriterCER | added24otherwriterCER | held8CER |
+|---|---:|---:|---:|---:|
+| control |75.214%|80.000%|80.000%|**78.189%**|
+| local_hint.1 |75.962%|79.322%|78.696%|**83.539%**|
+
+Control retainedX/Y.363133/.074348,segment.179990,secondindexdifference.255417;
+hint.375585/.074888,.179353/.255045. OnotherwriterTRAIN, hintX/Y.405842/.103545
+vscontrol.385546/.101424; segment.192186vs.191477. No coherent global win;
+heldCER worsens5.35percentagepoints. Control's78%stillfundamentally fails; no
+claim of readiness from a few fewer reader errors. **Reject hint as a promoted
+fix.** Tiny gains on someTRAINreader cases do not justify worse geometry/heldtext.
+IndependentCPUreload maxXY3.577e-5, zero pen/transcript discrepancies. Source
+model/optimizergroups match; only appliedlocalhint changes at step0. Attention
+observer/report kernel is debug-only, never used for training or real evaluation.
+As-run config inherits some coverage-only caveat fields; explicitintervention/
+sameTRAINschedule above and reportinglimitations describe this matched study.
+
+### Additional zero-training objective autopsy
+
+At coverage broad8000 checkpoint, frozen no-updateCPUshared-gradient check on
+first8retained and first8otherwriterTRAIN: pen/geometry gradientnormratios
+**1.30** and **0.50**; cosine between them **+.224** and **+.083**. PenMSE can
+be larger without its shared gradient dominating or conflicting. These two
+batches do NOT support assuming a replay of the earlier Chinesepenweighting
+failure. Small sample, not a global proof losses never compete.
+`iam_generation_coverage/20261008-045818/diagnostics/loss-gradient-audit.json`
+and exactsource preserve this diagnostic; weights/gradbuffers asserted unchanged.
+
+344nominallyunused channels are nearzero (maxabs1.34e-6 in65sourceTRAINprobe);
+final contribution to full384channelMSE~0.7–1.5e-7. ActiveXY/pen contribute
+~.003–.058. Thus wasting loss on unusedchannels isn't the main observed failure.
+PrematureEOC isn't either: correctTRAINfree/windowCERidentical inbroad/hintarms.
+Not a randommixture or latent readout bug: exactpolyphase transport, zero input,
+deterministicmean output and predictedpens used consistently.
+
+### What this establishes, and what remains
+
+Useful retained32fidelity gain:0CER/32exact and materiallybetter localgeometry.
+The nine added singlewriter lines can also be learned. **However, the lightweight
+128×4 textmapper demonstrably underfits this1024line/32writer setting at tested
+budgets; no unseencomposition gate passes.** Capacity proof on32lines was never
+proof this standaloneprototype could scale, nor that initializedpolyphase40
+transport is equivalent to a learned semanticInkVAE. The releasedDiT config is
+much larger (896wide×16blocks, textdim512/3convblocks), with materiallydifferent
+conditioning/training. Don't interpret this as DiffInk fundamentally failing.
+
+Nextqualitypriority: establish a controlled intermediate128/256line capacity/
+optimization gate and a properlybudgeted strongertextmodel comparison, preserving
+clean sourcecodec and reader as controls. Investigate learnedsemantic/glyph-aware
+conditioning deliberately rather than indefinitely polishing a point-packed tiny
+regressor. Newarchive may offer shortword/wordgroup supervision after its own
+parseraudit, but moredata is not a substitute for a model that fits its current
+TRAIN scope. Do not enable codecKL/CTC/style incidentally or promote failedbroad/
+hint checkpoints. Keep workingpaper-baseline versus researchcodec/prototypes
+clearly separated. No infrastructuretuning done; telemetry remains active.
+
+Checkpoint-selection closure: small32 selected8000; writer_all selected4000;
+broad selected8000. Both hint/control TRAIN-only selectors retained their
+step0 source, despite smaller later latentloss and a few better heldreader errors.
+Tables intentionally compare equal finalbudgets, not selectedbest aliases. Do not
+promote continuation by heldCER. Marker-free4retained/4held finalhint/control
+comparisons also inspected: both still flattened/illegible, no visualrescue.
+403tests pass root/fork (22new vs381); no production codec/model changed.
