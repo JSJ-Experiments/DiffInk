@@ -4737,3 +4737,41 @@ this NEW model's own small-set teacher/free capacity; the original InkVAE's
 capacity result does not clear this separate autoregressive architecture. Retain
 source/data/RNG/objective controls and no incidental KL/style/OCR training loss.
 Final report: `checkpoints/iam_autoregressive_study/20261008-152547/report/index.html`.
+
+Final paired AR report publication complete:142artifacts byte-readback verified,
+117localHTML references, zero overwrites. Published completed report at the path
+above; publication provenance9eeb81e. Published1000 interim remains immutable.
+
+### Predeclared intra-block point-feedback capacity pilot
+
+Implement separate572231parameter PointFeedbackStrokeWriter: same coarse
+previous8-point history GRU, adaptive Gaussian text clock and coarse decoder,
+then8step192wide pointGRU reset from current coarse decoder hidden. Teacher point
+GRUs fuse allB×blocks as one batch. Feedback arm receives strictly shifted previous
+point (2 normalized offsets +3pen states) and BOS flag; control zeros ONLY within-
+block predecessors forpoints1..7, preserving previousblock history/lastpoint for
+point0. Same parameters/initialization and coarse clock botharms. Free output uses
+own offsets/hard pens at BOTH levels, first learnedEOC, common2048point cap. No
+source length, timing teacher or forced finalEOC. This is NOT a pretrained InkVAE
+transplant or releasedInkDiT, and a pointMSE remains potentially multimodal.
+
+Use all8 previously fixedTRAIN probes from completed AR pilot, no DEV/confirmation.
+Same source HDF5, TRAIN256-derived normalization/pen weights (no held-out fitting),
+freshseed59142, order59143, batch8,3000updates,1800train-seconds cap perT4. AdamW
+(.9,.99), weightdecay0, LR3e-4 warmup100 from20%, then5e-5 at2400, clip5. Loss same
+normalized offsetMSE + bounded gamma2 focalpen. Shared initial full-model gradient
+calibration on identical feedback surrogate, first8TRAIN batch, pen contributes
+25%initial coordinate gradient. No dropout, KL/style/OCR training loss or smoothing.
+Evaluate0/500/1500/3000, swapped text onlyfinal. Select teacherMSE then minpenF1
+using these8TRAIN only; showfinal regardless of selection. This is a capacity gate,
+not a generalization claim; avoid another256-run if true-history fidelity fails.
+
+CPUpreflight on actual8lines (2932points,59maximumblocks), same parameter digests,
+finite teacher shapes and calibration PASS.12new regressions cover causal shift,
+fused-vs-sequential teacher equivalence, actual free-generation versus teacher of
+own output, cap-invariant prefixes/learnedstop, padding, gradient flow, exactscope,
+shared calibration/state/RNG, guarded durablelauncher and fail-closed report logs.
+All587tests pass root/fork. CPUpreflight artifacts localonly:
+`data/checkpoints/iam_point_feedback/20261008-160649/local-preflight.json`.
+Launch`venv/bin/modal run --detach modal_point_feedback.py --train`;
+durableCPUcoordinator owns exactlytwoT4 arms. Results NOT YET established.
