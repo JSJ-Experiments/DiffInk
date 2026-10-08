@@ -1,0 +1,41 @@
+"""Explicitly guarded bounded paired autoregressive T4 pilot; no new blind prompts."""
+from pathlib import Path
+import modal
+repo=Path('third_party/DiffInk') if Path('third_party/DiffInk').is_dir() else Path('.')
+volume=modal.Volume.from_name('diffink-data')
+image=(modal.Image.debian_slim(python_version='3.12').pip_install('torch==2.14.1','numpy==2.5.3','h5py==3.16.0','Pillow==12.3.0','matplotlib==3.11.2','PyYAML==6.0.3')
+ .workdir('/app').add_local_dir(str(repo/'model'),'/app/model').add_local_dir(str(repo/'utils'),'/app/utils').add_local_dir('iam_tools','/app/iam_tools'))
+app=modal.App('diffink-english-generated-prefix')
+
+@app.function(image=image,volumes={'/data':volume},cpu=2,memory=4096,timeout=600,retries=0,max_containers=1)
+def prepare():
+ from iam_tools.generated_prefix_study import prepare as make
+ volume.reload()
+ # Resolve eager model.__init__ -> VAE -> utils on CPU before any GPU spawn.
+ from model.ocr import ChineseHandwritingOCR
+ try:return make('/app')
+ finally:volume.commit()
+
+@app.function(image=image,volumes={'/data':volume},gpu='T4',cpu=2,memory=8192,timeout=5400,retries=0,max_containers=3)
+def research(arm:str,relative:str):
+ from iam_tools.generated_prefix_study import run
+ volume.reload()
+ try:return run(arm,relative,on_checkpoint=volume.commit)
+ finally:volume.commit()
+
+@app.function(image=image,volumes={'/data':volume},cpu=0.125,memory=512,timeout=6600,retries=0,max_containers=1,nonpreemptible=True)
+def coordinate(relative:str):
+ import json
+ from iam_tools.launch_ledger import calls_once,study_path
+ volume.reload();folder=study_path('/data',relative,'checkpoints/iam_generated_prefix/');print(dict(study=relative),flush=True)
+ calls=calls_once(folder,['teacher','own_xy','own_xy_pen'],lambda arm:research.spawn(arm,relative),modal.FunctionCall.from_id,volume.commit)
+ results=[call.get() for call in calls]
+ volume.reload();(Path('/data')/relative/'orchestration.json').write_text(json.dumps(dict(study=relative,results=results),indent=2)+'\n');volume.commit()
+ return dict(study=relative,results=results)
+
+@app.local_entrypoint()
+def main(train:bool=False):
+ if not train:
+  print('No GPU allocated. Explicit --train launches three-arm 2000-update TRAIN8 own-prefix XY/pen T4 pilots; no new blind sources.');return
+ relative=prepare.remote() # stable argument survives coordinator re-entry
+ call=coordinate.spawn(relative);print(dict(study=relative,coordinator_call=call.object_id),flush=True);print(call.get(),flush=True)

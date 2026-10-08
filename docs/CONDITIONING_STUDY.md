@@ -5083,7 +5083,8 @@ Local preflight coefficient .009551587040335626 is NOT actual training coefficie
 
 Anchor helps versus its SAME-protocol control by4.10percentage points (10reader
 errors out244 characters;10.4% relative), but only1.23points /3characters versus
-head6000 source and ties head2000's35.25% aggregate. All zero exact free prompts.
+head6000 source and ties head2000's35.25% aggregate. Final teacher control and
+anchor each have1/8 exact reader transcript (a01); parent/rollin have0/8.
 This is modest, uneven familiar-text improvement, NOT new-text generalization or
 visually clean free sentences. Local teacher geometry slightly worse than teacher
 control but within gates; ALL8 visually inspected, no cherry-picking. Free a01
@@ -5135,3 +5136,64 @@ Measured TRAIN GPU busy35.86/32.76/35.96%, CPUtree .955/.908/.959cores and hotte
 thread .572/.546/.577 on2requestedCPU: low GPU utilization without CPU saturation.
 Do not claim adding3CPU cores fixes this small sequential recurrent experiment.
 Full tests624 PASS BOTHmirrors; branch clean after final documentation commit.
+
+### 2026-10-08: deliberate full-own-prefix training, not another teacher-only polish
+
+Previous goal turn was PROGRESS: completed three controlled T4 arms, published
+byte-verified reports, isolated premature EOC and maintained all-eight true-history
+fidelity. New-text readable composition is still incomplete; no goal completion,
+no dataset-blame claim, no new blind source opened. Authoritative app listing
+confirms all previous apps STOPPED/zero active tasks before this experiment.
+
+Next control starts from selected `teacher_anchor/checkpoint-best.pt` of cumulative
+study171928, SHA34474c6b84ae4d9865fef7737ac84af2be99faa0f7f3c4b6d7b27a1ad046bdb9.
+Restore BOTH model and whole-model AdamW state in three arms: unchanged teacher
+objective; teacher+own-history XY; teacher+own-history XY+own-history pen.
+Same8TRAIN/7writers, architecture, normalization, orderseed63142, trainingseed63143,
+LR1e-5 wd0 AdamW(.9,.99), clip5 batch8,2000updates/1800TRAIN-seconds cap perT4.
+No intra-point feedback, dropout, KL/style/OCR objective, generic smoothing,
+endpoint correction, duration predictor or posthoc inference stop gate added.
+
+Teacher loss unchanged: normalized chronological displacementMSE + gamma2 bounded
+focal pen weight .024860149190817294 + cumulativeXY weight .009549097811244269.
+Own path is a SECOND graph with text/writer only and a common training block budget;
+NO ground-truth trajectory fields reach it. Entire own normalized XY/hardpens are
+fed into every next block. Input history and hard choices detached; hidden BPTT
+active. Targets/masks ONLY supervise the resulting path in the loss. Training
+unroll uses known source extent and continues AFTER false predictedEOC to penalize
+premature stops; call this SOURCE-LENGTH rollout, NOT genuine free generation.
+Actual generation still ends at learned firstEOC with common2048point cap, no target
+history/count/forced endpoint. Helper parity and early-stop distinction tested.
+
+New ownXY loss matches cumulative model-unit trajectory to paired target. Ownpen
+arm adds real-point bounded gamma2 focalpen on the SAME own path, explicitly
+supervising false breaks/stops caused by generated inputs. Fixed shared initial
+FULL-model gradient fractions: ownXY25% and ownpen10% of COMPLETE teacher objective
+norm (including teacher anchor/pen), not arbitrary large coefficients. CPU preflight
+source-order norms .0556281/24.8475/32.1419 imply approx .000559695/.000173070;
+ACTUAL prepare in scheduled order defines actual coefficients and archive. Log
+current gradient ratios at1/250-step intervals, not just initial calibration.
+
+All3 paired graphs/order/source/model/optimizer identical, only additional weights
+vary; baseline computes own diagnostics too. Evaluate0/250/500/1000/2000: source
+teacher geometry/pen/reader, SOURCE-LENGTH own-rollout geometry/readers/firstEOC,
+and actual target-free freeTRAIN8 correct/swapped conditioning0/final. All8 rows,
+no new DEV/blind or visual model selection. Same declared perline source-relative
+teacher-capacity safeguard; select minimum genuine freeTRAIN CER then teacherMSE
+among eligible checkpoints, baselineeligible. Preserve final AND selected rejected
+outputs, exact source/optimizer/RNG, logs/galleries/checkpoints and launch ledger.
+Paired index-time supervision is a capacity diagnostic, not unbiased generative
+handwriting likelihood; alternative realizations may have different point timing.
+No automatic full256/fullIAM scale-up or production promotion from an eight-line toy.
+
+Prelaunch CPU evaluation passed the actual paired/source-rollout/free path and
+perline capacity guard; both source model and reader states unchanged and model
+train/eval mode restored. Stop-clock audit rerun reproduces saved free points
+bit-identically on the same device; head clock is not claimed as glyph coverage.
+CPU-only preflight175034 is NOT a GPU run.633tests PASS BOTHmirrors.
+
+Correction to previous prose: cumulative final teacher AND teacher_anchor each
+had ONE exact familiar reader transcript (a01), not zero; rollin/source hadzero.
+Authoritative eval JSONs/summary already had correct counts. Documentation claim
+fixed; immutable prior published report not overwritten. This does NOT establish
+unseen-text composition or make the other seven degraded free outputs acceptable.
