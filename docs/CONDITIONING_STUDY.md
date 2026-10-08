@@ -5595,3 +5595,33 @@ all old apps stopped/zero tasks. Next: upload prepared files withoutoverwrites,
 CPUcloudpreflight, ONET4 worker/durablecallledger/cachegates/boundedpersistence.
 OriginalVolume read-only, outputs v2; no duplicate speculation on observation
 failure. This is a corpus learning pilot, not a promise it will solve composition.
+
+Corpus pilot LAUNCHED ONCE: app ap-FXfuYcRVPIwQMnVTPHQnOe,
+coordinator fc-01M4ETSWS0MT923PKM5HDX5SAM; durable one-child ledger records
+baseline fc-01M4ETT8XAKWFYV2J60XQMWQQN. Implementation/protocol pushed12532a7.
+Prepared sources/provenance uploaded byte-verified with ZEROoverwrites.
+Source cache gate PASS:8272TRAIN+DEV lines,137.04seconds, all transport XY/pens
+passed. Fresh/held not cached. Source decode axis errors<=.000015 on48 probes,
+perfect boundaries. Important evaluator baseline: fixedTRAIN16 sourceCER0,
+DEV32 genuine-sourceCER8.6912% (8/32 exact), combined5.8783%. Reader is NOT
+universally perfect; show separate source baseline when interpreting freeCER.
+No learned generator improvement is yet claimed. OneT4 worker, not three GPU
+workers; CPU coordinator/preflight are separate Modal functions.
+
+Added fail-closed corpus reporter: complete TRAIN/DEV timelines and selected+last
+fresh/exposed-held galleries, all declared noise seeds/guidances/controls,
+fixed100px/model-unit marker-free SVG, no smoothing or width fitting. Independently
+reproduces CER, DEV-only selection, actual epoch schedule, all384 objective from
+40/344 field losses, clipping, source hashes, learned EOC/estimated cap and saved
+row/trajectory consistency. New report/unit tests do not mutate pinned training
+sources. Reporter deliberately leaves visual verdict pending until outputs are
+actually inspected; a report is not a readable-new-sentence success claim.
+
+Reporter extension:682tests PASS BOTHroot/fork; additional independent log/
+evaluation guards exercised. Corpus step0 random generatorCER100% is recorded,
+not mistaken for training failure; first250 updates are finite, x0loss.90045,
+geometry40loss.67323/unused344loss.92688, rawgrad.14992/no clipping,
+19.64TRAIN-seconds. This is optimizer health only, NOT readable-text improvement.
+Own-delta report and raw artifacts verified onv2:266files/191newuploads,
+ZEROoverwrites. OriginalVolume mirror is still being verified separately;
+no claim of complete publication there yet.
