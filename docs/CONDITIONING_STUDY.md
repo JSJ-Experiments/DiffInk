@@ -3846,3 +3846,128 @@ ready because familiar-text curves/CER improved.
 
 **Verdict:** useful controlled fitting improvement and a much clearer timing
 failure, but composition still FAIL. No production/full-IAM/InkDiT promotion.
+
+## Isolated relative-PE timing autopsy (2026-10-08)
+
+Completed CPU-only frozen-checkpoint diagnostic:
+`checkpoints/iam_generation_timing/20261008-093817/report/index.html`.
+Every256TRAIN request tested on BOTH48000-update arms. `TimingProbe` changes ONLY
+relative-progress PE denominator when requested. Its native path delegates exactly
+to the original model; override at native counts is separately parity-tested.
+Actual context/output length and PE denominator are manipulated independently;
+no model/codec/reader weights, target point spacing or trajectories are modified.
+
+| Frozen TRAIN CER | Global | Soft Gaussian |
+|---|---:|---:|
+| Native |5.020%|2.406%|
+| PE denominator +1block, native context |60.450%|57.758%|
+| PE denominator −1block, native context |59.683%|55.898%|
+| Context/output +1block, oracle PE held fixed |9.754%|4.708%|
+| Context/output −1block, oracle PE held fixed |18.156%|11.120%|
+| Both +1block |58.382%|56.236%|
+| Both −1block |58.395%|55.443%|
+
+PE-only damage is not just termination or CER accounting: for soft+1, common-
+prefix mean XY drift .200253/.121404 and4588pen changes; mask-only+1 has
+.035141/.010331 and **zero** common-prefix pen changes. Negative PE shifts can
+cause large terminal XY extrapolation, so positive-shift/visual evidence is
+particularly useful. PE-only+1 puts EOC beyond the original output window, while
+mask-only−1 truncates terminal points (all256missingEOC); report both stop and
+prefix geometry. Oracle PE overrides isolate mechanism but are NOT a deployable
+text-only generation workaround.
+
+**Causal conclusion limited to these frozen checkpoints:** changing the
+length-dependent relative-position feature alone is sufficient to reproduce the
+large within-line distortion; the self-attention-context change alone is much
+less damaging, especially +1 where no truncation occurs. The feature is a major
+contributor to familiar-text duration fragility. This does not prove it is the
+only cause of new-text composition failure or that removing it from scratch
+will solve generation.
+
+Independent native CPU reload of ALL512arm/line combinations: maxXY2.90e-5,
+zero pen mismatches, all512reader strings equal GPU. Source/archive/packed output
+hashes and frozen parameters verified. Report has eight fixed TRAIN examples
+including d08/p10/n05 across±1separate interventions, no markers/smoothing or
+held-example selection. Manually inspected soft±1on k04/c03 and soft+1on d08/p10;
+all256outputs saved, not every line manually reviewed. No GPU allocated.
+
+### Target-preserving nuisance-jitter continuation — completed, failed remedy
+
+`checkpoints/iam_generation_position_robustness/20261008-095300`.
+Matched `control`/`pe_jitter` branch from the **identical** completed soft48000
+model/full Adam/RNG.8000updates each at1e-5, same256TRAIN/minibatches/shared
+physical-loss anchors, no new architecture parameters/CTC/style/KL.
+On half TRAIN rows, jitter ONLY relativePE denominator by a rounded±20% length
+factor; tensor length, self-attention mask, target XY/pen sequence, all corners,
+RDP spacing and input samples remain untouched. This is nuisance-feature
+invariance, **not generic smoothing or trajectory resampling**. Jitter RNG is
+separate/reproducible, its actual length schedule logged; control consumes same
+nuisance draws but uses native denominators. Native inference uses actual
+requested duration, NO oracle override. Compare native fidelity versus target-free
+TRAIN-duration robustness; native all256TRAIN geometry selects checkpoints.
+Existing development8 may be reported descriptively but is exposed. Previously
+opened16paired/16synthetic confirmation is NOT rerun/tuned on or called fresh.
+Do not infer composition readiness even if the timing test improves.
+
+
+Completed result, matched8000updates per arm:
+
+| Final evaluation | Native control | Relative-PE jitter |
+|---|---:|---:|
+| TRAIN/oracle CER |1.340%|41.826%|
+| TRAIN/predicted duration CER |61.035%|71.466%|
+| Native X/Y RMSE |.026838/.003455|.121495/.035301|
+| Native target-segment error |.021158|.071887|
+| Native pen min F1 |1.000|1.000|
+| Previously exposed development8 CER |85.185%|80.247%|
+
+The jitter arm's TRAIN-selected checkpoint is **step0**, not its final model.
+Its final native curves are substantially damaged; the development difference
+is NOT composition progress. The control's TRAIN-selected checkpoint is8000.
+Losses stayed finite; clipping fractions0/.000375, no numerical explosion.
+The same target geometry/corners/pens were preserved: corrupting a memorized
+positional feature was not sufficient to teach invariance retrospectively.
+Do not promote this arm, resume it blindly, replace the good frozen checkpoint,
+or claim that this failure rules out a fresh positional contract.
+
+Report: `checkpoints/iam_generation_position_robustness/20261008-095300/report/index.html`.
+All264native and256predicted-duration TRAIN outputs are packed and rendered,
+with separate first-EOC/pen and source comparisons; no smoothing. The frozen
+relative-PE intervention remains useful causal evidence even though its first
+proposed training remedy failed. Root/fork suites465tests pass. Both own timing
+and jitter Modal apps finished/stopped; other apps were not modified.
+Next: a fresh paired test retaining the soft Gaussian prior and absolute index
+PE but removing target-length-dependent relative PE, with identical fresh
+weights/order/budgets. Report duration robustness separately from TRAIN fitting
+and genuine unseen composition. Do not reuse the opened confirmation as blind.
+
+## Fresh positional-contract test (started2026-10-08; not a result yet)
+
+`PositionContractWriter` keeps the soft Gaussian prior, absolute query PE and
+trainable PE amplitudes, with identical parameter/state keys. `relative100`
+delegates exactly to the original soft model; `absolute` omits ONLY the relative
+progress PE. No learned normalization/encoder/decoder changes, target resampling,
+smoothing, neural checkpoint warm start, CTC/style/KL, or new held-example tuning.
+An absolute query's positional features are independent of requested length;
+its self-attention context is **not** invariant and oracle training masks still
+leak timing. Removing this feature may improve duration robustness without
+solving composition or may worsen fit; both are legitimate outcomes.
+
+Two bounded T4 arms run in parallel, each2CPU/8GiB, torch CPU threads2,
+48000updates, same256TRAIN/32writers/batch8/order/RNG/empty Adam. Same fresh
+seed28142 and initial weights, first24000 use the original1000warmup1e-5→5e-5,
+hold16000/cosine→1e-5 schedule; second24000 retain full Adam and use1e-5.
+Schedule seeds29142/39142. Same fixed physical XY/segment anchors
+.0048289833417749835/.018978251569199526 and TRAIN32 whitening. Selection uses
+all256native TRAIN geometry. Native and TRAIN-estimated durations evaluated at
+0/8000/16000/24000/36000/48000, exposed development8 descriptive only. No previous
+confirmation reused. Separate TRAIN curve quality, timing stability and unseen
+composition gates; oracle native fit alone cannot pass the latter two.
+The prepared Volume manifest/source archive is written once by CPU; each GPU
+writes only its own directory, no shared mutable checkpoint or retries.
+
+Regression tests cover exact control parity, identical fresh parameter states,
+length-independent absolute query features (NOT full output invariance), padding/
+NULL/finite gradients, config round trip and exact bounded schedule. Root/fork
+473tests pass (465existing +8new). Guarded launcher:
+`modal run --detach modal_generation_position_contract.py --train`.
