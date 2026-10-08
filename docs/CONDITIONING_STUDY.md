@@ -5240,3 +5240,60 @@ Continuous-feedback control prelaunch:639tests PASS BOTHmirrors; CPUprepare18073
 restores source model/optimizer and checks calibration invariants before any GPU.
 Prepared full-feedback norms .0556281/277.7305/1756.3994 yield approx
 5.00738e-5 ownXY /3.16716e-6 ownpen; actual cloud prepare defines actual coefficients.
+
+### 2026-10-08: generated-prefix study complete — partial progress, not a clean winner
+
+Three recorded T4 children of `iam_generated_prefix/20261008-175309` completed
+2000 updates each; app `ap-xPjshi5ofz87ZjqJxsl0rJ` is STOPPED with zero tasks.
+Exact pinned source/model AND optimizer, eight establishedTRAIN/seven writers,
+LR1e-5, batch8, clip5,2000updates, order63142/trainingseed63143, teacher objective
+unchanged. Actual fixed ownXY weight .0005602503144214109, ownpen weight
+.00017321257186415906; initial weighted gradient fractions .250239/.100079.
+No KL/style/OCR loss, smoothing, target duration at inference or posthoc stop gate.
+
+| Arm | Selected update | Eligible freeTRAIN CER | Final freeTRAIN CER | Final guard |
+| --- | ---: | ---: | ---: | --- |
+| source, no continuation | 0 | 35.25% | 35.25% | PASS |
+| teacher control | 2000 | 23.36% | 23.36% | PASS |
+| teacher + ownXY | 1000 | 25.00% | 20.08% | FAIL m02 Y |
+| teacher + ownXY + ownpen | 1000 | 27.05% | 23.36% | FAIL m02 X |
+
+Teacher true-history penF1=1 and true/predicted-pen readerCER0 remain intact in
+all finals. Rejection is geometric drift, not missing teacher text or catastrophic
+capacity failure: m02 Y=.022454 in ownXY and X=.023119 in ownXYpen exceed declared
+.02 thresholds. Do NOT silently relax that guard or present rejected20.08% as the
+eligible winner. Teacher-only continuation also improves free generation, so
+adding this own-prefix surrogate is NOT established as better overall.
+
+ALL8 marker-free images were inspected. OwnXY selected1000 corrects k09 and m02
+substantially; a01/k09/m02 are reader-exact (3/8). But h09 now ends at143points
+(`of our tast`), k05 still truncates/distorts, and p07/k06 have substantial tail
+errors. OwnXY final2000 gives a better overall reader score but reintroduces a
+mangled k09 tail and spurious a01 suffix. Aggregate CER and source-history loss
+are insufficient acceptance criteria. Actual learned-stop tables are retained
+for selected AND final output, with token clocks explicitly NOT glyph alignment.
+
+OwnXY selected source-length diagnostic (NOT free generation): X/Y=.113221/.092703,
+first-index-difference=.031530, mean perline turnp90=53.27deg, minimum penF1=.5882,
+predicted-pen readerCER16.39%. Parent corresponding diagnostics:
+.225625/.274118, .054025,76.56deg,.4333,31.97%. These demonstrate improved own-path
+geometry under paired training extent, not a usable text-only generator.
+Teacher-only final source-length predicted-pen CER18.85%; ownXYpen final20.90%.
+No claim of improved new-text composition; no new DEV/blind prompt opened.
+
+Reusable reporter checks actual initial model/RESTORED optimizer, sample order,
+initial unweighted forward terms, losses/coefficients/gradient ratios, guarded
+selection, output hashes and complete eight-line scope. No random-draw ledger
+exists in these deterministic studies: removed a copied reporter assumption
+about `draws_sha256` and hardcoded `teacher` name. Regression coverage includes
+both three-arm own-prefix and two-arm continuous-gradient scopes.642tests PASS
+BOTH mirrors. Report includes all checkpoints, source-length diagnostics,
+selected/final learned stops, source/parent/teacher/own-history/free/swapped
+marker-free SVGs, rejected finals rather than only attractive selected rows.
+Local report: `data/checkpoints/iam_generated_prefix/20261008-175309/report/index.html`.
+Volume publication verification follows; do not claim a publication before it passes.
+
+Measured train GPUbusy32.75–33.66%, process-tree CPU .959–.964cores and hottest
+thread .575–.581 on2requestedCPU. No CPU saturation evidence; simply assigning
+moreCPU does not address small sequential kernel overhead. No grad clipping
+occurred in these three continuations.
