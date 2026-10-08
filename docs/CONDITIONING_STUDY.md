@@ -4613,3 +4613,12 @@ Regression checks include no current/future teacher leakage, identical initial
 fixed/adaptive forwards, monotonic center, partialblock/jump/backtrack roundtrip,
 padding exclusion, target-free budget-invariant prefixes, learned-vs-capped stopping,
 TRAIN-only calibration and durable boundedlaunch. Results NOT YET established.
+
+Packaging correction before training: first remote attempt
+`checkpoints/iam_autoregressive_study/20261008-152128`, app
+`ap-zubLQkIJrHewQSYgDcY8TU`, failed BEFORE initialization/calibration/updates because
+`model.__init__` eagerly importsVAE, which imports`utils`. BothGPUcalls failed;
+app authoritatively stopped/zero tasks. No research result or cost comparison from
+that attempt. Include`utils` in image/archive and probe the eager import in CPU
+prepare BEFORE spawning GPUs; added launcher regression. Preserve failed attempt,
+start fresh directory rather than overwriting/retrying partially trained state.

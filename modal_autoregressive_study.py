@@ -4,13 +4,15 @@ import modal
 repo=Path('third_party/DiffInk') if Path('third_party/DiffInk').is_dir() else Path('.')
 volume=modal.Volume.from_name('diffink-data')
 image=(modal.Image.debian_slim(python_version='3.12').pip_install('torch==2.14.1','numpy==2.5.3','h5py==3.16.0','Pillow==12.3.0','matplotlib==3.11.2','PyYAML==6.0.3')
- .workdir('/app').add_local_dir(str(repo/'model'),'/app/model').add_local_dir('iam_tools','/app/iam_tools'))
+ .workdir('/app').add_local_dir(str(repo/'model'),'/app/model').add_local_dir(str(repo/'utils'),'/app/utils').add_local_dir('iam_tools','/app/iam_tools'))
 app=modal.App('diffink-english-autoregressive-pilot')
 
 @app.function(image=image,volumes={'/data':volume},cpu=2,memory=4096,timeout=600,retries=0,max_containers=1)
 def prepare():
  from iam_tools.autoregressive_study import prepare as make
  volume.reload()
+ # Resolve eager model.__init__ -> VAE -> utils on CPU before any GPU spawn.
+ from model.ocr import ChineseHandwritingOCR
  try:return make('/app')
  finally:volume.commit()
 

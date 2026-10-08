@@ -28,6 +28,11 @@ class AutoregressiveStudyTests(unittest.TestCase):
         torch.manual_seed(4);p=torch.cat((torch.randn(16,2),torch.nn.functional.one_hot(torch.tensor([0]*14+[1,2]),3).float()),-1);records={'s':dict(text='ab',writer_id='w')};stats=fit_offset_stats({'s':p},['s']);pool=StrokePool({'s':p},records,['a','b'],['s'],stats)
         model=MonotonicStrokeWriter(2,1,.5,width=16,text_width=8,writer_width=4);cfg=dict(writers=['w'],calibration_batches=1,pen_gradient_fraction=.25,pen_weights=[1.,3.,8.]);rng=torch.get_rng_state().clone()
         c=calibrate(model,pool,dict(records=records),cfg,[['s']]);self.assertTrue(c['state_rng_unchanged']);self.assertGreater(c['weight'],0);self.assertTrue(torch.equal(rng,torch.get_rng_state()))
+    def test_modal_image_contains_eager_import_dependency_and_cpu_import_probe(self):
+        path=Path(__file__).resolve().parent.parent/'modal_autoregressive_study.py';s=path.read_text()
+        self.assertIn("add_local_dir(str(repo/'utils'),'/app/utils')",s)
+        functions={n.name:n for n in ast.parse(s).body if isinstance(n,ast.FunctionDef)}
+        self.assertIn('from model.ocr import ChineseHandwritingOCR',ast.unparse(functions['prepare']))
     def test_durable_parent_explicit_guard_and_t4_limit(self):
         path=Path(__file__).resolve().parent.parent/'modal_autoregressive_study.py';func={n.name:n for n in ast.parse(path.read_text()).body if isinstance(n,ast.FunctionDef)}
         main=func['main'];self.assertEqual(ast.unparse(main.body[0].test),'not train');self.assertTrue(any(isinstance(n,ast.Return) for n in main.body[0].body));self.assertIn('coordinate.spawn()',ast.unparse(main));self.assertIn("['fixed', 'adaptive']",ast.unparse(func['coordinate']));self.assertIn('call.get()',ast.unparse(func['coordinate']))

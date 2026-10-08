@@ -64,7 +64,7 @@ def prepare(repo,root='/data'):
     probe=sorted(train,key=lambda s:hashlib.sha256(('ar-fixed-train:'+s).encode()).hexdigest())[:8]
     out=root/'checkpoints/iam_autoregressive_study'/time.strftime('%Y%m%d-%H%M%S',time.gmtime());out.mkdir(parents=True,exist_ok=False)
     with tarfile.open(out/'as-run-source.tar.gz','w:gz') as archive:
-        for directory in ['iam_tools','model']:
+        for directory in ['iam_tools','model','utils']:
             basepath=Path(__file__).parent if directory=='iam_tools' else Path(repo)/directory
             for f in sorted(basepath.rglob('*.py')):
                 if '__pycache__' not in f.parts:archive.add(f,arcname=directory+'/'+str(f.relative_to(basepath)))
