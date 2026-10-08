@@ -4867,3 +4867,16 @@ PASS BOTHmirrors after launcherchanges. GPUbusy originals36.2%/37.0%, CPUtree
 trainingseconds391.07/397.31, clippingfractions10.43%/52.93%. Highfeedbackclipping
 is a plausible optimization contributor, not a controlled lower-LR ablation.
 Do not claim fusedpointGRU cured overallutilization or morecores would fix it.
+
+Finalpoint report published and byte-readback verified:105files,79localHTMLrefs,
+94newuploads, ZEROoverwrites, provenance15a5af0. Original/interimAR reports stay
+immutable. Re-entryincident supplemental confirms exactlyone unrequestedrepeat
+161602; BOTHrepeat arms also finished3000 before appshutdown. They are explicitly
+NOT selected or counted as another intervention/seed. Preserve allmetadata,
+logs/packedsource onVolume; original selectedweights/results remain primary.
+NoGPUtasks from thisapp remain. Finalfeedback oracle-endpoint correction shrinks
+raw .20593/.14552 to .02408/.01769, control .009386/.005846 to .005466/.004679;
+these are diagnostics usingtrueendpoints, NOT rendered-generation corrections.
+Originalcheckpoint paths:
+`checkpoints/iam_point_feedback/20261008-160806/{no_feedback,point_feedback}/checkpoint-last.pt`.
+Report:`/mnt/diffink-data/checkpoints/iam_point_feedback/20261008-160806/report/index.html`.
