@@ -42,4 +42,16 @@ class LaunchLedgerTests(unittest.TestCase):
             for arms in [[],['a','a'],['../bad'],['.']]:
                 with self.assertRaises(ValueError):calls_once(tmp,arms,lambda a:None,lambda c:None,lambda:None)
 
+
+class LightweightPathTests(unittest.TestCase):
+    def test_bounded_relative_study_guard(self):
+        from iam_tools.launch_ledger import study_path
+        self.assertEqual(str(study_path('/data','checkpoints/study/x','checkpoints/study/')),'/data/checkpoints/study/x')
+        for relative in ['/tmp/x','checkpoints/study/../other','checkpoints/other/x','checkpoints/study2/x']:
+            with self.assertRaises(ValueError):study_path('/data',relative,'checkpoints/study/')
+    def test_module_import_does_not_pull_tensor_libraries(self):
+        import subprocess,sys
+        probe="import iam_tools.launch_ledger,sys; assert 'torch' not in sys.modules; assert 'numpy' not in sys.modules"
+        subprocess.run([sys.executable,'-c',probe],check=True)
+
 if __name__=='__main__':unittest.main()

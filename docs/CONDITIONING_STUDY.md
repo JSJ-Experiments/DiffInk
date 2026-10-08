@@ -4880,3 +4880,78 @@ these are diagnostics usingtrueendpoints, NOT rendered-generation corrections.
 Originalcheckpoint paths:
 `checkpoints/iam_point_feedback/20261008-160806/{no_feedback,point_feedback}/checkpoint-last.pt`.
 Report:`/mnt/diffink-data/checkpoints/iam_point_feedback/20261008-160806/report/index.html`.
+
+### 2026-10-08: isolate generated-history instability before scaling
+
+Previous goal turn was progress, not a wait: completed paired TRAIN8 capacity
+experiment, preserved/published failure and stronger teacher/free separation, and
+pushed 8e299bc. Current objective remains compositional readable NEW text; none of
+these eight-line experiments establishes that end state.
+
+Zero-update CPU interventions on the ORIGINAL control step3000 (not the duplicate),
+ALL8 TRAIN lines: selectively replace previous-block offsets and/or hard pen states
+with predictions while otherwise retaining target history. Explicit source-length
+loop, not free generation; ignoring predicted stopping here is diagnostic only.
+Reader CER with TRUE rendering pens / PREDICTED rendering pens:
+
+| History intervention | TRUE-pen CER | Predicted-pen CER | Mean X/Y RMSE |
+|---|---:|---:|---:|
+| all true history | 0% | 2.46% | .00939 / .00585 |
+| own XY, true pen history | 17.62% | 23.77% | .1384 / .2140 |
+| true XY, own pen history | 10.25% | 12.30% | .1392 / .1438 |
+| own XY AND own pen history | 37.70% | 43.85% | .2950 / .2110 |
+
+Both history channels contribute; pen mistakes also perturb subsequent GEOMETRY,
+not just drawn stroke breaks. Joint history error is worse than either single
+intervention. All-own intervention prefix exactly matches independently reloaded
+actual free generation (zero XY drift and pen mismatch) up to common/learned-stop
+prefix. Model/reader state unchanged. Preserve packed outputs/metrics/script under
+`checkpoints/iam_point_feedback/20261008-160806/history-interventions/` (local until
+publication). Do not call source-length CER a new target-free benchmark. Eight
+TRAIN lines span SEVEN writers (only one writer has two lines); this remains a
+capacity/robustness toy, not compositional or multi-example-per-writer evidence.
+
+Predeclared matched history-robustness continuation: branch BOTH arms from original
+`no_feedback/checkpoint-last.pt`, SHA8786c3a2a37bd85f19a93bb527c2293a019567137c3f52864aebcb4f2437d959,
+restore optimizer as well as model, same eight TRAIN lines/source/preprocessing/
+normalization/architecture. NO intra-point feedback, dropout, KL/style/OCR objective,
+XY cumulative-position loss, smoothing or augmentation added. Continue1000updates
+at LR1e-5, batch8, AdamW original(.9,.99), wd0, clip5;1800train-seconds cap perT4.
+Same normalized offsetMSE + original fixed focalpen coefficient .024860149190817294.
+Orderseed60142, historydraw seed60143, common per-transition uniform draws BOTHarms.
+Control true history p0; roll-in joint predicted XY+hard pens p=.2*min(step/500,1).
+Only transitions to another REAL block eligible; first block BOS zero, no future
+block leakage. Predicted/target input features detached, ordinary hidden-state BPTT
+retained. Same blockwise8step point-GRU graph botharms (not fused-vs-blockwise
+confounded training). Current source-index targets unchanged; scheduled sampling
+is NOT unbiased likelihood training, and target continuation may be ambiguous
+once generated history diverges. This is a deliberate limited intervention, not
+a promised fix or new-text result.
+
+Evaluate0/250/500/1000: true-history geometry/reader and actual target-free own-history
+freeTRAIN8 generation, same2048point cap and learned firstEOC. Swapcontrol0/final,
+log error against original target AND supplied conditioning text separately.
+Select minimum freeTRAIN CER then teacherMSE ONLY among preserved-capacity checks;
+baselineeligible. Perline axes<=max(2*parent,.02), first-index-difference vectorRMSE
+<=max(1.5*parent,.012), turnp90<=max(1.5*parent,30deg), penF1>=parent-.05, zero internal
+falseEOC, finalEOC correct and teacherTRUE-PEN readerCER0 acrossALL8. No DEV/newblind
+prompt opened, no visual selection or automatic promotion. Save selected ANDfinal,
+all8 galleries, model/optimizer/RNG and actual applied-roll-in statistics/hash.
+
+New shifted history_forward matches original teacher with p0 and ACTUAL free
+prefix with all-own input; separate XY/pen interventions, causal perturbation,
+detached feedback/BPTT, masks/ramp/padding and complete perline gate tested.
+CPUprepare restores exact model/optimizer before GPU allocation. Metadata/archive
+localpreflight `data/checkpoints/iam_history_rollin/20261008-164301/`.
+
+Modal docs verified current execution semantics: inputs interrupted by container
+failure are retried automatically; function-error retries=0 is not protection
+against platform re-entry. Keep stable study argument and persisted launch ledger.
+New CPUcoordinator additionally nonpreemptible (supported SDK1.6.1), no training
+module imports. Review caught new previous guard importing heavy torch/training
+modules into512MiB coordinator: replace with stdlib-only study_path guard in all
+three current launchers; this is a newly identified memory risk, NOT proven cause
+of the earlier original coordinator restart. Lightweight subprocess import test
+ensures torch/numpy not loaded. Actual-container-reentry test still unperformed;
+ledger transitions/attach/ambiguity guarantees covered by unit simulations.
+Docs: https://modal.com/docs/guide/functions and /reference/modal.FunctionCall.

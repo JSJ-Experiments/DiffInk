@@ -42,3 +42,11 @@ def calls_once(folder,arms,spawn,attach,commit):
             ledger['calls'][arm]=dict(state='spawned',call_id=call.object_id);save(ledger)
             calls.append(call)
     return calls
+
+
+def study_path(root,relative,prefix):
+    """Lightweight coordinator guard: never import torch/training modules here."""
+    p=Path(relative)
+    if not isinstance(prefix,str) or not prefix.endswith('/') or p.is_absolute() or '..' in p.parts or not str(relative).startswith(prefix):
+        raise ValueError('bounded relative study prefix required')
+    return Path(root)/p
