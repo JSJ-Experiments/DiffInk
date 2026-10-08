@@ -4666,3 +4666,17 @@ publication, corrected with explicit Y flip and renderer regression. This was a
 new report-only bug, NOT training/data mirroring or an explanation of generation
 failure. Unpublished local diagnostic drafts retained under clearly named paths;
 only correctly oriented progress report is published. No training code changed.
+
+Progress1000 publication:102artifacts byte-readback verified,82relativeHTML links,
+zero overwrites, `progress-1000/publication-verification.json`. Primary SVGs use
+fixed100px/model-unit and correct up-positiveY conversion; four temporary fit-to-
+panel contact sheets are explicitly diagnostic-only.574tests pass both mirrors.
+Upstream rechecked2026-10-08: officialmain remains97bc6a3, no public multilingual
+replacement to adopt.
+
+Renderer follow-up for FINAL/future reports: actual one-point strokes (36/6085
+trueTRAIN strokes) must not disappear just because vertex markers are disabled.
+Represent them with a round-capped zero-length SVG ink segment, not a marker at
+every sampled point; regression added. Published progress1000 stays immutable and
+omits those isolated taps. This is visualization-only, no loss/model/evaluation
+metric change and no explanation of the current flat free-running failures.

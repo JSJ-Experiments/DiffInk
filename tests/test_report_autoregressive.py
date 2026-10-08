@@ -20,6 +20,9 @@ class AutoregressiveReportTests(unittest.TestCase):
         b=dict(step=1000,free={'fixed_train8':{'correct':{'cer':.5}},'exposed_dev8':{'correct':{'cer':3.}}},teacher={'offset_mse':.3})
         r=dict(history=[a,b],best_step=1000,best_train_score=[.5,.3]);verify_selection(r);r['best_step']=0
         with self.assertRaises(ValueError):verify_selection(r)
+    def test_actual_tap_strokes_are_inked_without_vertex_markers(self):
+        p=np.array([[0.,0.,0.,1.,0.],[1.,1.,0.,0.,1.]])
+        s=svg(p);self.assertEqual(s.count('<path'),2);self.assertNotIn('<circle',s);self.assertIn('M 6.0000,106.0000 L 6.0000,106.0000',s)
     def test_marker_free_svg_stroke_breaks_no_smoothing_or_width_fit(self):
         points=np.c_[np.array([[0.,0.],[1.,1.],[2.,0.],[3.,1.]]),np.eye(3)[[0,1,0,2]]]
         s=svg(points);self.assertEqual(s.count('<path'),2);self.assertNotIn('<circle',s);self.assertNotIn(' C ',s);self.assertIn('width="312.000"',s);self.assertIn('M 6.0000,106.0000 L 106.0000,6.0000',s)
