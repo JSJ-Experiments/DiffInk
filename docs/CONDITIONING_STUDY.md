@@ -4475,3 +4475,15 @@ data under a CONVERGED regimen remain alternatives, not ruled out; contextual
 encoding alone may increase memorization. No incidental KL/style milestone.
 A NEW blind gate must exclude all FOUR now-opened confirmation sets, including the
 CURRENT corrected seal; namespace synthetic history to avoid ID collisions.
+
+**Supplemental frozen objective decomposition (2026-10-08):** checked whether the
+344 unused polyphase transport channels dominate the latent loss. Across all256
+TRAIN samples /11824valid blocks at each selected60000 checkpoint, their fraction
+of total whitened latent squared error is only0.008619%control /0.009258%supervised.
+Active40 per-element MSE=.000250155 /.000297012; unused344=2.50734e-9 /3.19757e-9.
+Source unused channels are numerical residue (RMS1.6506e-7), not semantic features.
+Unused-channel loss dominance is therefore not the problem at these checkpoints;
+this is a descriptive decomposition, NOT a causal masked-loss experiment. No model
+update, new held-source access, or selection. Supplemental artifact:
+`diagnostics/engineering-review/unused-channel-diagnostic.json` under the same
+continuation run. Published original review/index/manifest remain immutable.
