@@ -5504,3 +5504,94 @@ metrics and preflight source under study/cpu-preflight (CPU/CUDA differences are
 not mislabeled optimizer learning). Four immutable prepared files uploaded/readback
 verified on v2, ZEROoverwrites. Modal current docs verified SDK read-only mount and
 v2 sync persistence. Previous published reports/checkpoints remain untouched.
+
+### Close the eight-line controls; pivot to corpus-scale actual diffusion
+
+User steer: stop spending further experiments on pen-vs-XY feedback, stop heads,
+small horizons and the same familiar eight lines. The already-running bounded
+own-displacement control completed; NO additional familiar8 refinement is planned.
+App ap-EaLnAIbWVYcZrfPhlfgYkG stopped at 2026-10-08 22:32:53 UTC, zero tasks.
+All three arms completed 2000 updates from the SAME continuous1000 checkpoint,
+optimizer, order/RNG and complete parent objective described above.
+
+Final familiar8 free CER: unchanged control16.393%, ink_delta36.066%,
+all_delta24.590%; parent24.590%. Selected steps: control2000, ink0, all1000
+(selected all20.082%). Final teacher guard: controlPASS, inkFAIL/seven axis
+checks, allPASS. Teacher X/Y RMSE control .002433/.002156, ink .022112/.021711,
+all .007336/.003629; own source-length X/Y .118385/.094400, .181542/.195224,
+.129358/.132251. Own first-index-difference error .029427/.050152/.034500;
+mean per-line turn p90 51.91/72.59/61.08 degrees. Minimum own penF1
+.6667/.5634/.6774; internal falseEOC1/4/2; finalEOC correct7/3/7 out of8.
+Clip fractions0/.0005/0. Neither derivative arm beats ordinary continuation.
+
+All eight marker-free FREE rows inspected: control recovers m02/m04 noticeably,
+but k09 suffix/k05/p07 remain distorted; ink damages m02/k06 and produces a
+spurious k09 suffix; all occasionally improves k09 at selected1000 while damaging
+k06/p07 and regressing by final2000. No arm is a composition success. Source-index
+and source-length geometric diagnostics are NOT free-inference accuracy or
+physical velocity/curvature. Local report prepared at
+`data/checkpoints/iam_own_delta/20261008-220815/report/index.html`;
+raw/checkpoints downloaded with75 byte-verified files from v2. Publication to the
+original Volume will be separately verified, not presumed here.
+
+**Conceptual change:** actual released `model.dit.DiT` probabilistic sampled-x0
+training on8144 IAM TRAIN lines/186 writers (minimum6, median46 lines/writer),
+NOT the standalone zero-input deterministic text-to-trajectory mapper. Its
+familiar2.37% vs unseen82.31% failure remains the relevant historical warning.
+New fresh16 reserves four whole new form families outside prior1032 generator
+examples: a01-023, a01-007, g06-000, a01-020. Exclude whole families AND their
+normalized transcripts globally from TRAIN. DEV128 reserved-writer lines;
+fixed32 DEV probes select checkpoints. Existing exposed-held32 and fresh16 are
+confirmed only after the bounded budget, never used for checkpoint selection.
+
+Released-core correctness audit (upstream97bc6a3c, x-transformers1.42.26):
+- Integer timestep casting quantized sinusoidal features: only3/1792 nonzero,
+  99.8326% zeros on7 tested timesteps; t1/t999 embeddings identical. Preserve
+  floating MLP dtype; explicit corpus timestep divisor1000 for scale1000 sinusoid.
+- RoPE applied before splitting concatenated heads rotated only first-head
+  prefix. Split BEFORE applying per-head frequencies; test everyhead explicitly.
+- Padded noise/projection bias leaked through positional convolution. Mask
+  projection and EVERY conv/activation stage; test nonzero attention gates/output.
+- Remove hardcoded CUDA construction and lazy-load optional torchaudio.
+These are actual DiT defects, NOT the cause of the old82% deterministic mapper
+failure, which did not use this backbone. Training paths are not interchangeable.
+
+Frozen codec is actualVAE carrying HAND-INITIALIZED polyphase40 transport in384
+channels, NOT a learned semantic InkVAE or reproduction of the authors' English
+system. Decoder/source probes must pass X/Y RMSE<=.0025, penF1=1, nofalseEOC,
+correct finalEOC; all cached TRAIN+DEV packed40 fields must match XY<=.001 and
+pens exactly. Fresh/held trajectories are not encoded/cached during GPU training.
+Reader is frozen/corpus-familiar, not an independent legibility benchmark. Codec
+previously saw original192 geometry. Generic writer distribution only: no writer
+ID or arbitrary-text style-transfer claim.
+
+Pilot exact protocol: actualDiT dim384/depth8/heads6/head64/text192/conv3/ff4,
+23,231,424 parameters/dropout.05. Cosine1000 diffusion/sampled-z x0 MSE, TRAIN-only
+whitening variance(mu)+mean(exp(logvar)), floorstd.1, all384 channels. Log actual
+geometry40 and unused344 denoising separately. Batch32 length-bucket128 windows,
+all epoch tails retained; AdamW(.9,.99)/wd.0001; LR5e-5/warmup600/cosine1e-6;
+clip1; max12000 updates OR1800 actual TRAIN seconds; seeds72143/72144. Retain
+stroke-boundary prefix nearest30% with probability.7; text-drop.1 also drops
+prefix; valid suffix only loss when retained, otherwise allreal positions.
+NO codec training, no incidental KL/CTC/style. Codec model scale.01 is explicit.
+TRAIN text was checked: NONE of8144 transcripts exceeds its compressed trajectory
+length, so released text curtailment does not drop characters on individual TRAIN
+lines. Requested duration floor>=requested chars prevents inference curtailment.
+
+Genuine target-free evaluation starts randomnoise with requestedtext and TRAIN-only
+pooled duration, no source prefix/length/writerID/trajectory. DDIM50, seeds73142/
+73143, guidance1/2; first decodedEOC else estimatedcap, no forcedEOC or smoothing.
+Evaluate0/1000/3000/6000/12000 andwallstop, fixedTRAIN16/DEV32. Select lowestDEV
+CER atguidance1 overbothnoiseseeds. Confirm selected+last fresh16/exposedheld32,
+correct/swapped/NULL. Swapped controls preserve original noise/estimatedduration
+and explicitly record any swappedtext truncation. No pointwise comparison of a
+stochastic free trajectory to one reference as a success metric.
+
+Prepared `checkpoints/iam_corpus_dit/20261008-223316`; sources/config/dataset pinned
+by hashes. CPU actualbackbone forward/backward+5stepCFG sampling finite;
+initial randomlatentMSE.983262/rawgrad.246889, NOT learned handwriting evidence.
+671tests PASS root+fork. Default Modal command completed/stopped with NO GPU;
+all old apps stopped/zero tasks. Next: upload prepared files withoutoverwrites,
+CPUcloudpreflight, ONET4 worker/durablecallledger/cachegates/boundedpersistence.
+OriginalVolume read-only, outputs v2; no duplicate speculation on observation
+failure. This is a corpus learning pilot, not a promise it will solve composition.

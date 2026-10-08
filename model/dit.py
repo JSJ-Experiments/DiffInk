@@ -42,7 +42,7 @@ class TextEmbedding(nn.Module):
             self.register_buffer("freqs_cis", precompute_freqs_cis(text_dim, self.precompute_max_pos), persistent=False)
             self.text_blocks = nn.Sequential(
                 *[ConvNeXtV2Block(text_dim, text_dim * conv_mult) for _ in range(conv_layers)]
-            ).to('cuda')
+            )
         else:
             self.extra_modeling = False
 
@@ -64,7 +64,7 @@ class TextEmbedding(nn.Module):
         # possible extra modeling
         if self.extra_modeling:
             # sinus pos emb
-            batch_start = torch.zeros((batch,), dtype=torch.long)
+            batch_start = torch.zeros((batch,), dtype=torch.long, device=text.device)
             pos_idx = get_pos_embed_indices(batch_start, seq_len, max_pos=self.precompute_max_pos)
             text_pos_embed = self.freqs_cis[pos_idx]
             text = text + text_pos_embed
@@ -89,12 +89,14 @@ class InputEmbedding(nn.Module):
         self.proj = nn.Linear(latent_dim + text_dim, out_dim)
         self.conv_pos_embed = ConvPositionEmbedding(dim=out_dim)
 
-    def forward(self, x: float["b n d"], noise: float["b n d"], text_embed: float["b n d"], drop_cond=False):  # noqa: F722
+    def forward(self, x: float["b n d"], noise: float["b n d"], text_embed: float["b n d"], drop_cond=False, mask=None):  # noqa: F722
         if drop_cond:  # cfg for cond audio
             x = noise
 
         x = self.proj(torch.cat((x, text_embed), dim=-1))
-        x = self.conv_pos_embed(x) + x
+        if mask is not None:
+            x = x.masked_fill(~mask[..., None], 0.)
+        x = self.conv_pos_embed(x, mask=mask) + x
         return x
 
 
@@ -154,6 +156,10 @@ class DiT(nn.Module):
         drop_cond: bool = False,
     ):
         batch, seq_len = x.shape[0], x.shape[1]
+        if mask is None:
+            mask = torch.ones(batch, seq_len, dtype=torch.bool, device=x.device)
+        else:
+            mask = mask.bool()
         if time.ndim == 0:
             time = time.repeat(batch)
 
@@ -161,7 +167,7 @@ class DiT(nn.Module):
         t = self.time_embed(time)
 
         text_embed = self.text_embed(text, seq_len, drop_text=drop_text)
-        x = self.input_embed(x, noise, text_embed, drop_cond=drop_cond)
+        x = self.input_embed(x, noise, text_embed, drop_cond=drop_cond, mask=mask)
 
         rope = self.rotary_embed.forward_from_seq_len(seq_len)
 
@@ -177,4 +183,4 @@ class DiT(nn.Module):
         x = self.norm_out(x, t)
         output = self.proj_out(x)
 
-        return output
+        return output.masked_fill(~mask[..., None], 0.)

@@ -14,7 +14,6 @@ from typing import Optional
 
 import torch
 import torch.nn.functional as F
-import torchaudio
 # from librosa.filters import mel as librosa_mel_fn
 from torch import nn
 from x_transformers.x_transformers import apply_rotary_pos_emb
@@ -80,6 +79,7 @@ def get_vocos_mel_spectrogram(
     hop_length=256,
     win_length=1024,
 ):
+    import torchaudio  # Optional audio dependency, not needed for handwriting.
     mel_stft = torchaudio.transforms.MelSpectrogram(
         sample_rate=target_sample_rate,
         n_fft=n_fft,
@@ -181,7 +181,14 @@ class ConvPositionEmbedding(nn.Module):
             x = x.masked_fill(~mask, 0.0)
 
         x = x.permute(0, 2, 1)
-        x = self.conv1d(x)
+        if mask is None:
+            x = self.conv1d(x)
+        else:
+            # A padded hidden activation/bias must not feed back into real
+            # neighbors through the next convolution.
+            valid = mask.transpose(1, 2)
+            for layer in self.conv1d:
+                x = layer(x).masked_fill(~valid, 0.)
         out = x.permute(0, 2, 1)
 
         if mask is not None:
@@ -204,7 +211,7 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, theta_resca
     freqs = torch.outer(t, freqs).float()  # type: ignore
     freqs_cos = torch.cos(freqs)  # real part
     freqs_sin = torch.sin(freqs)  # imaginary part
-    return torch.cat([freqs_cos, freqs_sin], dim=-1).to('cuda')
+    return torch.cat([freqs_cos, freqs_sin], dim=-1)
 
 
 def get_pos_embed_indices(start, length, max_pos, scale=1.0):
@@ -410,20 +417,18 @@ class AttnProcessor:
         key = attn.to_k(x)
         value = attn.to_v(x)
 
-        # apply rotary position embedding
-        if rope is not None:
-            freqs, xpos_scale = rope
-            q_xpos_scale, k_xpos_scale = (xpos_scale, xpos_scale**-1.0) if xpos_scale is not None else (1.0, 1.0)
-
-            query = apply_rotary_pos_emb(query, freqs, q_xpos_scale)
-            key = apply_rotary_pos_emb(key, freqs, k_xpos_scale)
-
-        # attention
+        # Reshape BEFORE rotary: dim_head frequencies belong to EVERY head,
+        # not only the first dim_head features of a concatenated projection.
         inner_dim = key.shape[-1]
         head_dim = inner_dim // attn.heads
         query = query.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
         key = key.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
         value = value.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
+        if rope is not None:
+            freqs, xpos_scale = rope
+            q_scale, k_scale = (xpos_scale, xpos_scale**-1.0) if xpos_scale is not None else (1., 1.)
+            query = apply_rotary_pos_emb(query, freqs, q_scale)
+            key = apply_rotary_pos_emb(key, freqs, k_scale)
 
         # mask. e.g. inference got a batch with different target durations, mask out the padding
         if mask is not None:
@@ -653,6 +658,6 @@ class TimestepEmbedding(nn.Module):
 
     def forward(self, timestep: float["b"]):  # noqa: F821
         time_hidden = self.time_embed(timestep)
-        time_hidden = time_hidden.to(timestep.dtype)
-        time = self.time_mlp(time_hidden.float())  # b d
+        time_hidden = time_hidden.to(self.time_mlp[0].weight.dtype)  # NEVER quantize sin/cos to integer timestep dtype.
+        time = self.time_mlp(time_hidden)  # b d
         return time
