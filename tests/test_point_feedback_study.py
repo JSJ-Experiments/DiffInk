@@ -44,7 +44,9 @@ class PointFeedbackStudyTests(unittest.TestCase):
         self.assertEqual(ast.unparse(func['main'].body[0].test),'not train')
         self.assertTrue(any(isinstance(n,ast.Return) for n in func['main'].body[0].body))
         self.assertIn("['no_feedback', 'point_feedback']",ast.unparse(func['coordinate']))
-        self.assertIn('call.get()',ast.unparse(func['coordinate']));self.assertIn('coordinate.spawn()',ast.unparse(func['main']))
+        self.assertIn('call.get()',ast.unparse(func['coordinate']));self.assertIn('coordinate.spawn(relative)',ast.unparse(func['main']))
+        self.assertNotIn('prepare.remote()',ast.unparse(func['coordinate']))
+        self.assertIn('calls_once(',ast.unparse(func['coordinate']))
         options={k.arg:ast.literal_eval(k.value) for k in func['research'].decorator_list[0].keywords if k.arg in ['gpu','retries','max_containers']}
         self.assertEqual(options,dict(gpu='T4',retries=0,max_containers=2))
 

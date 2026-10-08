@@ -4796,3 +4796,74 @@ from preceding pen-upjumps. Thus local history has useful but limited *linear*
 predictability; no irreducible-error lowerbound or reason to erase jumps. Preserved
 `target-local-predictability.json` and script as supplemental evidence, not a new
 blind generalization gate or learned neural intervention.
+
+### Point-feedback final result and infrastructure correction
+
+Originalboth arms complete3000updates, TRAIN-only selection final3000. Control
+(no within-block point feedback) teacherMSE .00345168, mean X/YRMSE .009386/.005846,
+first-index-difference vectorRMSE .0083405, meanline turnp90 23.82degrees;
+minpenF1 .8444, internalfalseEOC0, finalEOC8/8. CPUreader ALL8 sourceCER0,
+teacherTRUE-PEN CER0, teacherPREDICTED-PEN CER2.46%; FREE TRAIN8 CER45.90%, zeroexact,
+zero missingEOC. SwappedCER88.93%. Somewords survive free generation, but wrong
+letters/bogus joins/drift/earlyEOC still make it unacceptable. All8source/teacher/
+correctfree rows inspected for BOTHarms. No new-text gate, no model promotion.
+
+Immediate feedback was WORSE under this matched protocol: teacherMSE .0250157,
+X/Y .20593/.14552, firstdiff .0214844, turnp90 46.82degrees, minpenF1 .2667,
+8falseinternalEOC, finalEOC5/8. TeacherTRUE-PEN CER.82%, PREDICTED-PEN20.08%; FREE
+CER86.07%, zeroexact,2missingEOC; swapped106.97%. This rules out promoting this
+feedback implementation as an automatic solution to eight-point forecast error,
+not every possible point-autoregressive architecture/training policy. We did NOT
+compare oldlinearhead versus newGRUhead on the SAME8-trained regime, so don't
+attribute the control's capacity gain over previous256experiment to head depth
+alone. Standalone8TRAIN capacity now linguistically muchbetter; curve errors and
+penprediction remain, not equivalent to near-lossless originalInkVAE transport.
+
+Both independentCPUreloads preserve ALL8teacherpen states and ALL16correct/swapped
+free lengths/EOC/pen decisions/reader strings; reader/modelstate unchanged.
+Control teacher maxXY drift2.24e-5, free max.00486; feedbackoverall.000156.
+Free trajectories are not byte-identical acrossCPU/GPU, although discrete outputs
+match; no inference discrepancy explains the large reader failure. Control
+teacher→free gap now muchcleaner evidence of self-history instability than the
+underfit256pilot, but no causal exposure-bias intervention has yet succeeded.
+Next: a matched low-LR continuation comparing pureteacher forcing to modest,
+explicitly logged generated-history roll-in, while guarding teacher geometry;
+not another blind256expansion, incidentalCTC/style/KL or normalization change.
+
+New tested cumulative_drift diagnostic includes origin-to-firstpoint, separately
+logs mean displacement error, endpoint residual and *oracle* endpoint-debiased
+axisRMSE. At1500feedback, raw .956/1.531 becomes .108/.103 after target-endpoint
+linear-in-index drift removal. This is evidence of accumulated bias, NOT usable
+at inference, generic smoothing, physicalvelocity, or an irreducible-error bound.
+Do NOT replace savedfree output with this oraclecorrection.3regressions preserve
+true zero-endpoint jitter and reject shape/nonfinite errors.
+
+Infrastructure incident caught during finalreview: original two3000runs completed,
+but CPUcoordinator re-entered, calledprepare AGAIN and created unrequestedrepeat
+`checkpoints/iam_point_feedback/20261008-161602` in SAMEapp. Existingoriginal
+artifacts unchanged. This was not an intentional additional experiment; repeat
+results are not selected or mixed in. Stopapp requested with explicit--yes after
+CLI's first noninteractive stop attempt aborted. Keep original/repeat/logs; exact
+container-reentry rootcause NOT proven. LocaldetachedCLI exited143 earlier; do
+not assume CLIexit or retries=0 means remoteparent cannot re-enter.
+
+Correct both current Modal point-feedback/AR launchers: CPUprepare returnsone
+study BEFORE coordinate.spawn(relative); stableargument survives re-entry.
+Persist pre-spawn intent and returned childcallID in launch-ledger.json, commit
+both transitions; attach knowncalls instead of respawning. Ambiguous interrupted
+submit/commit window and untrackedexistingarm outputs FAILCLOSED, require explicit
+investigation, never a speculativeGPUreplacement. Existing runner exclusivearm
+folder guard remains.5ledgerregressions prove committedintent precedes submit,
+re-entry attaches exactIDs, partialledger launchesonlymissingarm, ambiguoussubmit
+is not repeated and scope/untrackedoutputs cannot be overwritten. Tests595pass
+bothmirrors before finalexistinglauncherASTtest update; rerun follows. Finalreport
+`checkpoints/iam_point_feedback/20261008-160806/report/index.html` preserves all8
+source/truehistory true/predictedpen/free correct/swapped, exactscale markerfree
+SVGs plus explicitfit-to-panel diagnosticcontacts and independentreload evidence.
+
+Authoritative final appstate: STOPPED,0tasks at2026-10-08T16:24:13UTC.595tests
+PASS BOTHmirrors after launcherchanges. GPUbusy originals36.2%/37.0%, CPUtree
+.956/.972core, hottest .573/.581 on2CPU; no CPU saturation. Original measured
+trainingseconds391.07/397.31, clippingfractions10.43%/52.93%. Highfeedbackclipping
+is a plausible optimization contributor, not a controlled lower-LR ablation.
+Do not claim fusedpointGRU cured overallutilization or morecores would fix it.

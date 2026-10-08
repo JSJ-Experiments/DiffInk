@@ -35,7 +35,7 @@ class AutoregressiveStudyTests(unittest.TestCase):
         self.assertIn('from model.ocr import ChineseHandwritingOCR',ast.unparse(functions['prepare']))
     def test_durable_parent_explicit_guard_and_t4_limit(self):
         path=Path(__file__).resolve().parent.parent/'modal_autoregressive_study.py';func={n.name:n for n in ast.parse(path.read_text()).body if isinstance(n,ast.FunctionDef)}
-        main=func['main'];self.assertEqual(ast.unparse(main.body[0].test),'not train');self.assertTrue(any(isinstance(n,ast.Return) for n in main.body[0].body));self.assertIn('coordinate.spawn()',ast.unparse(main));self.assertIn("['fixed', 'adaptive']",ast.unparse(func['coordinate']));self.assertIn('call.get()',ast.unparse(func['coordinate']))
+        main=func['main'];self.assertEqual(ast.unparse(main.body[0].test),'not train');self.assertTrue(any(isinstance(n,ast.Return) for n in main.body[0].body));self.assertIn('coordinate.spawn(relative)',ast.unparse(main));self.assertNotIn('prepare.remote()',ast.unparse(func['coordinate']));self.assertIn('calls_once(',ast.unparse(func['coordinate']));self.assertIn("['fixed', 'adaptive']",ast.unparse(func['coordinate']));self.assertIn('call.get()',ast.unparse(func['coordinate']))
         options={k.arg:ast.literal_eval(k.value) for k in func['research'].decorator_list[0].keywords if k.arg in ['gpu','cpu','memory','timeout','retries','max_containers']}
         self.assertEqual(options,dict(gpu='T4',cpu=2,memory=8192,timeout=5400,retries=0,max_containers=2))
 

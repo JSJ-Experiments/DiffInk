@@ -24,10 +24,12 @@ def research(arm:str,relative:str):
  finally:volume.commit()
 
 @app.function(image=image,volumes={'/data':volume},cpu=0.125,memory=512,timeout=6600,retries=0,max_containers=1)
-def coordinate():
+def coordinate(relative:str):
  import json
- relative=prepare.remote();print(dict(study=relative),flush=True)
- calls=[research.spawn(a,relative) for a in ['fixed','adaptive']]
+ from iam_tools.launch_ledger import calls_once
+ from iam_tools.autoregressive_study import checked_path
+ volume.reload();folder=checked_path('/data',relative);print(dict(study=relative),flush=True)
+ calls=calls_once(folder,['fixed','adaptive'],lambda arm:research.spawn(arm,relative),modal.FunctionCall.from_id,volume.commit)
  results=[call.get() for call in calls]
  volume.reload();(Path('/data')/relative/'orchestration.json').write_text(json.dumps(dict(study=relative,results=results),indent=2)+'\n');volume.commit()
  return dict(study=relative,results=results)
@@ -36,4 +38,5 @@ def coordinate():
 def main(train:bool=False):
  if not train:
   print('No GPU allocated. Explicit --train launches paired fresh8000-update bounded fixed/adaptive autoregressive T4 pilots; no new blind sources.');return
- call=coordinate.spawn();print(dict(coordinator_call=call.object_id),flush=True);print(call.get(),flush=True)
+ relative=prepare.remote() # stable argument survives coordinator re-entry
+ call=coordinate.spawn(relative);print(dict(study=relative,coordinator_call=call.object_id),flush=True);print(call.get(),flush=True)
