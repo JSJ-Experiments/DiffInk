@@ -5380,7 +5380,10 @@ No new loss/stop gate/architecture, KL/style/OCR objective or blind text introdu
 
 Both finals pass original perline teacher geometry/pen/CER guard and are selected.
 Continuous step500 temporarily FAILS m02 X/Y guard; retain it in report, do not
-hide intermediate regressions. No clipping in either arm. Total actual TRAIN time
+hide intermediate regressions. Detached had zero clipped updates; continuous had
+ONE of1000 at step437 (rawnorm6.455952 > clip5, fraction.001). Earlier wording
+"no clipping in either arm" was incorrect; immutable saved JSON already has the
+correct fraction, and previously published report bytes are preserved. Total actual TRAIN time
 including pre-interruption433.785/464.910seconds. Recovery-only measuredGPUbusy
 35.49/36.40%, CPUtree .980cores, hottestthread .596/.609 on2requestedCPU. No CPU
 saturation evidence. Small sequential kernels remain a throughput limitation, not
@@ -5452,3 +5455,52 @@ selected/final checkpoints, HDF5 outputs, source archives, interrupted snapshots
 CPU Jacobian/allocation audits and publication hashes accompany it. Active overall
 English new-text composition goal remains incomplete. These are familiar8 capacity/
 robustness controls, NOT a lowered unseen-text82% result or paper reproduction.
+
+### Own-history target-displacement control PREPARED (not a composition claim)
+
+Selected continuous1000 parent ce63620dabecdf80d192ac1e73d38ee823ea1bb4d39c7323729c48dcdff00f0a
+passes teacher guard but source-length own path still has local distortion.
+Its complete objective directly supervises cumulative positions and pens; own
+normalized displacement MSE is diagnostic ONLY. New matched3-arm continuation:
+control retains COMPLETE parent scalar/whole-model AdamW; ink_delta adds target
+normalized chronological displacement MSE within true strokes (previous GT state
+continue, both endpoints real, cross-block links included, no origin/pen-up jump);
+all_delta includes all real chronological offsets including jumps/origin. This is
+TARGET matching, not smoothing: authentic corners/hooks remain supervised. Index
+increments are not physical velocity because original RDP spacing is nonuniform.
+Source-index targets remain potentially ambiguous after own path diverges.
+
+ALL8 existingTRAIN/7writers, no new DEV/blind prompt. Same architecture/model,
+whole optimizer, order65142/trainseed65143; LR1e-5 batch8 clip5 AdamW(.9,.99) wd0;
+2000updates/1800TRAIN-seconds each T4, eval0/250/500/1000/2000, swapped0/final.
+Both new coefficients calibrated ONCE on first common ALL8 scheduled batch, each
+25% of initial COMPLETE-parent full-model gradient. Calibration model/RNG unchanged.
+Complete norm .04691361636; ink norm280.5555115/all403.1749268; coefficients
+4.1804219165624554e-5 /2.909011278088165e-5. Parent ownXY/ownpen coefficients retained
+5.006895593114276e-5 /3.159880562284457e-6; teacher pen .024860149190817294 and
+teacher cumulativeXY .009549097811244269 unchanged. A modest FULL gradient ratio
+is NOT a fixed per-head ratio or per-step ratio; scheduled actual ratios logged.
+
+All3 retain full continuous XY feedback graph, nondifferentiable hardpen argmax.
+Source extent only supervised TRAIN unroll/mask; actual free generation only text/
+writer, learned firstEOC/common2048 cap, no source length or token-clock stop gate.
+Selection stays actual freeTRAIN CER then teacher offsetMSE among original perline
+capacity guards; retain selected AND final, all intermediate gate failures. Reader
+frozen/evaluator-only and corpus-familiar. No smoothing/architecture change, no
+incidental KL/style/CTC loss. Familiar8 robustness is NOT new-text composition.
+
+Prepared `checkpoints/iam_own_delta/20261008-220815`; launcher `modal_own_delta.py`
+uses SDK read-only original Volume mount, outputs only diffink-experiments-v2,
+bounded120s sync/explicit persist phase, exclusive arm dirs and durable three-child
+ledger (never recreate study/relaunch after coordinator re-entry). CPU source,
+archive and reader hashes preflight before GPU; default command verified NO GPU.
+New reusable masks/objective/protocol/report guards tested; completed result and
+visual conclusions still pending, do not credit unmeasured improvement.
+
+CPU preflight COMPLETE: exact parent hashes and initial guard PASS; actual free
+CER24.59016%/1 reader-exact, swapped90.57377%; teacher X/Y .006199/.006953,
+penF1=1 and teacher true-pen CER0, reproducing selected source. Saved CPU HDF5,
+metrics and preflight source under study/cpu-preflight (CPU/CUDA differences are
+not mislabeled optimizer learning). Four immutable prepared files uploaded/readback
+verified on v2, ZEROoverwrites. Modal current docs verified SDK read-only mount and
+v2 sync persistence. Previous published reports/checkpoints remain untouched.
