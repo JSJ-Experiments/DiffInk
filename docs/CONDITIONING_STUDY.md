@@ -3667,3 +3667,182 @@ text-alignment study is separately needed for composition; more tiny-set polishi
 alone will not establish that. Existing data are sufficient for these diagnostics.
 440 tests pass root/fork (16new); sources, moments/RNG, logs, metrics and galleries
 preserved. Own GPU/CPU apps completed; user Modal shell was not touched.
+
+## Fresh text-composition alignment control (2026-10-08, completed)
+
+This investigation pivots from polishing known trajectories to testing character
+composition. The earlier TRAIN2.367% versus unseen82.305% CER, with unseen swapped
+text81.481%, is **not an acceptable or inevitable small-data outcome**. It is
+consistent with memorized conditioning and insufficient reusable alignment;
+attention observations are suggestive, not ground-truth character alignment.
+The former weak1024-line experiment was underfit and does not rule out more data.
+
+Fresh paired study: `checkpoints/iam_generation_alignment/20261008-081416`.
+Both arms start from identical **new** neural weights/empty Adam/RNG, not the
+polished memorized model. Same256TRAIN/32writers, physical batch8, width256,
+6blocks/4heads, no dropout/CTC/style/KL, original TRAIN32 whitening, frozen
+initialized polyphase40 transport codec and frozen corpus-familiar reader.
+Fixed inherited XY.004828983342 and target-index-difference.018978251569 anchors
+are shared; not recalibrated on the fresh network. Updates24000, warmup1000
+1e-5→5e-5, hold through16000, cosine→1e-5. Actual schedules/LRs/seeds/checkpoint
+hashes and every TRAIN line used in selection are verified from saved artifacts.
+
+- `global`: original unrestricted cross-attention.
+- `soft_gaussian`: finite log Gaussian, center based on TRAIN-average packed
+  blocks/character, sigma2.5characters, floor−12;3heads biased/1global for delayed
+  dots/crossbars, BOS bias−2, plus trainable text/ink PE **amplitudes**. This is a
+  bundle, not an isolation of PE versus masking. Distant attention remains possible.
+
+Reference: TrInk EMNLP2025 sections2.2–2.3,
+<https://aclanthology.org/2025.emnlp-main.244/>. The actual paper scales PE
+amplitudes, not positional indices, and uses TRAIN-average points/character for
+its center. Our intervention is only inspired by those components: no contextual
+text encoder/autoregression/offset MDN or600k-example training. This remains a
+standalone deterministic zero-input mapper, **not** released InkDiT, semantic
+InkVAE or a TrInk reproduction.
+
+Duration inference also gets a TRAIN-only ridge baseline on requested text
+features and shrunk writer intercepts. No sample ID or target points are accepted
+by its prediction API. TRAIN fit absolute relative duration error mean6.64%,
+median5.54%,p90 14.58%; TRAIN-average1.53778packed blocks/character. These are
+in-sample calibration statistics, not unseen performance. Oracle and estimated
+lengths are separated, with fixed-length swapped/NULL controls. Models still
+train on oracle lengths; estimating lengths at inference introduces distribution
+shift as well as removing an identity shortcut.
+
+**TRAIN-only convergence extension, predeclared before soft arm completion:** if
+either arm's matched-final TRAIN CER exceeds10%, continue BOTH24000updates at
+1e-5 with their own full model/Adam/RNG, same new order. Global final TRAIN22.93%
+triggered this; do not conflate its underfit fresh result with the earlier long-
+trained2.37% prototype. Sealed confirmation stays unopened until both extended
+budgets/selection finish. Original immutable study and continuation are separate.
+
+Confirmation is metadata-sealed before training:16IAM lines/8known writers,
+new IDs/normalized transcripts outside every1032 prior packed generator example,
+forms excluded from CURRENT fresh TRAIN/dev. Older1024 runs touched other lines
+from every available form for these writers: historical form exposure is NOT
+hidden. A second seal contains16 genuinely new grammatical recombinations, with
+no paired trajectory. Use TRAIN-only selected checkpoints after both budgets;
+no confirmation tuning or reselection. Source-reader failures stay in denominators.
+Synthetic prompts get predicted durations ONLY; no invented oracle geometry.
+Reports preserve full marker-free galleries, true first-EOC stopping, oracle vs
+estimated controls, CPU reload and kernel-drift-qualified attention observations.
+Completed results and conclusions follow below.
+
+### Completed results and interpretation (2026-10-08)
+
+Both fresh budgets completed, then both TRAIN-triggered continuations completed.
+Final source: `checkpoints/iam_generation_alignment_continuation/20261008-084328`.
+Total48000updates/arm,1500exposures/every TRAIN line, same order/LRs and full
+own-arm Adam/RNG restoration. No clipping, no frozen codec/reader drift. Both
+TRAIN-only best selections are the matched final step48000. No subsequent
+training or hyperparameter selection used confirmation outputs.
+
+| Evaluation (CER) | Global | Soft Gaussian + PE amplitudes |
+|---|---:|---:|
+| Fresh24000 TRAIN256 / oracle duration |22.929%|17.336%|
+| Final48000 TRAIN256 / oracle duration |5.020%|2.406%|
+| Final TRAIN / swapped text, fixed oracle duration |84.120%|84.406%|
+| Final TRAIN / estimated duration |63.584%|61.217%|
+| Previously inspected development8 / oracle |83.128%|85.597%|
+| Development8 / estimated duration |80.658%|83.951%|
+| Sealed paired16 / oracle |85.714%|84.009%|
+| Sealed paired16 / estimated duration |82.729%|84.648%|
+| Sealed synthetic16 / estimated duration ONLY |81.208%|78.523%|
+
+No confirmation prompt is exact in either arm. Sealed paired source reader is
+**16/16exact,CER0**, and all264 existing sources are reader-exact with faithful
+codec round trips. Failure is visible scribbling, not simply a reader falsely
+rejecting plausible alternative writing. Synthetic prompts have no reference
+trajectory, oracle duration or aligned RMSE. Correct-vs-swapped paired estimated
+CER is global82.729/82.729%,soft84.648/83.795%; synthetic81.208/80.872% and
+78.523/80.034%. The slight differences are not a composition gate or replicated
+statistical evidence of generalization.
+
+The intervention **does improve familiar-text fitting** at matched budget:
+TRAIN CER reduces52.1%, exact transcripts82→152/256. X/Y RMSE .042636/.004360
+→.032951/.003198; target-index-segment error .029275→.024456; second-index-
+difference .038677→.033892. All TRAIN pen boundaries/termination correct in both
+arms. This is not an across-regime comparison with the older pretrained polish
+model, and not proof of visually-lossless local curves. Marker-free TRAIN views
+still show angular/flattened bends; authentic source microstructure is not all
+preserved. No smoothing/resampling or decoder change explains this comparison.
+
+**New decisive diagnostic: duration fragility, even on familiar text.**
+Only36/256 predicted durations equal the oracle block count; on those36, every
+reader string is unchanged (global CER4.920% both modes;soft2.554% both). On the
+other220, every reader string changes: global5.036→72.934%,soft2.382→70.567%.
+The predictor's overall TRAIN duration error is only6.64%. This is strong
+sensitivity to exact timing/grid conditions, not just lack of known characters.
+It supports the earlier unique writer+oracle-length shortcut concern but does
+**not** separately prove lookup versus out-of-distribution timing/index inputs.
+
+Code contains both absolute position and `PE(relative_progress * 100)`, where
+relative progress uses `mask.sum()-1`. Changing total duration changes common-
+prefix features throughout a line: index49 with50→51blocks changes the PE
+argument100→98, a2-radian highest-frequency phase shift. The Gaussian center on
+common queries is unchanged, but normalized PE and self-attention context change.
+This is a plausible contributing mechanism, **not yet an isolated causal ablation**.
+Next experiments should explicitly address this duration/grid dependence rather
+than merely improve a duration regressor or further polish memorized outputs.
+
+**A diagonal attention plot is not sufficient.** On4fixed stratified lines,
+last-layer soft biased-head time/token-barycenter correlations average
+.989/.966/.984, versus global.513/.170/.391; the un-biased fourth head remains
+negative, −.234 versus−.221. The intervention genuinely induces approximate
+left-to-right attention, yet new text remains unreadable. These are descriptive
+soft-attention observations, NOT true character-boundary accuracy, and an
+approximate linear center is not necessarily the correct alignment. Global heads
+and ink self-attention can still carry whole-prompt identity information. Observing
+weights switches kernel: output max drift1.16e-5global/7.39e-6soft, recorded.
+
+What this rules out / does not rule out:
+- Basic source decoding, alphabet OOV, gross CPU/GPU reload mismatch, broken reader
+  on these paired sources, and simple absence of a Gaussian prior are not adequate
+  explanations or fixes for this failure.
+- Bad TRAIN fit alone is no longer adequate: soft reaches2.4%TRAIN CER but still
+  fails the fresh prompts. TRAIN and new-text quality must stay separate gates.
+- We have **not** ruled out better learned/local alignment, contextual text
+  representations, an autoregressive/content-semantic objective, more data under
+  a strong converged regime, or duration-aware training. The older1024failure
+  remains underfit evidence, not proof that data cannot help.
+- No diagnosis of an irreducible InkVAE architecture, dataset corruption, or a
+  broken released InkDiT is justified: this is the separate deterministic mapper.
+
+**Recommended next controlled stage:** remove/replace the target-length-dependent
+high-frequency relative-position identity cue (retain the control), and make
+training tolerate target-free timing; separately test contextual character
+representations/stronger compositional alignment. Any temporal augmentation must
+preserve true stroke geometry/corners, not smooth it or invent target alignment.
+Reserve NEW confirmation prompts before these experiments; current confirmation
+is now exposed, not reusable as a fresh blind gate. Revisit a larger corpus only
+with the stable training protocol and separate oracle/predicted-duration reports.
+Do not incidentally enable KL/style or declare original semantic InkVAE/InkDiT
+ready because familiar-text curves/CER improved.
+
+### Artifacts, verification and visual review
+
+- Full report: `.../20261008-084328/report/index.html`, metrics `summary.json`,
+  all264marker-free lines +16paired +16synthetic, predicted pens/first-EOC stopping.
+- Sealed outputs/source preflight: `.../confirmation/summary.json`, packed
+  `source.h5`, both selected models' oracle/predicted/control HDF5/JSON.
+- Same-text timing comparisons: `.../diagnostics/duration-fragility/index.html`,
+ 8fixed TRAIN examples, all256 duration-matched/error-bin metrics and audit source.
+- Attention raw HDF5/JSON and fixed4-line,6-layer/4head descriptions in `report/`.
+- Independent CPU reload8stratified lines/arm: maxXY2.81e-5,zero pen mismatches,
+  all reader transcripts match GPU. Every TRAIN line enters checkpoint selection;
+  actual seeds/state/data/source hashes, budgets/minibatches/LRs are verified.
+- Fresh initialization regenerated independently. CPU-only/CUDA wheel normal-
+  initialization math differs at most1.61e-6 in text embeddings; numerical2e-6
+  tolerance applies ONLY to this cross-wheel regeneration. Actual arm-to-arm
+  initial weights/RNG and own-parent restored weights/Adam/RNG remain bitwise equal.
+- Manually inspected ALL16paired and ALL16synthetic outputs,12TRAIN lines,
+ 4development lines, all8same-text duration comparisons, and the held attention
+  heatmaps. All264galleries saved, not all manually reviewed. Original named
+ `p08-936z-05`/`a07-421z-02` are outside this264 mapper scope, not retested here.
+- 455tests pass root/fork (15new vs440). Original fresh source archive, continuation
+  archive, full moments/RNG/logs/checkpoints and reporter/confirmation sources kept.
+- Own2T4apps and CPUreport app finished/stopped; no user app stopped or modified.
+
+**Verdict:** useful controlled fitting improvement and a much clearer timing
+failure, but composition still FAIL. No production/full-IAM/InkDiT promotion.
