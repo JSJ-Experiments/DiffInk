@@ -95,8 +95,7 @@ def generate(relative,root='data'):
                 if json.loads(g.attrs['row'])!=r or len(q)!=r['generated_points']:raise ValueError('saved row/trajectory mismatch')
                 states=q[:,2:].argmax(-1);hits=np.flatnonzero(states==2)
                 if r['found_eoc']!=(len(hits)>0) or (len(hits) and (len(hits)!=1 or hits[0]!=len(q)-1)):raise ValueError('actual first decoded EOC must be the reported stop')
-                svgname=f'{stage}-{j}.svg';(out/svgname).write_text(svg(q));label=f'{r["split"]} | {r["sample_id"]} | {r["policy"]} | seed{r["seed"]} | guidance{r["guidance"]}'
-                sections.append('<section><h3>'+html.escape(label)+'</h3><p>Requested: '+html.escape(r['text'])+'</p><p>Supplied: '+html.escape(repr(r['conditioning_text']))+'</p><p>Reader: '+html.escape(repr(r['decoded']))+f' | errors{r["errors"]}/{r["characters"]} | {len(q)}points | EOC={r["found_eoc"]}</p><div class="strip"><img src="'+svgname+'"></div></section>')
+                sections.append(trajectory_section(r,q))
         page=f'gallery-{stage}.html';(out/page).write_text(_head('All outputs '+stage)+'<a href="index.html">Summary</a><p>Every declared row, no selection by appearance. Geometry is rendered at fixed100px/model-unit; scroll strips. No smoothing or width normalization.</p>'+''.join(sections));pages.append((stage,page,ev['aggregate']))
     table=[]
     for stage,page,a in pages:
@@ -116,4 +115,14 @@ def generate(relative,root='data'):
 
 
 def _head(title):
-    return '<!doctype html><meta charset="utf-8"><title>'+html.escape(title)+'</title><style>body{font:16px system-ui;max-width:1400px;margin:30px auto}.strip{overflow:auto;border:1px solid #ddd;max-height:650px}.strip img{display:block;max-width:none}td,th{border:1px solid #ccc;padding:8px}table{border-collapse:collapse}section{margin:35px 0}pre{white-space:pre-wrap}</style>'
+    return '<!doctype html><meta charset="utf-8"><title>'+html.escape(title)+'</title><style>body{font:16px system-ui;max-width:1400px;margin:30px auto}.strip{overflow:auto;border:1px solid #ddd;max-height:650px}.strip svg{display:block;max-width:none}td,th{border:1px solid #ccc;padding:8px}table{border-collapse:collapse}section{margin:35px 0}pre{white-space:pre-wrap}</style>'
+
+
+def trajectory_section(row,points):
+    """Inline exact marker-free SVG: no per-output inode or hidden rescaling.
+
+    Corpus galleries can contain thousands of outputs. Original volume is near
+    its inode limit; keep complete rows in a few HTML files, never prune rows.
+    """
+    r=row;label=f'{r["split"]} | {r["sample_id"]} | {r["policy"]} | seed{r["seed"]} | guidance{r["guidance"]}'
+    return '<section><h3>'+html.escape(label)+'</h3><p>Requested: '+html.escape(r['text'])+'</p><p>Supplied: '+html.escape(repr(r['conditioning_text']))+'</p><p>Reader: '+html.escape(repr(r['decoded']))+f' | errors{r["errors"]}/{r["characters"]} | {len(points)}points | EOC={r["found_eoc"]}</p><div class="strip">'+svg(points)+'</div></section>'

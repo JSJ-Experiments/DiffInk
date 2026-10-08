@@ -1,5 +1,5 @@
 import copy,unittest
-from iam_tools.report_corpus_dit import aggregate,verify_evaluation,verify_log
+from iam_tools.report_corpus_dit import aggregate,verify_evaluation,verify_log,trajectory_section
 class CorpusDiTReportTests(unittest.TestCase):
     def fixture(self):
         cfg=dict(eval_noise_seeds=[11,12],eval_guidance=[1.,2.]);data=dict(records=dict(a=dict(text='ab')),duration={});rows=[]
@@ -59,4 +59,14 @@ class CorpusDiTReportLogTests(unittest.TestCase):
         with self.assertRaises(ValueError):verify_log(c,d,r,rows)
         c,d,r,rows=self.fixture();c['max_updates']=5
         with self.assertRaises(ValueError):verify_log(c,d,r,rows)
+class CorpusInlineRenderTests(unittest.TestCase):
+    def test_inline_svg_keeps_fixed_scale_and_escapes_user_transcript(self):
+        import numpy as np
+        r=dict(split='dev',sample_id='id',policy='correct',seed=1,guidance=1.,text='<script>x</script>',conditioning_text='<script>x</script>',decoded='<b>',errors=1,characters=2,found_eoc=True)
+        section=trajectory_section(r,np.array([[0.,0.,1,0,0],[2.,1.,0,0,1]]))
+        self.assertIn('<svg ',section);self.assertNotIn('<img ',section);self.assertNotIn('<script>',section);self.assertIn('&lt;script&gt;',section);self.assertIn('width="212.000" height="112.000"',section);self.assertNotIn('<circle',section)
+    def test_inline_render_still_rejects_invalid_geometry(self):
+        import numpy as np
+        r=dict(split='dev',sample_id='id',policy='correct',seed=1,guidance=1.,text='a',conditioning_text='a',decoded='',errors=1,characters=1,found_eoc=True)
+        with self.assertRaises(ValueError):trajectory_section(r,np.array([[float('nan'),0.,0.,0.,1.]]))
 if __name__=='__main__':unittest.main()

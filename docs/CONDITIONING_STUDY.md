@@ -5636,3 +5636,118 @@ No duplicate eight-line GPU follow-up. Corpus pilot remains the active experimen
 by750 updates, finite x0loss.51059/geometry40loss.36462/unused344loss.52757;
 57.73TRAIN-seconds, rawgrad.36/unclipped. These shuffled losses only establish
 optimizer progress, not new-text readability. Wait for DEV/confirmation galleries.
+
+
+## Corpus actual-DiT pilot completed: failed usable generation (2026-10-08)
+
+Supersedes the pending baseline status above. One T4 call completed 12000 updates,
+906.234 actual TRAIN seconds, 8144 lines/186 writers, clip fraction0. All34
+terminal cloud artifacts were downloaded/byte-verified (1,768,510,192bytes).
+DEV-only checkpoint selection chose6000 (12000 tied; earlier retained).
+
+| guidance1, both noises | TRAIN16 CER | DEV32 CER |
+|---|---:|---:|
+|0|100%|100%|
+|1000|84.829%|84.765%|
+|3000|83.226%|83.998%|
+|6000 selected|81.624%|82.106%|
+|12000|82.799%|82.106%|
+
+Final guidance2 DEV80.726%. Selected/final fresh16 CER83.300/82.406% atg1;
+g2 81.610/81.412%. Selected/final exposed-held32 CER81.149/82.661% atg1;
+g2 81.502/81.653%. ZERO exact sentences in all evaluations. First-noise fresh
+selected correct/swapped/NULL83.698/82.107/83.101%; final82.107/84.095/81.909%.
+There is no reliable correct-text advantage. Unlike the earlier familiar-mapping
+memorizer, TRAIN generation is also bad: underfit generation/weak conditioning,
+not demonstrated familiar-text overfit. Different benchmarks must not be equated.
+Fresh confirmations are now EXPOSED; cannot call them fresh for future selection.
+
+Source gates passed all8272 cache rows; source probe XY errors<=.000015 and
+perfect pens. Genuine-source reader CER TRAIN16=0%, DEV32=8.691%: evaluator
+imperfection does not explain generated~82%/visually unreadable output. This
+hand-initialized transport is NOT learned semantic InkVAE/paper reproduction.
+
+Visual review: all192 progress1000 trajectories (TRAIN16+DEV32, 2seeds/2guidances)
+and all192 selected/final primary-seed confirmation trajectories (48IDs,2guidances)
+were inspected in contact sheets. Angular crossings/scribbles/generic fragments,
+not requested readable sentences. Secondary confirmation noise and swapped/NULL
+are in the full marker-free fixed-scale report but not exhaustively visually
+reviewed. Report generated locally at
+`data/checkpoints/iam_corpus_dit/20261008-223316/report/index.html`; publication
+is separately verified, not inferred from report generation.
+
+CPU-only target-informed diagnostic atstep3000, all48 fixed TRAIN/DEV, timesteps
+0/10/100/500/900/999, same source posterior/noise, correct/rotated-order/NULL:
+DEV t0 active40MSE.02690, XY16.02805; t999 active40correct.72361,
+NULL.72734/rotated.72464. Unused344 t500MSE.51463 vs Gaussian analytic.50975;
+t9991.00577 vs1.00389. Denoising learns nuisance near its Gaussian baseline,
+while low-noise geometry is inaccurate and text has little benefit. Known source
+length/posterior deliberately supplied; NOT free generation/generalization proof.
+Initial CPU process SIGTERM preserved, diagnostic resumed atomically in six-line
+computational chunks, no GPU/retraining/checkpoint selection. Unused channels are
+NOT causally established to sabotage training: intervention is required. Plausible
+next tests are compact meaningful trajectory channels and denoising parameterization,
+not further eight-line pen/stop/head refinement. Semantic learned VAE remains a
+separate larger hypothesis. No successor has launched at this documentation point.
+
+TRAIN resources:147 retained samples GPUbusymean83.54%,CPUcoresmean.970,
+~422.9examples/sec, medianstep.0721s. No sustained alerts is NOT proof of no
+bottleneck: per-update same-phase calls reset monitor window/generation and dropped
+concurrent samples. Fixed set_phase idempotence for identical names, with20 monitor
+tests; applies to NEXT run only. Reporter uses inline SVG rather than thousands
+of files to avoid original Volume inode pressure.686 tests PASS root andfork.
+
+## Next conceptual intervention: compact trajectory diffusion factorial
+
+Implement `iam_tools/compact_dit.py`, `compact_dit_study.py`, guarded
+`modal_compact_dit.py`. Four arms: full384/x0, compact40/x0, full384/diffusion-v,
+compact40/diffusion-v. This is a CORPUS-scale representation/denoising test,
+not an eight-line head/stop/horizon refinement and not learned semantic InkVAE.
+`v` means the diffusion rotated-noise target, NOT trajectory physical velocity.
+
+Reuse the SAME immutable TRAIN8144/186 writers, DEV128/fixed32, frozen cache and
+TRAIN-only whitening. No fresh or exposed-held confirmations reopened: previous
+fresh16 is now exposed. TRAIN16/DEV32 free generation from requested text/random
+noise/TRAIN-only duration; DDIM50,2seeds, guidance1/2, correct/swapped/NULL controls
+at0/final. DEV guidance1/both seeds selects; reader's real-source DEV CER8.691%
+remains context. No oracle length/prefix at generation, no smoothing/forced end.
+Same12k updates/1800TRAIN-seconds per arm, batch32/order72144/seed72143,
+LR5e-5/warmup600/cosine1e-6, AdamW(.9,.99),clip1, prefix.7/textdrop.1.
+At most TWO simultaneous T4 workers; four call IDs persist before/after spawn,
+no speculative restart. Original Volume read-only, all outputsv2.
+
+Initialize a canonical384 model and retain IDENTICAL backbone/text/time state in
+all arms. Compact input projection keeps first40 latent and ALL192 text columns;
+output first40 rows. Architecture hidden width/depth/attention unchanged. Fresh
+posterior and diffusion noise drawn in full384 width/layout BEFORE slicing, so
+all arms share batches/timesteps/noise/drop draws; full-x0 helper is regression
+checked against baseline noisy tensors/RNG/loss. Both compact arms only reconstruct
+active40 fields; the missing344 are TRAIN-mean at frozen-codec decode. This changes
+loss allocation as well as nuisance input/output dimensionality: a positive compact
+result alone would NOT separate gradient dilution from nuisance representation.
+
+Diffusion-v target = sqrt(alpha)*epsilon - sqrt(1-alpha)*z; convert predicted v to
+x0 = sqrt(alpha)*zt - sqrt(1-alpha)*v. This supplies a low-noise identity path,
+AND uniform v-MSE changes effective SNR weighting relative to uniform x0-MSE.
+A win is not proof the skip alone caused it. Low-noise accuracy of an untrained
+v model can improve BY CONSTRUCTION; only free generation/text-control/visual
+metrics establish useful learning. Log comparable reconstructed-x0 XY16/pen24/
+active40 errors separately from each arm's objective. Fixed48 target-informed
+source/noise diagnostics at6timesteps and correct/rotated-order/NULL are explicitly
+NOT free generation. GPU noise is shared across these four arms, not claimed
+bit-identical to the earlier CPU diagnostic.
+
+Preflight uncovered small nonzero frozen-decoder coupling from the 'unused'344.
+CPU intervention on all48 source probes: TRAIN-mean substitution maxXY1.49e-8,
+maxpenlogit3.81e-6 (float32 rounding scale), ZERO pen changes. Independent normal
+nuisance maxXY1.1444e-4 (~.0114pixel at100px/unit), maxpenlogit4.77e-5, ZERO pen
+changes. These channels are NEAR-unused, not mathematically independent. Preserve
+this audit and initial overly strict gate failures; do not infer independence.
+Runtime gates TRAIN-mean XY<=1e-6/penlogit<=1e-5, random XY/logit<=2.5e-4,
+zero hard-pen changes acrossall48; abort if materially coupled. Random cap means
+<=.025pixel at primary report scale, not zero. This is source-probe evidence,
+not certification for arbitrary out-of-distribution latent vectors.
+
+No KL/CTC/style/codec training. No semantic or writer-style control claim. If all
+arms remain unreadable, do NOT continue toy loss/head polishing: the semantic
+representation/conditioning design remains a larger unresolved direction.

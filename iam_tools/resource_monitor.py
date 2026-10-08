@@ -147,7 +147,13 @@ class ResourceMonitor:
 
     def set_phase(self, name):
         with self.lock:
-            self.phase = str(name); self.generation += 1; self.phase_start = time.monotonic(); self.window = []
+            name = str(name)
+            # Training loops may announce the same phase every update. This is
+            # NOT a transition: resetting would permanently suppress sustained
+            # alerts and discard samples from the still-homogeneous window.
+            if name == self.phase:
+                return
+            self.phase = name; self.generation += 1; self.phase_start = time.monotonic(); self.window = []
 
     @contextlib.contextmanager
     def in_phase(self, name):

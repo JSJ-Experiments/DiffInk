@@ -74,6 +74,30 @@ class ResourceTests(unittest.TestCase):
             result=m.close();self.assertAlmostEqual(result['phases']['train']['examples_per_second'], 16/.3)
             self.assertTrue((Path(folder)/'resource-summary.json').exists())
 
+    def test_repeated_train_phase_announcements_preserve_sustained_alert_window(self):
+        with tempfile.TemporaryDirectory() as folder:
+            m=ResourceMonitor(folder,interval=5,sustained_seconds=30)
+            m.set_phase('train');m.phase_start=0;generation=m.generation
+            for t in range(5,46,5):
+                m.set_phase('train');m.record(sample(t),generation)
+            self.assertEqual(m.generation,generation);self.assertEqual(m.phase_start,0)
+            self.assertEqual(len(m.samples),9);self.assertEqual(len(m.alerts),1)
+            self.assertEqual(m.alerts[0]['code'],'serial_cpu_gpu_low')
+
+    def test_same_phase_context_is_not_a_transition_but_evaluation_resets_window(self):
+        with tempfile.TemporaryDirectory() as folder:
+            m=ResourceMonitor(folder,interval=5,sustained_seconds=30)
+            m.set_phase('train');m.phase_start=0;generation=m.generation
+            for t in range(5,26,5):m.record(sample(t))
+            window=list(m.window)
+            with m.in_phase('train'):self.assertEqual(m.window,window)
+            self.assertEqual(m.generation,generation)
+            with m.in_phase('eval'):
+                self.assertEqual(m.window,[]);m.record(sample(30))
+            self.assertEqual(m.phase,'train');self.assertEqual(m.window,[])
+            self.assertGreater(m.generation,generation)
+            self.assertEqual(m.alerts,[])
+
     def test_straddled_phase_sample_dropped(self):
         with tempfile.TemporaryDirectory() as folder:
             m=ResourceMonitor(folder);old=m.generation;m.set_phase('train');m.record(sample(5),old)
