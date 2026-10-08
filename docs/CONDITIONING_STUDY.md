@@ -4168,3 +4168,14 @@ Modal's long-training example. The current run's canceled coordinator cannot
 write its final orchestration.json: separately retrieve BOTH saved FunctionCall
 results and then stop only our detached app once both are complete. Do not claim
 the current remote parent remained active; only children survived the test.
+
+Before final candidate freeze/opening, expanded the new composition gate to also
+report a constant256-block budget for every paired and synthetic prompt, with
+correct/swapped/NULL text and first learnedEOC stopping. This tests the causal
+contract without a too-short estimated window confounding composition. Paired
+source length only enters post-generation reader diagnostics. Synthetic
+reference/window metrics explicitly omitted; no fake oracle/reference. New
+unit test asserts fixed mask/window and omitted unpaired target metrics.
+Protocol amendment recorded in `reserved-confirmation/budget-protocol.json`,
+source snapshots accompany the CPU opening. No new prompt scored/loaded and no
+model/loss/data/schedule/checkpoint-selection change due to this amendment.

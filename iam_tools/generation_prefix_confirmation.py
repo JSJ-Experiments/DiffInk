@@ -26,6 +26,7 @@ def confirm(directory, repo, root='data'):
     from .generation_cache import CachedLatentPool
     from .generation_coverage_study import evaluate
     from .generation_duration_eval import evaluate_duration
+    from .generation_prefix_budget import evaluate_generous
     from .generation_study import read_sequence
     from .generation_capacity import DATA
     from .generation_timing_study import PARENT
@@ -68,7 +69,7 @@ def confirm(directory, repo, root='data'):
     codec,_,_,cc,_,_=load(Path(repo)/'configs/engineering_english.yaml',repo,root,cfg['source_rel'],cfg['source_sha256'],writer_id=None)
     codec.eval().requires_grad_(False);reader,_=load_reader(root,cc);stats=torch.load(root/DATA/'whitening.pt',weights_only=True)
     cd=tensor_digest(codec.state_dict());rd=tensor_digest(reader.state_dict());latents={};targets={};preflight=[]
-    out.mkdir();(out/'confirmation-source.py').write_bytes(Path(__file__).read_bytes())
+    out.mkdir();(out/'confirmation-source.py').write_bytes(Path(__file__).read_bytes());(out/'budget-evaluator-source.py').write_bytes(Path(__file__).with_name('generation_prefix_budget.py').read_bytes())
     with torch.no_grad(),h5py.File(pool/'lines.h5') as f,h5py.File(out/'source.h5','w') as dest:
         from model.losses import mixture_expectation
         for sid in ids:
@@ -89,8 +90,10 @@ def confirm(directory, repo, root='data'):
             paired=evaluate(model,codec,reader,cache,latents,records,vocab,stats,dict(confirmation=ids),targets,folder,step,cfg['writers'],controls=True)
             estimated=evaluate_duration(model,codec,reader,records,vocab,stats,ids,folder,step,cfg['writers'],cfg['duration_model'],controls=True)
             sf=folder/'synthetic';sf.mkdir();synthetic=evaluate_duration(model,codec,reader,synth,vocab,stats,list(synth),sf,step,cfg['writers'],cfg['duration_model'],controls=True)
-            outputs[a]=dict(selected_step=step,checkpoint_sha256=results[a]['selected_sha256'],oracle=paired['aggregate'],estimated=estimated['aggregate'],synthetic=synthetic['aggregate'],files={str(q.relative_to(out)):file_sha(q) for q in folder.rglob('*') if q.is_file()})
+            generous=evaluate_generous(model,codec,reader,records,vocab,stats,ids,folder,step,cfg['writers'])
+            synthetic_generous=evaluate_generous(model,codec,reader,synth,vocab,stats,list(synth),sf,step,cfg['writers'])
+            outputs[a]=dict(generous=generous['aggregate'],synthetic_generous=synthetic_generous['aggregate'],selected_step=step,checkpoint_sha256=results[a]['selected_sha256'],oracle=paired['aggregate'],estimated=estimated['aggregate'],synthetic=synthetic['aggregate'],files={str(q.relative_to(out)):file_sha(q) for q in folder.rglob('*') if q.is_file()})
     if tensor_digest(codec.state_dict())!=cd or tensor_digest(reader.state_dict())!=rd:raise ValueError('frozen evaluator drift')
     summary=dict(arms=outputs,reservation_sha256=file_sha(seal_path),reservation=seal,opened_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),source_h5_sha256=file_sha(out/'source.h5'),preflight=preflight,
-        policy='One-shot reserved NEW prompts; TRAIN-selected checkpoint, native fit gate5%, no reader-failure exclusions, no subsequent checkpoint tuning. Synthetic only TRAIN-predicted duration, no fictional reference/oracle.',limitations='Known writers and corpus-familiar reader, new forms to current TRAIN/BOTH earlier exposed paired16 sets, not necessarily all older1024runs; only16paired/16synthetic, one seed.')
+        policy='One-shot reserved NEW prompts; TRAIN-selected checkpoint, native fit gate5%, no reader-failure exclusions, no subsequent checkpoint tuning. Synthetic TRAIN-predicted duration AND constant256 budget, no fictional reference/oracle.',limitations='Known writers and corpus-familiar reader, new forms to current TRAIN/BOTH earlier exposed paired16 sets, not necessarily all older1024runs; only16paired/16synthetic, one seed.')
     (out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');return summary

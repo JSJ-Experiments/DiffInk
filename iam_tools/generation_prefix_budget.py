@@ -86,3 +86,35 @@ def audit(directory, repo, root='data'):
     summary=dict(arms=results,lines=allrows,policy='Frozen native-TRAIN-selected weights. All264 prompts evaluated; dev is already exposed, NOT a blind test. Constant256 output budget uses only text/writer and learned firstEOC stop; no target length/forced EOC. ±1 uses oracle solely as a timing intervention; shorter outputs may truncate. Latent and decoded prefix drift reported separately.',
         not_promoted=True,codec_sha256=cfg['source_sha256'],reader_sha256=cfg['reader_sha256'])
     (out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');return summary
+
+
+@torch.no_grad()
+def evaluate_generous(model,codec,reader,records,vocab,stats,ids,folder,step,writers,controls=True):
+    """True target-free constant256 input for paired OR unpaired prompts.
+
+    Actual paired point counts may enter AFTER generation as reader diagnostics;
+    unpaired prompts never get fabricated reference/window metrics.
+    """
+    was=model.training;model.eval();folder=Path(folder);device=next(model.parameters()).device;rows=[]
+    policies=['generous_correct','generous_swapped','generous_null'] if controls else ['generous_correct']
+    path=folder/f'generous-evaluation-{step}.h5'
+    with h5py.File(path,'w') as f:
+        for policy in policies:
+            for start in range(0,len(ids),8):
+                batch=ids[start:start+8]
+                texts=[records[ids[(ids.index(sid)+1)%len(ids)]]['text'] if policy=='generous_swapped' else records[sid]['text'] for sid in batch]
+                x,mask,labels=inputs(texts,[256]*len(batch),vocab,device);wi=writer_tensor(batch,records,writers,device)
+                drop=torch.full((len(batch),),policy=='generous_null',device=device,dtype=torch.bool)
+                z=transform(model(x,torch.ones(len(batch),device=device),labels,mask,drop_text=drop,writer_ids=wi),stats,True)
+                for j,sid in enumerate(batch):
+                    r=records[sid];paired='points' in r
+                    score_record=r if paired else dict(r,points=2048)  # cap for internal reader call, NOT invented reference
+                    points,m=decode_sample(codec,reader,z[j],score_record,vocab)
+                    if not paired:
+                        for key in ['oracle_window_decoded','window_errors','oracle_points','internal_eoc_count']:m.pop(key,None)
+                    row=dict(sample_id=sid,policy=policy,text=r['text'],conditioning_text='' if policy=='generous_null' else texts[j],writer_id=r['writer_id'],budget_blocks=256,no_paired_target=not paired,**m)
+                    rows.append(row);q=f.create_group(policy+'/'+sid);q.create_dataset('points',data=points,compression='gzip');q.create_dataset('latent',data=z[j].cpu().numpy(),compression='gzip');q.attrs['row']=json.dumps(row)
+    groups={policy:dict(evaluations=len(ids),free_cer=sum(r['free_errors'] for r in rows if r['policy']==policy)/sum(r['characters'] for r in rows if r['policy']==policy),free_exact=sum(r['free_errors']==0 for r in rows if r['policy']==policy),missing_eoc=sum(r['first_eoc_point'] is None for r in rows if r['policy']==policy)) for policy in policies}
+    result=dict(step=step,lines=rows,aggregate=groups,packed_h5_sha256=file_sha(path),definition='EVERY input256blocks, original requested text/writer only; swapped/NULL same fixed budget; first learnedEOC stop; no length estimator/target length/forced EOC; no fake unpaired reference metrics')
+    (folder/f'generous-eval-{step}.json').write_text(json.dumps(result,indent=2)+'\n');model.train(was)
+    print(dict(step=step,generous_folder=str(folder),aggregate=groups),flush=True);return result
