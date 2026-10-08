@@ -4706,3 +4706,34 @@ rather than asking a deterministic regression head for eight unsupplied future
 moves at once. A multimodal conditional head remains another viable hypothesis.
 The earlier InkVAE/transport reconstruction capacity result does NOT establish
 capacity/free-running stability of this NEW small autoregressive architecture.
+
+### Completed paired autoregressive pilot (2026-10-08)
+
+Both arms now finished normally at 8000 updates; app stopped with zero tasks.
+Neither is promoted. Fixed/adaptive teacher normalized offset MSE .350894/.319305,
+mean line X RMSE .6102/.5977, Y .5649/.5134, first-index-difference vector RMSE
+.06563/.06307; mean line turn-angle p90 134.50/133.26 degrees. Minimum pen F1 .2
+both, internal false EOC 244/297 and correct final EOC only54/256 vs68/256.
+Free fixedTRAIN8 CER91.80%/94.26%; exposedDEV8 86.83%/86.42%, zero exact prompts.
+Swapped conditioning: TRAIN111.89%/94.26%, DEV90.95%/92.59%. Adaptive clock improves
+teacher error modestly but does NOT establish useful composition. All32 final
+correct free outputs were visually inspected: angular scribbles, repetitive
+suffixes/drift, NOT readable requested handwriting. True-history geometry itself
+is underfit, so failure cannot be attributed to exposure bias alone.
+
+Independent final CPU reload now also passes for adaptive: all16 correct outputs
+preserve lengths/EOC/pen states/reader transcripts, max XY drift1.0073e-5; fixed
+2.861e-5. Frozen reader/model states unchanged. Supplemental reload JSON/source
+and fixed block-horizon audit accompany final report. Both selected8000 using
+TRAIN only. No new confirmation data opened. Actual training loop seconds
+936.4/1558.8, clip fractions0/.0055. GPUbusy32.90%/27.50%, CPUtree~.98core on2CPU;
+no measured CPU saturation and no evidence additional cores fix utilization.
+
+At finaladaptive, drawn-segment error share57.55%, pen-up-jump41.37%; jumps are
+important but do not alone explain failure. Next controlled hypothesis: give
+an intra-block recurrent point head its immediately previous point instead of
+asking one deterministic readout for eight unseen future movements. First check
+this NEW model's own small-set teacher/free capacity; the original InkVAE's
+capacity result does not clear this separate autoregressive architecture. Retain
+source/data/RNG/objective controls and no incidental KL/style/OCR training loss.
+Final report: `checkpoints/iam_autoregressive_study/20261008-152547/report/index.html`.
