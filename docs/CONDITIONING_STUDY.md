@@ -3391,3 +3391,151 @@ Tables intentionally compare equal finalbudgets, not selectedbest aliases. Do no
 promote continuation by heldCER. Marker-free4retained/4held finalhint/control
 comparisons also inspected: both still flattened/illegible, no visualrescue.
 403tests pass root/fork (22new vs381); no production codec/model changed.
+
+## Fresh intermediate capacity gate and target-geometry refresh (2026-10-08)
+
+Completed artifacts (Volume prefix `/mnt/diffink-data/`, container `/data/`):
+
+- `checkpoints/iam_generation_capacity/20261008-054853/report/index.html`
+- `checkpoints/iam_generation_anchor_refresh/20261008-061315/report/index.html`
+
+Each report contains **all264 marker-free comparisons**, full actual TRAIN
+metrics, held8, swapped-text/writer controls, learning curves, independent CPU
+reloads, immutable configs, initial/best/last checkpoints, packed evaluations,
+RNG/Adam states and a packed complete as-run Python source archive. No old reports
+or checkpoints were rewritten. No original production VAE/DiT code changed.
+
+This remains a **standalone direct deterministic text+writer mapper** over the
+faithful initialized polyphase40 research codec, not a learned semantic VAE,
+original InkDiT, stochastic generator, paper reproduction or independent OCR
+benchmark. Codec `9c53f68e...` and corpus-familiar reader `2ebac71d...` stayed
+frozen, with state and absent-gradient checks. Zero input, normalized t999,
+oracle ceil(N/8) duration, full384 predicted channels; no target trajectory or
+prefix at inference, no text/trajectory dropout, no KL/CTC/style loss. The supplied
+duration can leak identity. The eight held prompts are repeatedly inspected
+research controls, not an untouched final benchmark.
+
+### Dataset and matched capacity comparison
+
+Use the first128/256 entries of the existing safely round-robin packed1024
+source, retaining all41 safe lines from original writer10160. Both sizes cover
+32 writers; no new archive or normalization/RDP changes. Same global held form
+and normalized-text exclusions, reserved writers rechecked against clean pool.
+All original32 whitening statistics held fixed, no held statistics. Source HDF5
+SHA `d513ec4e81330685055d006b5527043bac7e07d16d688251d41621af43648c71`;
+source manifest/whitening SHA pinning in `generation_capacity.py`.
+
+**Fresh** initialization and empty Adam for all three arms, avoiding a warm small
+versus fresh big comparison. Small128/small256 weights identical; larger necessarily
+has different weights, same initialization seed18142 and identical initial zero
+readout predictions. Physical batch8,16000 updates, LR1e-4, betas(.9,.99),wd.01,
+clip1, schedule seed19142. Identical256 minibatches/order for small256/larger256.
+128 receives1000 exposures/line,256 receives500; not equal exposure or FLOPs.
+Larger changes both width AND depth, one initialization, not independent repeats.
+TRAIN-only selection evaluates **every** actual TRAIN line, not the prior65probe.
+
+| Arm | Model/parameters | Actual TRAIN CER/exact | X/Y RMSE | segment/second-index-difference error | held8 CER |
+|---|---|---|---|---|---|
+| small128 |128×4 /1,303,808|43.815% /0/128|.121684/.019597|.075073/.104368|79.424%|
+| small256 |128×4 /1,303,808|63.766% /0/256|.203526/.045384|.113596/.161252|81.070%|
+| larger256 |256×6 /7,073,408|49.330% /0/256|.151252/.026768|.077987/.104942|86.008%|
+
+Training loop352.7/352.5/502.5seconds respectively; all16000 budgets complete,
+zero clipped steps. Bigger fits better at this budget, **not enough** to clear
+TRAIN fidelity or composition. We have NOT proven a fundamental capacity limit:
+curves are still improving with training, budgets differ greatly in per-line
+exposure from the old32 memorization. All264 source trajectories round-trip with
+maximum RMSE1.0733e-5, pens exact, reader **264/264 exact**. This does not suggest
+bad labels/codec as the explanation for these failed generated trajectories.
+Small256 TRAIN CER rises63.77→82.00% with swapped text; larger49.33→85.08%.
+Thus requested text matters on TRAIN; this is not proof of held composition or
+freedom from duration leakage. Bigger writer swap only49.33→51.41% CER; not proof
+of good writer/style control.
+
+### A newly measured packing-boundary artifact
+
+CPU pooled within-true-stroke segment audit, real link start index modulo8:
+for larger256 at16000, phase7 (crossing packed latent blocks) segment error
+**.15656**, versus **.05805–.06697** for phases0–6. Actual target segment RMS is
+.08613–.08727 across phases: unequal RDP spacing alone cannot explain this strong
+phase pattern. Similar effect for small128 (.14751 vs.05761–.06539) and small256
+(.24528 vs.07867–.09508). This is empirical periodic error, **not yet a causal
+identification** of which positional features/readout/optimization mechanism makes
+it. Do not call it a proven ConvTranspose bug.
+
+The actual *generated* unwhitened first40 fields versus decoded XY differ at most
+**7.248e-5** over every TRAIN trajectory, including padding; pooled RMSE~2.18e-5,
+no direct-field/decoded pen mismatches. This checks off-source generated latents,
+not just valid source reconstruction. Frozen decoder/GMM readout cannot explain
+the .15656 jump error; it originates mainly in the text mapper's predictions.
+`diagnostics/{phase-audit,decoder-audit}.json` and exact CPU scripts preserve it.
+
+### Loss anisotropy and controlled refresh
+
+Original TRAIN32 whitening has sigmaX~2.89, sigmaY~.20. For equal raw XY position
+errors the **base** standardized latent MSE penalizes X about200× less than Y.
+This is a declared weighting policy, not a coding/normalization correctness bug;
+Adam and shared gradients mean it is NOT by itself proof of the cause.
+At small128 step16000, three TRAIN8 batches have X/Y RMSE~.113–.130/.019–.020,
+shared X gradient norms.00267–.00362 versus Y.00917–.01086. Other evidence and
+exact scripts in `diagnostics/axis-loss-audit.json`; no parameter/grad-buffer edits.
+
+Branch all three8000-update arms from **identical larger256 step16000 weights and
+Adam**, SHA `f87f99bb9c945cf241c4cbfcde2976073874ecc9c6a2a720984cff51d1991787`.
+Same256 lines/minibatches/schedule seed20142, all prior hyperparameters and frozen
+codec/reader unchanged. No geometry postprocessing or architecture edit.
+
+Recalibrate mean shared-backbone gradients (excluding final readout) on24 fixed
+TRAIN lines only; base norm.00690111, isotropic XY norm.35727552, target-segment
+norm.03636326. Old anchor shares at this parent are9.39%/2.13%, not the earlier
+intended25%/10%. Fixed new coefficients give those initial25%/10% shares; they do
+NOT adapt thereafter. No huge arbitrary curvature/smoothing weight.
+
+| Arm | active XY/segment coefficients | TRAIN CER/exact | X/Y RMSE | segment / second-index-difference | mean per-line tangent/turn p90 |
+|---|---|---|---|---|---|
+| control |.001813513526/.004050897769|23.566% /3/256|.118174/.015521|.055584/.072303|89.35°/113.57°|
+| refresh_xy |.004828983342/.004050897769|31.044% /1/256|.098585/.017606|.063814/.085455|100.34°/123.71°|
+| refresh_xy_segment |.004828983342/.018978251569|19.586% /3/256|.074082/.013152|.045525/.060970|80.58°/106.92°|
+
+Index differences are **not physical velocity or geometric curvature**. Segment
+matching minimizes Δpred−Δtarget only inside true strokes, preserving target
+corners/hooks rather than making trajectories universally smooth. Tangent angles
+compare normalized segment vectors; turn angles compare consecutive valid
+within-stroke directions. Tables average each line's p90, not a pooled p90.
+True-corner turn p90 remains poor:141.56°/145.80°/138.36° respectively.
+
+Against matched control, XY+segment reduces X37.3%,Y15.3%,segment18.1%,second
+index-difference15.7%,TRAIN CER3.98percentagepoints. Phase7 error .09354→**.07177**
+(23.3%); other phases also improve (.04582–.05484→.03924–.04442). Seams remain
+worse than within-block links. XY-only decreases X16.6% yet **worsens** local
+geometry/readability; reject it as a promoted fix. This demonstrates why point
+RMSE alone was misleading. Derivative refresh gives a genuine but **partial**
+geometry improvement, not a solved one. Baseline's extra training itself accounts
+for a large49.33→23.57%CER gain; don't credit all progress to loss changes.
+
+Pens: control mean/minF1=1/1; XY-only .998535/.933333; XY+segment
+.998936/.926829. Zero false non-final EOC in all arms; free/window CER equal,
+so premature stopping isn't the main TRAIN failure. The rare boundary regressions
+are real, despite excellent average F1. All gradient clipping fractions remain0.
+Held CER83.951/86.831/81.070%: **all fail**, no new-prompt readability gate.
+
+Both studies saved all264 galleries. Manually inspected4retained/4new128/
+4expansion/4held per study (not claiming every gallery was manually inspected).
+Bigger/later models restore more readable TRAIN letter structure; segment refresh
+reduces roof-like discontinuities and is generally closer in these reviewed lines,
+but angular loops/odd joins persist. Held remains illegible scribbles. This is
+**not visually lossless** across this larger setting and not ready for full IAM,
+production English InkDiT or an incidental OCR/KL/style training launch.
+Independent CPU reloads,8stratified lines/arm: maxXY3.839e-5 for capacity,
+1.526e-5 for refresh, zero pen/transcript differences. All selectors picked final
+steps; report guards verify full TRAIN selection, equal schedules, immutable
+source/checkpoint SHA, identical restored Adam and initial predictions.
+
+**Next:** keep the larger+target-segment arm as a TRAIN-fidelity research candidate,
+not a promoted generator. Test lower-LR convergence and, if seams persist,
+relative-target-segment/explicit boundary diagnostics before further increasing
+data. Contextual/learned text alignment and genuinely semantic/paper latent
+conditioning remain separate likely needs for composition: a weak uniform hint's
+failure did not rule them out. Do not indefinitely polish32lines or claim this
+polyphase prototype is the authors' architecture. Existing clean pool is ample;
+IAMonDo archive remains immutable/not merged.424tests pass root/fork (21new).
