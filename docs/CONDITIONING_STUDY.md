@@ -5770,3 +5770,55 @@ expected untrained zeros, not a new learned failure). No successor quality gain
 claimed yet. Follow these SAME calls; polling timeout is pending, not restart.
 Corpus baseline final report66files byte-verified onv2 (32new,zerooverwrites);
 original-volume mirror/readback still in progress at this documentation point.
+
+### Pen-lift / rendered-stroke audit (user-identified deficit)
+
+Added reusable `stroke_diagnostics.py` and offline hash-verified
+`report_stroke_diagnostics.py`. Count class1 lifts, internal lifts, rendered
+strokes (including singleton dots), connected segments, EOC; final pen-up/EOC
+creates no empty extra stroke. Report rates per character/per100points and paired
+ratios. Severe corpus-relative failure flag = median per-character AND per-point
+lift ratio <.5. Individual severe rows are also reported. This is not an exact
+writer-specific stroke-count requirement; generic writer styles legitimately vary.
+Stop strata separate EOC before80% estimated cap, near cap, cap withoutEOC;
+80% is an explicit heuristic, not oracle proof of early truncation. Known source
+counts are OFFLINE context, never generation input. Per-point counts are not
+physical time/arc-length rates (RDP spacing nonuniform). Allsaved noises/guidances/
+controls audited, primaryseed/g1 marker-free fixedscale gallery available.
+
+Confirmed user's observation on completed corpus baseline12000, g1/bothseeds:
+- TRAIN16 repeated2noises: median9 generated lifts vs25 matchedIAM;
+  strokes10vs26, normalized lift ratios char.315/point.300;
+  severe27/32 outputs.26ofthese severe rows ended near estimatedcap.
+- DEV32 repeated2noises: median9.5vs28 lifts, strokes10.5vs29;
+  normalized char.343/point.366; severe52/64 outputs.51ofthese ended nearcap.
+Thus the deficit persists after point-count normalization and is not explained
+merely by early EOC. No claim this proves a particular pen-head/loss cause; weak
+content generation, categorical averaging and genuine style differences remain
+possible mechanisms. Treat it as another QUALITY FAILURE, not an acceptable CER
+tradeoff. Do not resume eight-line head/stop polishing in response.
+Audit: `checkpoints/iam_corpus_dit/20261008-223316/stroke-audit-12000/index.html`.
+
+New factorial1000 preliminary matched controls: fullx0 DEVg1CER84.765%,
+compactx0 83.998%; both unreadable/unproven, not an acceptable success. Compact
+DEVg1 median19lifts vs28source, normalized.724/.742, severe5/64; fullx0 atSAME
+step median33.5vs28, normalized1.311/1.355. Do not compare earlycompact directly
+to latefull to claim a final intervention win. Bothx0 arms passed source gates,
+finite updates. Fullx0 nearly reproduces original250/500/750/1000 loss/grad (max
+active40loss delta2.09e-7/rawgrad delta1.64e-6), exact batches/timesteps and
+1000CER; NOT bitwise IEEE reproducibility (elapsed runtime also differs): useful actualGPU control/RNG
+validation, not a new result. v arms queued in the same4callledger, max2T4.
+New audit: `checkpoints/iam_compact_dit/20261008-232330/stroke-audit-1000/index.html`.
+This is posthoc instrumentation ONLY; pinned running training objectives/model/
+selection remain unchanged. No severe-underlifting candidate will be treated as
+usable generation merely for a better aggregate loss.708 tests expected (10new
+count/report tests), publication/test status independently checked below.
+
+Publication/testing verified:708 tests PASS BOTHroot/fork, including7count and
+3hash-verified report regressions. Both stroke audits (8files including diagnostic
+source archives) uploaded/byte-readback verified on BOTHVolumes, ZEROoverwrites.
+Completed corpus baseline66files plus manifest also verified on BOTHVolumes;
+original mirror pending note above is now superseded. See
+`/tmp/stroke-audit-publication-verification.json` and baseline
+`report/publication-verification.json` for exact hashes/publication scope.
+Running factorial objectives, source hashes and four call IDs unchanged.
