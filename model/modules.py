@@ -387,11 +387,12 @@ class Attention(nn.Module):
         x: float["b n d"],  # noised input x  # noqa: F722
         c: float["b n d"] = None,  # context c  # noqa: F722
         mask: bool["b n"] | None = None,  # noqa: F722
+        c_mask: bool["b nt"] | None = None,
         rope=None,  # rotary position embedding for x
         c_rope=None,  # rotary position embedding for c
     ) -> torch.Tensor:
         if c is not None:
-            return self.processor(self, x, c=c, mask=mask, rope=rope, c_rope=c_rope)
+            return self.processor(self, x, c=c, mask=mask, c_mask=c_mask, rope=rope, c_rope=c_rope)
         else:
             return self.processor(self, x, mask=mask, rope=rope)
 
@@ -468,6 +469,7 @@ class JointAttnProcessor:
         x: float["b n d"],  # noised input x  # noqa: F722
         c: float["b nt d"] = None,  # context c, here text # noqa: F722
         mask: bool["b n"] | None = None,  # noqa: F722
+        c_mask: bool["b nt"] | None = None,
         rope=None,  # rotary position embedding for x
         c_rope=None,  # rotary position embedding for c
     ) -> torch.FloatTensor:
@@ -508,10 +510,12 @@ class JointAttnProcessor:
         key = key.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
         value = value.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
 
-        # mask. e.g. inference got a batch with different target durations, mask out the padding
-        if mask is not None:
-            attn_mask = F.pad(mask, (0, c.shape[1]), value=True)  # no mask for c (text)
-            attn_mask = attn_mask.unsqueeze(1).unsqueeze(1)  # 'b n -> b 1 1 n'
+        # mask. Trajectory padding mask [B, n] and text padding mask [B, nt]
+        if mask is not None or c_mask is not None:
+            x_m = mask if mask is not None else torch.ones(batch_size, x.shape[1], dtype=torch.bool, device=x.device)
+            c_m = c_mask if c_mask is not None else torch.ones(batch_size, c.shape[1], dtype=torch.bool, device=c.device)
+            key_mask = torch.cat([x_m, c_m], dim=1)  # [B, n + nt]
+            attn_mask = key_mask.unsqueeze(1).unsqueeze(1)  # [B, 1, 1, n + nt]
             attn_mask = attn_mask.expand(batch_size, attn.heads, query.shape[-2], key.shape[-2])
         else:
             attn_mask = None
@@ -536,7 +540,8 @@ class JointAttnProcessor:
         if mask is not None:
             mask = mask.unsqueeze(-1)
             x = x.masked_fill(~mask, 0.0)
-            # c = c.masked_fill(~mask, 0.)  # no mask for c (text)
+        if c_mask is not None and not attn.context_pre_only:
+            c = c.masked_fill(~c_mask.unsqueeze(-1), 0.0)
 
         return x, c
 
@@ -616,7 +621,7 @@ class MMDiTBlock(nn.Module):
         self.ff_norm_x = nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.ff_x = FeedForward(dim=dim, mult=ff_mult, dropout=dropout, approximate="tanh")
 
-    def forward(self, x, c, t, mask=None, rope=None, c_rope=None):  # x: noised input, c: context, t: time embedding
+    def forward(self, x, c, t, mask=None, c_mask=None, rope=None, c_rope=None):  # x: noised input, c: context, t: time embedding
         # pre-norm & modulation for attention input
         if self.context_pre_only:
             norm_c = self.attn_norm_c(c, t)
@@ -624,8 +629,15 @@ class MMDiTBlock(nn.Module):
             norm_c, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp = self.attn_norm_c(c, emb=t)
         norm_x, x_gate_msa, x_shift_mlp, x_scale_mlp, x_gate_mlp = self.attn_norm_x(x, emb=t)
 
+        if c_mask is not None:
+            norm_c = norm_c.masked_fill(~c_mask.unsqueeze(-1), 0.0)
+        if mask is not None:
+            norm_x = norm_x.masked_fill(~mask.unsqueeze(-1), 0.0)
+
         # attention
-        x_attn_output, c_attn_output = self.attn(x=norm_x, c=norm_c, mask=mask, rope=rope, c_rope=c_rope)
+        x_attn_output, c_attn_output = self.attn(
+            x=norm_x, c=norm_c, mask=mask, c_mask=c_mask, rope=rope, c_rope=c_rope
+        )
 
         # process attention output for context c
         if self.context_pre_only:
@@ -636,6 +648,8 @@ class MMDiTBlock(nn.Module):
             norm_c = self.ff_norm_c(c) * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
             c_ff_output = self.ff_c(norm_c)
             c = c + c_gate_mlp.unsqueeze(1) * c_ff_output
+            if c_mask is not None:
+                c = c.masked_fill(~c_mask.unsqueeze(-1), 0.0)
 
         # process attention output for input x
         x = x + x_gate_msa.unsqueeze(1) * x_attn_output
@@ -643,6 +657,8 @@ class MMDiTBlock(nn.Module):
         norm_x = self.ff_norm_x(x) * (1 + x_scale_mlp[:, None]) + x_shift_mlp[:, None]
         x_ff_output = self.ff_x(norm_x)
         x = x + x_gate_mlp.unsqueeze(1) * x_ff_output
+        if mask is not None:
+            x = x.masked_fill(~mask.unsqueeze(-1), 0.0)
 
         return c, x
 

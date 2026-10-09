@@ -228,7 +228,12 @@ class CrossAttentionTextEmbedding(nn.Module):
         text_mask = text != 0  # True for real character positions
 
         if drop_text:
-            text = torch.zeros_like(text)
+            text_embed = torch.zeros(
+                text.shape[0], text.shape[1], self.text_embed.embedding_dim,
+                device=text.device, dtype=self.text_embed.weight.dtype
+            )
+            text_mask = torch.zeros_like(text_mask)
+            return text_embed, text_mask
 
         text_embed = self.text_embed(text.long())  # [B, nt, text_dim]
 
@@ -245,6 +250,8 @@ class CrossAttentionTextEmbedding(nn.Module):
             for block in self.text_blocks:
                 text_embed = block(text_embed)
                 text_embed = text_embed.masked_fill(~text_mask.unsqueeze(-1), 0.0)
+        else:
+            text_embed = text_embed.masked_fill(~text_mask.unsqueeze(-1), 0.0)
 
         return text_embed, text_mask
 
@@ -383,6 +390,8 @@ class CrossAttentionDiT(nn.Module):
         text_embed, text_mask = self.text_embed(text, drop_text=drop_text)
         # Project to model dimension [B, nt, dim]
         c = self.text_proj(text_embed)
+        # Mask out padding positions so text_proj bias does not leak into attention
+        c = c.masked_fill(~text_mask.unsqueeze(-1), 0.0)
 
         # Input latent embedding WITHOUT text concatenation [B, n, dim]
         x = self.input_embed(x, noise, drop_cond=drop_cond, mask=mask)
@@ -397,7 +406,7 @@ class CrossAttentionDiT(nn.Module):
 
         # Joint attention: trajectory and text tokens attend to each other
         for block in self.transformer_blocks:
-            c, x = block(x, c, t, mask=mask, rope=rope, c_rope=c_rope)
+            c, x = block(x, c, t, mask=mask, c_mask=text_mask, rope=rope, c_rope=c_rope)
 
         if self.long_skip_connection is not None:
             x = self.long_skip_connection(torch.cat((x, residual), dim=-1))
