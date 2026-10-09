@@ -81,14 +81,17 @@ def duration(m,text):
     return max(len(text),predict_duration(m,text,'corpus'))
 
 
-def prepare(repo,root='data'):
+def prepare(repo,root='data',use_cross_attention=False):
     root=Path(root);pool,m,vocab=load_pool(root,POOL_SHA)
     for path,sha in [(root/CODEC,CODEC_SHA),(root/READER_REL,READER_SHA),(root/DATA/'dataset.json',DATASET_SHA)]:
         if file_sha(path)!=sha:raise ValueError('pinned corpus/codec/reader/history source drift')
     historical=json.loads((root/DATA/'dataset.json').read_text())['records'];s=scope(m,historical);records={i:m['records'][i] for ids in s['splits'].values() for i in ids};train=s['splits']['train'];counts=Counter(records[i]['writer_id'] for i in train)
     if len(train)<7000 or len(counts)<150 or min(counts.values())<2:raise ValueError('real broad corpus with repeated writer examples required')
-    cfg=dict(profile='actual released DiT backbone with engineering correctness fixes + frozen initialized transport codec; NOT paper reproduction',pool_relative=str(pool.relative_to(root)),pool_manifest_sha256=POOL_SHA,source_h5_sha256=m['lines_h5_sha256'],codec_relative=CODEC,codec_sha256=CODEC_SHA,reader_relative=READER_REL,reader_sha256=READER_SHA,history_relative=DATA+'/dataset.json',history_sha256=DATASET_SHA,
-        vocab=vocab,model=dict(dim=384,depth=8,heads=6,dim_head=64,latent_dim=384,text_dim=192,num_text_embedding=len(vocab)+1,text_mask_padding=True,conv_layers=3,ff_mult=4,dropout=.05,long_skip_connection=False),
+    profile=('actual released DiT backbone with joint cross-attention (MMDiT) + frozen initialized transport codec; NOT paper reproduction'
+             if use_cross_attention else
+             'actual released DiT backbone with engineering correctness fixes + frozen initialized transport codec; NOT paper reproduction')
+    cfg=dict(profile=profile,pool_relative=str(pool.relative_to(root)),pool_manifest_sha256=POOL_SHA,source_h5_sha256=m['lines_h5_sha256'],codec_relative=CODEC,codec_sha256=CODEC_SHA,reader_relative=READER_REL,reader_sha256=READER_SHA,history_relative=DATA+'/dataset.json',history_sha256=DATASET_SHA,
+        vocab=vocab,model=dict(dim=384,depth=8,heads=6,dim_head=64,latent_dim=384,text_dim=192,num_text_embedding=len(vocab)+1,text_mask_padding=True,conv_layers=3,ff_mult=4,dropout=.05,long_skip_connection=False,use_cross_attention=use_cross_attention),
         diffusion_steps=1000,timestep_input_divisor=1000.,prediction='x0',schedule='cosine',batch=32,lr=5e-5,min_lr=1e-6,warmup_updates=600,betas=[.9,.99],weight_decay=.0001,clip=1.,max_updates=12000,max_train_wall_seconds=1800,seed=SEED+1,schedule_seed=SEED+2,
         prefix_keep_probability=.7,text_drop_probability=.1,prefix_target_ratio=.3,prefix_loss='valid suffix only when retained; all valid points for pure text/NULL branches',posterior_target='fresh sampled z from cached model means/logvars; all384 channels retained',whitening='TRAIN-only mean and total posterior std=sqrt(variance(mu)+mean(exp(logvar))); floor.1; no held/fresh statistics',
         eval_steps=[0,1000,3000,6000,12000],eval_train_ids=sorted(train,key=lambda i:hashlib.sha256(('train-probe:'+i).encode()).hexdigest())[:16],eval_dev_ids=list(s['splits']['dev'])[:32],
