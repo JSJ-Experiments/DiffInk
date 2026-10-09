@@ -116,9 +116,16 @@ def run(relative,arm,root='/work',on_checkpoint=None):
         with monitor.in_phase('load_cache'):items,stats=load_cache(parent,data)
         with monitor.in_phase('codec_unused_gate'):gate=unused_gate(codec,items,stats,cfg['eval_train_ids']+cfg['eval_dev_ids']);(folder/'unused-decoder-gate.json').write_text(json.dumps(gate,indent=2)+'\n')
         train=data['scope']['splits']['train'];pool=PosteriorPool(items,data['records'],cfg['vocab'],train,stats,'cuda')
-        torch.manual_seed(cfg['seed']);full=DiT(ModelConfig(cfg['model']));base=tensor_digest(full.state_dict());mc=dict(cfg['model'],latent_dim=channels)
-        if channels==384:model=full
-        else:model=DiT(ModelConfig(mc));model.load_state_dict(matched_initial_state(full.state_dict(),model.state_dict()))
+        torch.manual_seed(cfg['seed'])
+        if cfg['model'].get('use_cross_attention',False):
+            from model.dit import CrossAttentionDiT
+            full=CrossAttentionDiT(ModelConfig(cfg['model']));base=tensor_digest(full.state_dict());mc=dict(cfg['model'],latent_dim=channels)
+            if channels==384:model=full
+            else:model=CrossAttentionDiT(ModelConfig(mc));model.load_state_dict(matched_initial_state(full.state_dict(),model.state_dict()))
+        else:
+            full=DiT(ModelConfig(cfg['model']));base=tensor_digest(full.state_dict());mc=dict(cfg['model'],latent_dim=channels)
+            if channels==384:model=full
+            else:model=DiT(ModelConfig(mc));model.load_state_dict(matched_initial_state(full.state_dict(),model.state_dict()))
         del full;model=model.cuda();initial=tensor_digest(model.state_dict());opt=torch.optim.AdamW(model.parameters(),lr=cfg['lr'],betas=tuple(cfg['betas']),weight_decay=cfg['weight_decay']);diffusion=Diffusion(noise_steps=cfg['diffusion_steps'],schedule_type='cosine',device='cuda');adapter=X0Adapter(model,diffusion.alpha_hat,channels,prediction,cfg['timestep_input_divisor']).cuda();batches=list(schedule(train,pool.lengths,cfg['max_updates'],cfg['batch'],cfg['schedule_seed']));orderhash=hashlib.sha256(json.dumps(batches).encode()).hexdigest();history=[];seconds=0.;clipped=0;best_step=0;stop='budget_completed'
         def save(name,step):torch.save(dict(model_state_dict=model.state_dict(),optimizer_state_dict=opt.state_dict(),arm=arm,channels=channels,prediction=prediction,step=step,config=cfg,initial_model_digest=initial,shared_full_initial_digest=base,training_order_sha256=orderhash,rng_cpu=torch.get_rng_state(),rng_cuda=torch.cuda.get_rng_state_all(),source_archive_sha256=cfg['source_archive_sha256']),folder/name)
         def assess(step):

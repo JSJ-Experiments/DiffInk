@@ -16,7 +16,7 @@ from utils.optim import dit_build_optimizer_and_scheduler
 from utils.utils import ModelConfig, save_checkpoint, load_config_from_yaml, set_seed
 from trainer.dit_trainer import train_dit_one_epoch, val_dit_one_batch
 
-from model.dit import TextEmbedding, InputEmbedding, DiT
+from model.dit import TextEmbedding, InputEmbedding, DiT, CrossAttentionDiT
 
 def strip_module_prefix(state_dict):
     return {k.replace("module.", ""): v for k, v in state_dict.items()}
@@ -39,7 +39,10 @@ def train_dit_ddp(task_name, time):
     # === 初始化模型 ===
     set_seed(42)
     vae = VAE(config).to(device)
-    dit = DiT(config).to(device)
+    if config_dict.get('use_cross_attention', False):
+        dit = CrossAttentionDiT(config).to(device)
+    else:
+        dit = DiT(config).to(device)
 
     optimizer, scheduler = dit_build_optimizer_and_scheduler(dit, config_dict, len(train_loader))
 

@@ -23,6 +23,7 @@ from .modules import (
     ConvNeXtV2Block,
     ConvPositionEmbedding,
     DiTBlock,
+    MMDiTBlock,
     AdaLayerNormZero_Final,
     precompute_freqs_cis,
     get_pos_embed_indices,
@@ -176,6 +177,227 @@ class DiT(nn.Module):
 
         for block in self.transformer_blocks:
             x = block(x, t, mask=mask.bool(), rope=rope)
+
+        if self.long_skip_connection is not None:
+            x = self.long_skip_connection(torch.cat((x, residual), dim=-1))
+
+        x = self.norm_out(x, t)
+        output = self.proj_out(x)
+
+        return output.masked_fill(~mask[..., None], 0.)
+
+
+# ---------------------------------------------------------------------------
+# Cross-attention text embedding: keeps text at its NATURAL character length
+# instead of padding/truncating to match the latent sequence length.
+# ---------------------------------------------------------------------------
+
+class CrossAttentionTextEmbedding(nn.Module):
+    """Embed text tokens at their natural length for cross-attention.
+
+    Unlike TextEmbedding, this does NOT pad text to the latent sequence length.
+    Text tokens remain at [B, nt, text_dim] where nt is the actual text length,
+    enabling proper cross-attention from trajectory positions to characters.
+    """
+    def __init__(self, text_num_embeds, text_dim, conv_layers=0, conv_mult=2):
+        super().__init__()
+        self.text_embed = nn.Embedding(text_num_embeds + 1, text_dim)  # +1 for filler token 0
+
+        if conv_layers > 0:
+            self.extra_modeling = True
+            self.precompute_max_pos = 2000
+            self.register_buffer("freqs_cis", precompute_freqs_cis(text_dim, self.precompute_max_pos), persistent=False)
+            self.text_blocks = nn.Sequential(
+                *[ConvNeXtV2Block(text_dim, text_dim * conv_mult) for _ in range(conv_layers)]
+            )
+        else:
+            self.extra_modeling = False
+
+    def forward(self, text, drop_text=False):
+        """Embed text at its natural length.
+
+        Args:
+            text: [B, nt] integer token IDs. Padding positions are -1.
+            drop_text: if True, zero out all embeddings for classifier-free guidance.
+
+        Returns:
+            text_embed: [B, nt, text_dim] embeddings at natural text length.
+            text_mask: [B, nt] boolean mask, True for real tokens.
+        """
+        text = text + 1  # shift so padding -1 -> 0 (filler token), real tokens 0..V -> 1..V+1
+        text_mask = text != 0  # True for real character positions
+
+        if drop_text:
+            text = torch.zeros_like(text)
+
+        text_embed = self.text_embed(text.long())  # [B, nt, text_dim]
+
+        batch, text_len = text_embed.shape[0], text_embed.shape[1]
+
+        if self.extra_modeling:
+            batch_start = torch.zeros((batch,), dtype=torch.long, device=text.device)
+            pos_idx = get_pos_embed_indices(batch_start, text_len, max_pos=self.precompute_max_pos)
+            text_pos_embed = self.freqs_cis[pos_idx]
+            text_embed = text_embed + text_pos_embed
+
+            # Mask padding before and after each ConvNeXt block
+            text_embed = text_embed.masked_fill(~text_mask.unsqueeze(-1), 0.0)
+            for block in self.text_blocks:
+                text_embed = block(text_embed)
+                text_embed = text_embed.masked_fill(~text_mask.unsqueeze(-1), 0.0)
+
+        return text_embed, text_mask
+
+
+# ---------------------------------------------------------------------------
+# Cross-attention input embedding: projects latent WITHOUT text concatenation.
+# Text enters the model only through cross-attention in MMDiTBlocks.
+# ---------------------------------------------------------------------------
+
+class CrossAttentionInputEmbedding(nn.Module):
+    """Project noised latent to model dimension without text concatenation.
+
+    Text conditioning happens exclusively through cross-attention in the
+    transformer blocks, not at the input projection.
+    """
+    def __init__(self, latent_dim, out_dim):
+        super().__init__()
+        self.proj = nn.Linear(latent_dim, out_dim)
+        self.conv_pos_embed = ConvPositionEmbedding(dim=out_dim)
+
+    def forward(self, x, noise, drop_cond=False, mask=None):
+        if drop_cond:
+            x = noise
+
+        x = self.proj(x)
+        if mask is not None:
+            x = x.masked_fill(~mask[..., None], 0.)
+        x = self.conv_pos_embed(x, mask=mask) + x
+        return x
+
+
+# ---------------------------------------------------------------------------
+# CrossAttentionDiT: MMDiT backbone where text tokens attend bidirectionally
+# with trajectory latent tokens. Text stays at its natural character length
+# and interacts through joint attention — enabling compositional generalization.
+# ---------------------------------------------------------------------------
+
+class CrossAttentionDiT(nn.Module):
+    """DiT with cross-attention text conditioning via MMDiTBlocks.
+
+    Key differences from the original DiT:
+    1. Text is NOT padded/truncated to latent length — it stays at [B, nt].
+    2. Text is NOT concatenated with latent at input — it enters through
+       bidirectional joint attention in every MMDiTBlock.
+    3. Each trajectory position can attend to ALL text characters, enabling
+       compositional character→stroke mapping.
+
+    The forward() signature is identical to the original DiT for compatibility
+    with existing training loops and evaluation code.
+    """
+    def __init__(self, config: ModelConfig):
+        super().__init__()
+        dim = config.dim
+        latent_dim = config.latent_dim
+        num_text_embedding = config.num_text_embedding
+        text_dim = config.text_dim
+        conv_layers = config.conv_layers
+        dim_head = config.dim_head
+        depth = config.depth
+        heads = config.heads
+        ff_mult = config.ff_mult
+        dropout = config.dropout
+        long_skip_connection = config.long_skip_connection
+
+        self.time_embed = TimestepEmbedding(dim)
+
+        # Text embedding at natural character length (no padding to latent len)
+        self.text_embed = CrossAttentionTextEmbedding(
+            text_num_embeds=num_text_embedding, text_dim=text_dim,
+            conv_layers=conv_layers,
+        )
+
+        # Project text from text_dim to model dim for cross-attention
+        self.text_proj = nn.Linear(text_dim, dim) if text_dim != dim else nn.Identity()
+
+        # Input embedding WITHOUT text concatenation
+        self.input_embed = CrossAttentionInputEmbedding(latent_dim=latent_dim, out_dim=dim)
+
+        self.rotary_embed = RotaryEmbedding(dim_head)
+
+        # MMDiTBlocks for joint text-trajectory attention.
+        # Last block uses context_pre_only=True (text doesn't need further FFN).
+        self.transformer_blocks = nn.ModuleList([
+            MMDiTBlock(
+                dim=dim, heads=heads, dim_head=dim_head,
+                ff_mult=ff_mult, dropout=dropout,
+                context_pre_only=(i == depth - 1),
+            )
+            for i in range(depth)
+        ])
+
+        self.long_skip_connection = nn.Linear(dim * 2, dim, bias=False) if long_skip_connection else None
+
+        self.norm_out = AdaLayerNormZero_Final(dim)
+        self.proj_out = nn.Linear(dim, latent_dim)
+
+        self.initialize_weights()
+
+    def initialize_weights(self):
+        # Zero-out AdaLN layers in MMDiT blocks:
+        for block in self.transformer_blocks:
+            nn.init.constant_(block.attn_norm_x.linear.weight, 0)
+            nn.init.constant_(block.attn_norm_x.linear.bias, 0)
+            if hasattr(block.attn_norm_c, 'linear'):
+                nn.init.constant_(block.attn_norm_c.linear.weight, 0)
+                nn.init.constant_(block.attn_norm_c.linear.bias, 0)
+
+        # Zero-out output layers:
+        nn.init.constant_(self.norm_out.linear.weight, 0)
+        nn.init.constant_(self.norm_out.linear.bias, 0)
+        nn.init.constant_(self.proj_out.weight, 0)
+        nn.init.constant_(self.proj_out.bias, 0)
+
+    def forward(
+        self,
+        x: float["b n d"],  # noised input latent  # noqa: F722
+        noise: float["b n d"],  # pure noise  # noqa: F722
+        text: int["b nt"],  # text token IDs  # noqa: F722
+        time: float["b"] | float[""],  # diffusion timestep  # noqa: F821 F722
+        mask: bool["b n"] | None = None,  # latent padding mask  # noqa: F722
+        drop_text: bool = False,
+        drop_cond: bool = False,
+    ):
+        batch, seq_len = x.shape[0], x.shape[1]
+        if mask is None:
+            mask = torch.ones(batch, seq_len, dtype=torch.bool, device=x.device)
+        else:
+            mask = mask.bool()
+        if time.ndim == 0:
+            time = time.repeat(batch)
+
+        # Timestep conditioning
+        t = self.time_embed(time)
+
+        # Text embedding at NATURAL character length [B, nt, text_dim]
+        text_embed, text_mask = self.text_embed(text, drop_text=drop_text)
+        # Project to model dimension [B, nt, dim]
+        c = self.text_proj(text_embed)
+
+        # Input latent embedding WITHOUT text concatenation [B, n, dim]
+        x = self.input_embed(x, noise, drop_cond=drop_cond, mask=mask)
+
+        # Rotary embeddings for trajectory positions
+        rope = self.rotary_embed.forward_from_seq_len(seq_len)
+        # Separate rotary embeddings for text positions
+        c_rope = self.rotary_embed.forward_from_seq_len(text_embed.shape[1])
+
+        if self.long_skip_connection is not None:
+            residual = x
+
+        # Joint attention: trajectory and text tokens attend to each other
+        for block in self.transformer_blocks:
+            c, x = block(x, c, t, mask=mask, rope=rope, c_rope=c_rope)
 
         if self.long_skip_connection is not None:
             x = self.long_skip_connection(torch.cat((x, residual), dim=-1))

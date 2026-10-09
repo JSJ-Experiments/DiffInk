@@ -142,7 +142,13 @@ def run(relative,root='/work',on_checkpoint=None):
         if on_checkpoint:
             with monitor.in_phase('persist'):on_checkpoint()
         train=data['scope']['splits']['train'];pool=PosteriorPool(items,data['records'],cfg['vocab'],train,stats,'cuda');del items
-        torch.manual_seed(cfg['seed']);model=DiT(ModelConfig(cfg['model'])).cuda();initial=tensor_digest(model.state_dict());opt=torch.optim.AdamW(model.parameters(),lr=cfg['lr'],betas=tuple(cfg['betas']),weight_decay=cfg['weight_decay']);diffusion=Diffusion(noise_steps=cfg['diffusion_steps'],schedule_type='cosine',device='cuda');batches=list(schedule(train,pool.lengths,cfg['max_updates'],cfg['batch'],cfg['schedule_seed']));orderhash=hashlib.sha256(json.dumps(batches).encode()).hexdigest();history=[];best=float('inf');best_step=0;seconds=0.;clipped=0;stop='budget_completed'
+        torch.manual_seed(cfg['seed'])
+        if cfg['model'].get('use_cross_attention',False):
+            from model.dit import CrossAttentionDiT
+            model=CrossAttentionDiT(ModelConfig(cfg['model'])).cuda()
+        else:
+            model=DiT(ModelConfig(cfg['model'])).cuda()
+        initial=tensor_digest(model.state_dict());opt=torch.optim.AdamW(model.parameters(),lr=cfg['lr'],betas=tuple(cfg['betas']),weight_decay=cfg['weight_decay']);diffusion=Diffusion(noise_steps=cfg['diffusion_steps'],schedule_type='cosine',device='cuda');batches=list(schedule(train,pool.lengths,cfg['max_updates'],cfg['batch'],cfg['schedule_seed']));orderhash=hashlib.sha256(json.dumps(batches).encode()).hexdigest();history=[];best=float('inf');best_step=0;seconds=0.;clipped=0;stop='budget_completed'
         def save(name,step):torch.save(dict(model_state_dict=model.state_dict(),optimizer_state_dict=opt.state_dict(),step=step,config=cfg,initial_model_digest=initial,training_order_sha256=orderhash,rng_cpu=torch.get_rng_state(),rng_cuda=torch.cuda.get_rng_state_all(),source_archive_sha256=cfg['source_archive_sha256']),folder/name)
         def assess(step):
             with monitor.in_phase('eval'):row=evaluate(model,codec,reader,stats,diffusion.alpha_hat,cfg,data,folder,step,dict(train=cfg['eval_train_ids'],dev_unseen_text=cfg['eval_dev_ids']),controls=step in (0,cfg['max_updates']))
