@@ -487,6 +487,15 @@ class JointAttnProcessor:
         c_key = attn.to_k_c(c)
         c_value = attn.to_v_c(c)
 
+        # RoPE frequencies have dim_head features. Split BOTH streams first;
+        # applying RoPE to [B, N, heads * dim_head] rotates only head zero.
+        head_dim = key.shape[-1] // attn.heads
+        def split_heads(tensor):
+            return tensor.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
+
+        query, key, value = map(split_heads, (query, key, value))
+        c_query, c_key, c_value = map(split_heads, (c_query, c_key, c_value))
+
         # apply rope for context and noised input independently
         if rope is not None:
             freqs, xpos_scale = rope
@@ -500,15 +509,9 @@ class JointAttnProcessor:
             c_key = apply_rotary_pos_emb(c_key, freqs, k_xpos_scale)
 
         # attention
-        query = torch.cat([query, c_query], dim=1)
-        key = torch.cat([key, c_key], dim=1)
-        value = torch.cat([value, c_value], dim=1)
-
-        inner_dim = key.shape[-1]
-        head_dim = inner_dim // attn.heads
-        query = query.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
-        key = key.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
-        value = value.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
+        query = torch.cat([query, c_query], dim=2)
+        key = torch.cat([key, c_key], dim=2)
+        value = torch.cat([value, c_value], dim=2)
 
         # mask. Trajectory padding mask [B, n] and text padding mask [B, nt]
         if mask is not None or c_mask is not None:
