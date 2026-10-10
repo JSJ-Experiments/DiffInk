@@ -5822,3 +5822,33 @@ original mirror pending note above is now superseded. See
 `/tmp/stroke-audit-publication-verification.json` and baseline
 `report/publication-verification.json` for exact hashes/publication scope.
 Running factorial objectives, source hashes and four call IDs unchanged.
+
+### Native WSL development (2026-10-10)
+
+Authoritative workspace moved to `/home/timothy/code/autowrite`. No new Modal
+training; original source code is not synced back over destination changes.
+Fresh AMD same-backend concat/joint conditioning study prepared at
+`checkpoints/iam_wsl_conditioning/20261010-110622`: compact40, both pure-text/no
+clean prefix, shared step-local data RNG independent of model dropout. Joint
+has additional parameters; no attention-only causal claim. Required historical
+inputs checksum-verified, source separately archived; previous T4 configs remain
+unchanged. No old fresh/held confirmations reopened. Pen-lift diagnostics every
+checkpoint; severe under-lifting remains a quality failure. Native synthetic
+optimizer/text-gradient/NULL checks pass; 783 tests +11subtests PASS. Full archive
+migration is still ongoing. Details and exact protocol:
+`docs/WSL_CONDITIONING_STUDY.md`.
+Study running in persistent tmux `iam-wsl-conditioning`, serial arms, oneAMD GPU;
+no new generation improvement claimed at launch. Inspect that SAME study rather
+than restart after a polling timeout.
+
+
+Native launch update: `20261010-110622` FAILED during step0 evaluation before
+any training updates, from packed-GRU MIOpen inference, not data corruption or
+optimizer instability. Preserved config/source/initial/partial/log and terminal
+failure status. Opt-in ATen GPU frozen-reader wrapper now validates against CPU:
+all48 source decoded strings identical, max logit difference3.24e-5; no weights,
+targets or OCR learning changed. 788 root /752 fork tests +11subtests each PASS.
+Corrected separately archived study `checkpoints/iam_wsl_conditioning/20261010-112127`
+launched ONCE in the same persistent tmux name, serial concat/joint, oneAMD GPU.
+Watch this corrected study, not the failed one. No readability improvement
+claimed yet; severe under-lifting remains a failure criterion.

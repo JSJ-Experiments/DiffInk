@@ -286,7 +286,7 @@ class CrossAttentionInputEmbedding(nn.Module):
 # ---------------------------------------------------------------------------
 # CrossAttentionDiT: MMDiT backbone where text tokens attend bidirectionally
 # with trajectory latent tokens. Text stays at its natural character length
-# and interacts through joint attention — enabling compositional generalization.
+# and interacts through joint attention — a conditioning hypothesis to test.
 # ---------------------------------------------------------------------------
 
 class CrossAttentionDiT(nn.Module):
@@ -296,8 +296,11 @@ class CrossAttentionDiT(nn.Module):
     1. Text is NOT padded/truncated to latent length — it stays at [B, nt].
     2. Text is NOT concatenated with latent at input — it enters through
        bidirectional joint attention in every MMDiTBlock.
-    3. Each trajectory position can attend to ALL text characters, enabling
-       compositional character→stroke mapping.
+    3. Text and trajectory have separate projections and evolving streams.
+
+    Original DiT self-attention already has global access to concatenated text
+    features. This variant adds context-stream capacity and a different modality
+    interface; compositional generalization is NOT established by construction.
 
     The forward() signature is identical to the original DiT for compatibility
     with existing training loops and evaluation code.
