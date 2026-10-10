@@ -227,12 +227,17 @@ workstation suite799 tests +31 subtests PASS (latest logs under
 `logs/wsl-native-report-full-tests.log`); report generation itself was also run
 against the real saved artifacts. No handwriting improvement claimed yet.
 
-The next decision remains content composition across these same-backend arms.
-If neither gives convincing readable/supplied-text-sensitive outputs, prioritize
-an explicit semantic/character-alignment or recognition-supervised generation
-experiment over another small-line pen/stop sweep. The frozen initialized
-polyphase transport is lossless for observed geometry, but was never established
-as a good semantic diffusion target. Attention alone and longer budgets remain
-hypotheses, not ruled-out universal possibilities.
+The next decision remains content composition across these same-backend arms,
+but this is an AMD backend/control comparison, NOT the newest research direction.
+**Handoff correction:** later T4 text-content, geometry-repair, gradient-balance
+and motion56/padding experiments already exist in workspace TEXT_CONDITIONING.md
+and ARCHITECTURE_AUDIT.md. Frozen-reader CTC established strong content signal but
+not human handwriting; norm-ratio tuning and motion/padding fixes did not satisfy
+the combined gate. Do NOT recommend repeating them or another attention-only
+variant as an untested next step. See [RESEARCH_HANDOFF_CHECK.md](RESEARCH_HANDOFF_CHECK.md)
+for reconciled findings and the proposed joint topology/geometry/content and
+learned stroke/segment representation priority. The existing topology_motion56
+prototype is untrained, not a quality result. Native controls do not supersede
+these later historical experiments.
 
 Additional validation: first500 actual concat/joint updates match sample order, diffusion timesteps, text-drop draws and recorded full posterior/noise digests (`matched-draw-audit-500.json`). This is NOT a claim about architecture-specific dropout draws. Fork suite763 tests +31 subtests PASS (`logs/wsl-native-report-fork-tests.log`); workspace799 +31 PASS. CPU-only final-report waiter is running in `iam-wsl-report`, separate from the ONE native GPU training process.
