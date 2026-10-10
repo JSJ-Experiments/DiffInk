@@ -155,3 +155,84 @@ or a new independent benchmark. See `logs/rocm-reader-source-parity.json` and
 parameters, mask forwarding, disabled training dropout, flags restored on both
 success/exception, and no hidden retries. Fresh corrected study was separately
 prepared/archived rather than mutating the failed source archive.
+
+## First completed native control and review tooling (2026-10-10)
+
+`concat` finished all12,000 updates; durable coordinator status is `complete`.
+Actual training751.128s, clip fraction3.8833%, peak allocated4.197GB (decimal;
+not GPU-busy telemetry). DEV32, both noise seeds, guidance1:
+
+| Checkpoint | Unseen-text CER | Exact sentences | Generated/IAM median lifts | Severe rows |
+| --- | ---: | ---: | ---: | ---: |
+| DEV-selected step1000 |83.5378% |0/64 |20/28 |2/64 |
+| Final step12000 |90.8998% |0/64 |23/28 |3/64 |
+
+Final TRAIN16 CER89.5299%, zero exact sentences. Matched primary-noise DEV
+correct/swapped/NULL CER against the original request:90.0818/91.1043/92.9448%.
+That modest content effect is NOT successful composition. At step6000,
+target-informed timestep999 active-field MSE correct.7183 versus NULL.7290;
+low-noise error improves much more, but that supplies the actual target.
+These numbers do not establish that pure-text training is ineffective at any
+budget, or that joint attention cannot help. They establish failure of this
+bounded concat control. The joint arm now runs serially from its matched fresh
+initializer; no extra Modal or competing native GPU run was launched.
+
+All48 primary-noise/guidance1 correct-text outputs at step6000 were visually
+reviewed, at fixed100px/model-unit without markers, smoothing or fit-to-width.
+They remain angular/fragmentary, not coherent requested sentences: this is not
+merely frozen-reader disagreement. Explicit scoped review record and six full
+contact sheets:
+`.../report-20261010-113933/visual-review-6000.json`.
+Other seeds, controls and selected/final outputs are not claimed exhaustively
+visually reviewed by that record. Reader source-posterior DEV CER8.6912% is
+context, not a free-generation baseline or independent recognition benchmark.
+
+New CPU-only reporter `iam_tools/report_wsl_conditioning.py` verifies runtime
+source/input hashes, actual native mapped initializers, every sequential update,
+TRAIN-only schedule, measured clipping/LR, shared sampled-data digests, all
+requested probes/seeds/guidances/controls, actual saved hard pens/first-EOC,
+recomputed stroke audits and target-informed diagnostics. Terminal mode also
+checks bounded termination, DEV-only selection and selected/final checkpoint
+hashes/contracts; differing actual per-arm wall-cap steps are supported.
+Partial snapshots are explicitly labelled partial; no report directory is
+created before requested evidence passes. Saved verified log prefixes are pinned
+independently of a concurrent live tail. Correct/swapped/NULL paired galleries
+use identical starting noise/duration and show both requested and supplied CER.
+No free-output RMSE ranking to an oracle exemplar, confirmation reopening or
+quality promotion.
+
+Latest completed-concat report (still PARTIAL two-arm study):
+`checkpoints/iam_wsl_conditioning/20261010-112127/report-20261010-114605/index.html`.
+Open it locally from Windows via
+`E:\autowrite-data\checkpoints\iam_wsl_conditioning\20261010-112127\report-20261010-114605\index.html`.
+
+```sh
+# Snapshot of explicitly completed milestones; no training/GPU allocation.
+python -m iam_tools.report_wsl_conditioning \
+  checkpoints/iam_wsl_conditioning/20261010-112127 \
+  --arms concat --steps 0 1000 3000 6000
+# Require all actual terminal milestones/checkpoints for both arms:
+python -m iam_tools.report_wsl_conditioning \
+  checkpoints/iam_wsl_conditioning/20261010-112127 \
+  --arms concat joint --terminal
+```
+
+`scripts/report_wsl_conditioning.sh <study>` is an optional CPU-only waiter:
+exclusive flock, three-hour bound, checks coordinator liveness/incomplete status,
+never retries or starts training. It writes the final verified report when both
+arms are confirmed complete. Eleven new report regression tests cover missing
+updates/controls, data-RNG mismatch, hidden prefixes, metric/checkpoint-selection
+contract drift, target-informed scope and differing actual wall stops. Whole
+workstation suite799 tests +31 subtests PASS (latest logs under
+`logs/wsl-native-report-full-tests.log`); report generation itself was also run
+against the real saved artifacts. No handwriting improvement claimed yet.
+
+The next decision remains content composition across these same-backend arms.
+If neither gives convincing readable/supplied-text-sensitive outputs, prioritize
+an explicit semantic/character-alignment or recognition-supervised generation
+experiment over another small-line pen/stop sweep. The frozen initialized
+polyphase transport is lossless for observed geometry, but was never established
+as a good semantic diffusion target. Attention alone and longer budgets remain
+hypotheses, not ruled-out universal possibilities.
+
+Additional validation: first500 actual concat/joint updates match sample order, diffusion timesteps, text-drop draws and recorded full posterior/noise digests (`matched-draw-audit-500.json`). This is NOT a claim about architecture-specific dropout draws. Fork suite763 tests +31 subtests PASS (`logs/wsl-native-report-fork-tests.log`); workspace799 +31 PASS. CPU-only final-report waiter is running in `iam-wsl-report`, separate from the ONE native GPU training process.

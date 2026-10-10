@@ -5852,3 +5852,5 @@ Corrected separately archived study `checkpoints/iam_wsl_conditioning/20261010-1
 launched ONCE in the same persistent tmux name, serial concat/joint, oneAMD GPU.
 Watch this corrected study, not the failed one. No readability improvement
 claimed yet; severe under-lifting remains a failure criterion.
+
+Native control update: concat completed12k (DEV-selected83.54% CER; final90.90%, zero exact). Joint is running serially. Verified marker-free/paired-control reports and severe-underlifting gates: see `docs/WSL_CONDITIONING_STUDY.md` (workspace) / `WSL_CONDITIONING_STUDY.md` (fork docs). No new readability success or confirmation opened.
