@@ -62,10 +62,10 @@ Before another corpus generation launch:
 
 ## Current run handling
 
-`iam_wsl_conditioning/20261010-112127`: concat complete, joint still bounded and
-running at reconciliation. Preserve its source/config/provenance; do not alter the
-runtime or submit a duplicate. Let it terminate and collect the combined verified
-report. A quiet SSH process-exit monitor and CPU-only report waiter are active.
+`iam_wsl_conditioning/20261010-112127`: both arms completed normally.
+Training and final CPU reporting were monitored through process exit; no native
+study GPU job or report waiter remains. Preserve immutable source/config/results
+and do not resubmit the closed study. See terminal results below.
 Further plain-attention/no-CTC repeats are NOT the research recommendation.
 
 ## No-training check of the existing topology prototype
@@ -83,3 +83,37 @@ Evidence/scripts on WSL: `logs/topology-real-reader-source-contract.{py,json}`.
 The first diagnostic caller failed before computation because the nested model
 module was absent from PYTHONPATH; preserved separately, then fixed explicitly in
 the standalone diagnostic script. No training retry or model change occurred.
+
+## Native bounded control is now closed
+
+Both native arms completed12,000updates; combined report passed all declared
+source/checkpoint/evaluation/stroke and matched-data checks. Selected/final DEV
+g1 CER: concat83.54/90.90%, joint86.66/89.42%, zero exact sentences. Both are
+unpromoted failures, consistent with the historical pure-text control rather
+than a new promising attention direction. All12k actual data draws match.
+No native-study GPU jobs remain; the process-exit monitor waited for both training and final
+CPU reporting to exit normally. Combined report:
+`checkpoints/iam_wsl_conditioning/20261010-112127/report-20261010-121409/index.html`.
+
+
+## Scoped final visual review
+
+All96 final correct-text outputs (48 per arm, step12000, seed73142, guidance1)
+were directly inspected in twelve marker-free, fixed-scale contact sheets.
+Both arms remain malformed/angular fragments, not coherent requested sentences.
+No visual breakthrough and no promotion. Secondary seeds, guidance2, controls
+and selected-step1000 outputs were not exhaustively inspected.
+The combined report now contains `visual-review-12000.json`, binding IDs,
+evaluation HDF5, rendering script and image hashes to this scoped verdict.
+
+
+## Discrete hard-change source check, not just gradient existence
+
+The16-TRAIN-line CPU counterfactual audit now tests actual binary boundary flips,
+their repairs, and interior EOC. Its biased derivative signs agree with finite
+CTC changes in53.1% of source corruptions versus82.8% of repairs. Fixed-length
+CTC improves for18/64 premature-EOC probes despite first-EOC free stopping
+retaining median48.8% of the source. This does not establish an end-to-end failure
+or a solution, but blocks calling the untrained surrogate automatically safe.
+See [TOPOLOGY_SOURCE_AUDIT.md](TOPOLOGY_SOURCE_AUDIT.md) for exact scope/artifacts
+and a non-redundant learned stroke/structured-action next experiment.

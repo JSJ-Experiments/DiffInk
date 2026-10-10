@@ -1,5 +1,11 @@
 # Native AMD English conditioning investigation
 
+**Latest status:** both native arms completed12,000 updates, matched DATA draws
+verified across all12,000, combined report complete. No native GPU training or
+report waiter remains active. Historical running notes below are superseded by
+the terminal section. See RESEARCH_HANDOFF_CHECK.md for the reconciled later
+T4 findings and research priority.
+
 Development is now authoritative at `/home/timothy/code/autowrite`, reached with
 `ssh -p 2222 timothy@100.101.148.8`. Do not sync older source code over this tree.
 See workspace `docs/TIMOTHY_WSL.md` for ROCm activation and migration caveats.
@@ -241,3 +247,43 @@ prototype is untrained, not a quality result. Native controls do not supersede
 these later historical experiments.
 
 Additional validation: first500 actual concat/joint updates match sample order, diffusion timesteps, text-drop draws and recorded full posterior/noise digests (`matched-draw-audit-500.json`). This is NOT a claim about architecture-specific dropout draws. Fork suite763 tests +31 subtests PASS (`logs/wsl-native-report-fork-tests.log`); workspace799 +31 PASS. CPU-only final-report waiter is running in `iam-wsl-report`, separate from the ONE native GPU training process.
+
+## Native comparison terminal closure (2026-10-10)
+
+Both arms completed their12k budgets, unchanged codec/reader and no confirmations.
+All12k batch/timestep/text-drop and recorded posterior/noise digests match.
+Both DEV selectors chose1000; no candidate promoted.
+
+| Arm | Selected DEV g1 CER | Final DEV g1 CER | Final exact | Final generated/IAM lifts | Severe rows |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| concat |83.5378% |90.8998% |0/64 |23/28 |3/64 |
+| joint |86.6564% |89.4172% |0/64 |23.5/28 |4/64 |
+
+Final g2 DEV87.2188%concat /85.4806%joint, still no exact sentences.
+Actual TRAIN seconds751.128 /1198.521; clip fractions3.883% /2.992%.
+Attention-only architectural substitution did not establish useful composition
+at this bounded budget. This does not prove any attention architecture fails
+at all budgets, and does NOT supersede the later T4 CTC content breakthrough.
+Near-normal stroke counts do not pass the content/readability gate.
+
+Combined fail-closed report:
+`checkpoints/iam_wsl_conditioning/20261010-112127/report-20261010-121409/index.html`.
+All saved stages/controls and actual terminal checkpoints verified; matching-data
+comparison covers12,000updates. Source/codec/reader remain frozen. Contact-sheet
+and visual-review records are separate evidence; report generation alone does not
+claim exhaustive visual inspection. Do not start another pure-attention/no-CTC
+repeat from these results. Follow the reconciled architecture/stroke/topology
+priority, verifying missing newer historical artifacts before choosing its control.
+
+
+### Terminal visual review scope
+
+All96 final primary-seed/g1 correct-text outputs inspected:48 concat +48 joint,
+including all16 TRAIN and32 DEV prompts in each arm. Twelve full contact sheets
+show angular/malformed fragments and loops rather than coherent requested lines.
+Both arms fail actual readability, not merely the reader score. No promotion.
+Scoped evidence: combined report `visual-review-12000.json` and
+`review-{concat,joint}-12000-01.png` through `-06.png`.
+Secondary seeds/g2/controls/DEV-selected1000 are not exhaustively reviewed.
+The quiet monitors reached normal exit; no native-study training/reporting task
+is pending. This statement does not audit unrelated processes or migration.
